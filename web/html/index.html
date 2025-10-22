@@ -999,23 +999,73 @@
             }
 
             if (filteredPrograms.length === 0) {
-                programList.innerHTML = `<p class="loading">「${searchKeyword}」に一致する番組が見つかりませんでした</p>`;
+                const noResultMsg = document.createElement('p');
+                noResultMsg.className = 'loading';
+                noResultMsg.style.gridColumn = '1 / -1';
+                noResultMsg.textContent = `「${searchKeyword}」に一致する番組が見つかりませんでした`;
+                programList.appendChild(noResultMsg);
                 return;
             }
 
-            // 放送局ごとにグループ化
-            const stationMap = new Map();
+            // 日付ごとにグループ化
+            const dateMap = new Map();
             filteredPrograms.forEach((prog, index) => {
                 prog._index = programs.indexOf(prog); // 元のインデックスを保存
-                if (!stationMap.has(prog.stationId)) {
-                    stationMap.set(prog.stationId, {
-                        name: prog.stationName,
-                        id: prog.stationId,
+                const progDate = new Date(prog.ft);
+                const dateKey = `${progDate.getFullYear()}-${String(progDate.getMonth() + 1).padStart(2, '0')}-${String(progDate.getDate()).padStart(2, '0')}`;
+
+                if (!dateMap.has(dateKey)) {
+                    dateMap.set(dateKey, {
+                        date: progDate,
                         programs: []
                     });
                 }
-                stationMap.get(prog.stationId).programs.push(prog);
+                dateMap.get(dateKey).programs.push(prog);
             });
+
+            // 日付順にソート
+            const sortedDates = Array.from(dateMap.keys()).sort();
+
+            // 日付ごとに表示
+            sortedDates.forEach(dateKey => {
+                const dateGroup = dateMap.get(dateKey);
+                const programDate = dateGroup.date;
+                const year = programDate.getFullYear();
+                const month = programDate.getMonth() + 1;
+                const day = programDate.getDate();
+                const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][programDate.getDay()];
+
+                // 日付ヘッダー
+                const dateHeaderElement = document.createElement('div');
+                dateHeaderElement.style.cssText = 'grid-column: 1 / -1; padding: 15px 20px; margin-bottom: 20px; margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); text-align: center;';
+                dateHeaderElement.innerHTML = `
+                    <div style="font-size: 1.3em; font-weight: bold; margin-bottom: 5px;">
+                        📅 ${year}年${month}月${day}日（${dayOfWeek}）
+                    </div>
+                    <div style="font-size: 0.9em; opacity: 0.95;">
+                        ${dateGroup.programs.length}件の番組
+                    </div>
+                `;
+                programList.appendChild(dateHeaderElement);
+
+                // この日付の番組を放送局ごとにグループ化
+                const stationMap = new Map();
+                dateGroup.programs.forEach(prog => {
+                    if (!stationMap.has(prog.stationId)) {
+                        stationMap.set(prog.stationId, {
+                            name: prog.stationName,
+                            id: prog.stationId,
+                            programs: []
+                        });
+                    }
+                    stationMap.get(prog.stationId).programs.push(prog);
+                });
+
+                displayStations(stationMap, programList);
+            });
+        }
+
+        function displayStations(stationMap, programList) {
 
             // 各放送局の列を作成
             stationMap.forEach(station => {
