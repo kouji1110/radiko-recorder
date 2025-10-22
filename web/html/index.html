@@ -479,6 +479,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('search')">📻 番組検索</button>
             <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
+            <button class="tab" onclick="switchTab('cron')">⏰ cron管理</button>
         </div>
 
         <!-- 番組検索タブ -->
@@ -591,6 +592,23 @@
             </div>
         </div>
 
+        <!-- cron管理タブ -->
+        <div id="cronTab" class="tab-content">
+            <div class="content">
+                <div style="padding: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏰ cron管理</h2>
+                        <button class="btn btn-primary" onclick="loadCronJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                    </div>
+                    <div id="cronLoading" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>cron一覧を読み込み中...</p>
+                    </div>
+                    <div id="cronList"></div>
+                </div>
+            </div>
+        </div>
+
         <footer>
             <p>&copy; 2025 radiko録音管理システム | Powered by radiko API</p>
         </footer>
@@ -605,6 +623,7 @@
             <div class="command-box" id="commandBox"></div>
             <div class="modal-actions">
                 <button class="btn btn-action btn-execute" id="executeBtn" onclick="executeCommand()" style="display: none;">実行</button>
+                <button class="btn btn-action" id="registerCronBtn" style="display: none; background: #28a745; color: white;">⏰ cron登録</button>
                 <button class="btn btn-action btn-copy" onclick="copyCommand(event)">コピー</button>
                 <button class="btn btn-action btn-close" onclick="closeModal()">閉じる</button>
             </div>
@@ -632,6 +651,11 @@
                 document.getElementById('filesTab').classList.add('active');
                 // ファイルタブを開いた時に自動読み込み
                 loadRecordedFiles();
+            } else if (tabName === 'cron') {
+                document.querySelectorAll('.tab')[2].classList.add('active');
+                document.getElementById('cronTab').classList.add('active');
+                // cronタブを開いた時に自動読み込み
+                loadCronJobs();
             }
         }
 
@@ -1053,10 +1077,18 @@
             const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}`;
 
             currentCommand = command;
-            currentProgramData = null; // cronは実行ボタンなし
+            currentProgramData = null;
             document.getElementById('modalTitle').textContent = `cronコマンド - ${prog.title}`;
             document.getElementById('commandBox').textContent = command;
             document.getElementById('executeBtn').style.display = 'none';
+
+            // cron登録ボタンを表示
+            const registerBtn = document.getElementById('registerCronBtn');
+            if (registerBtn) {
+                registerBtn.style.display = 'inline-block';
+                registerBtn.onclick = () => addCronJob(command);
+            }
+
             document.getElementById('modal').classList.add('active');
         }
 
@@ -1141,6 +1173,7 @@
 
         function closeModal() {
             document.getElementById('modal').classList.remove('active');
+            document.getElementById('registerCronBtn').style.display = 'none';
             if (eventSource) {
                 eventSource.close();
                 eventSource = null;
@@ -1528,12 +1561,20 @@
                                     <div>🕒 ${dateStr}</div>
                                 </div>
                             </div>
-                            <a href="${baseUrl}/download/${file.path}" download="${file.name}"
-                               style="display: block; text-align: center; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; transition: all 0.2s;"
-                               onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-2px)';"
-                               onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)';">
-                                📥 ダウンロード
-                            </a>
+                            <div style="display: flex; gap: 8px;">
+                                <a href="${baseUrl}/download/${file.path}" download="${file.name}"
+                                   style="flex: 1; display: block; text-align: center; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; transition: all 0.2s;"
+                                   onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-2px)';"
+                                   onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)';">
+                                    📥 DL
+                                </a>
+                                <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
+                                        style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#c82333'; this.style.transform='translateY(-2px)';"
+                                        onmouseout="this.style.background='#dc3545'; this.style.transform='translateY(0)';">
+                                    🗑️
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -1577,6 +1618,173 @@
             } catch (err) {
                 console.error('Error checking file:', err);
                 return null;
+            }
+        }
+
+        // cron一覧を読み込む
+        async function loadCronJobs() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            const cronLoading = document.getElementById('cronLoading');
+            const cronList = document.getElementById('cronList');
+
+            cronLoading.style.display = 'block';
+            cronList.innerHTML = '';
+
+            try {
+                const response = await fetch(`${baseUrl}/cron/list`);
+                if (!response.ok) {
+                    cronLoading.style.display = 'none';
+                    cronList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">cron一覧の取得に失敗しました</div>';
+                    return;
+                }
+
+                const data = await response.json();
+                const cronJobs = data.cron_jobs || [];
+
+                cronLoading.style.display = 'none';
+
+                if (cronJobs.length === 0) {
+                    cronList.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">⏰</div>
+                            <div style="color: #6c757d; font-size: 1.1em; font-weight: 500;">登録されているcronジョブはありません</div>
+                            <div style="color: #adb5bd; font-size: 0.9em; margin-top: 8px;">番組のcronコマンドを実行すると、ここに表示されます</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div style="margin-bottom: 15px; padding: 10px 15px; background: #e7f3ff; border-left: 4px solid #667eea; border-radius: 4px;">
+                        <div style="font-size: 0.9em; color: #495057;">
+                            <strong>${cronJobs.length}件</strong>のcronジョブが登録されています
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                `;
+
+                cronJobs.forEach((job, index) => {
+                    html += `
+                        <div style="padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1; min-width: 0; margin-right: 15px;">
+                                    <div style="font-family: 'Courier New', monospace; font-size: 0.85em; color: #212529; word-break: break-all; line-height: 1.6;">
+                                        ${job}
+                                    </div>
+                                </div>
+                                <button onclick='removeCronJob("${job.replace(/'/g, "\\'")}")'
+                                        style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                                        onmouseover="this.style.background='#c82333';"
+                                        onmouseout="this.style.background='#dc3545';">
+                                    🗑️ 削除
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                cronList.innerHTML = html;
+
+            } catch (err) {
+                console.error('Error loading cron jobs:', err);
+                cronLoading.style.display = 'none';
+                cronList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">エラーが発生しました</div>';
+            }
+        }
+
+        // cronジョブを追加
+        async function addCronJob(command) {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            try {
+                const response = await fetch(`${baseUrl}/cron/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ cronジョブを登録しました');
+                    // cron管理タブに切り替えて一覧を更新
+                    switchTab('cron');
+                } else {
+                    alert('❌ エラー: ' + (data.error || 'cronジョブの登録に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error adding cron job:', err);
+                alert('❌ cronジョブの登録に失敗しました');
+            }
+        }
+
+        // cronジョブを削除
+        async function removeCronJob(command) {
+            if (!confirm('このcronジョブを削除しますか？\n\n' + command)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            try {
+                const response = await fetch(`${baseUrl}/cron/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ cronジョブを削除しました');
+                    loadCronJobs();
+                } else {
+                    alert('❌ エラー: ' + (data.error || 'cronジョブの削除に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error removing cron job:', err);
+                alert('❌ cronジョブの削除に失敗しました');
+            }
+        }
+
+        // ファイルを削除
+        async function deleteFile(filepath, filename) {
+            if (!confirm('このファイルを削除しますか？\n\n' + filename)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            try {
+                const response = await fetch(`${baseUrl}/file/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ path: filepath })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ ファイルを削除しました');
+                    loadRecordedFiles();
+                } else {
+                    alert('❌ エラー: ' + (data.error || 'ファイルの削除に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error deleting file:', err);
+                alert('❌ ファイルの削除に失敗しました');
             }
         }
 

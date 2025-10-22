@@ -229,5 +229,144 @@ def check_file_exists():
         logger.error(f'Check file error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@app.route('/cron/list', methods=['GET'])
+def list_cron():
+    """現在のcrontabを取得"""
+    try:
+        result = subprocess.run(['crontab', '-l'],
+                              capture_output=True,
+                              text=True)
+
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            cron_jobs = []
+
+            for line in lines:
+                if line and not line.startswith('#'):
+                    cron_jobs.append(line)
+
+            return jsonify({'cron_jobs': cron_jobs})
+        else:
+            return jsonify({'cron_jobs': []})
+
+    except Exception as e:
+        logger.error(f'List cron error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/cron/add', methods=['POST'])
+def add_cron():
+    """crontabに新しいジョブを追加"""
+    try:
+        data = request.json
+        cron_command = data.get('command', '')
+
+        if not cron_command:
+            return jsonify({'error': 'Command is required'}), 400
+
+        # 現在のcrontabを取得
+        result = subprocess.run(['crontab', '-l'],
+                              capture_output=True,
+                              text=True)
+
+        current_crontab = result.stdout if result.returncode == 0 else ''
+
+        # 重複チェック
+        if cron_command in current_crontab:
+            return jsonify({'error': 'This cron job already exists'}), 400
+
+        # 新しいcronジョブを追加
+        new_crontab = current_crontab.rstrip('\n') + '\n' + cron_command + '\n'
+
+        # crontabを更新
+        process = subprocess.Popen(['crontab', '-'],
+                                 stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 text=True)
+
+        stdout, stderr = process.communicate(input=new_crontab)
+
+        if process.returncode == 0:
+            return jsonify({'success': True, 'message': 'Cron job added successfully'})
+        else:
+            return jsonify({'error': stderr}), 500
+
+    except Exception as e:
+        logger.error(f'Add cron error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/cron/remove', methods=['POST'])
+def remove_cron():
+    """crontabからジョブを削除"""
+    try:
+        data = request.json
+        cron_command = data.get('command', '')
+
+        if not cron_command:
+            return jsonify({'error': 'Command is required'}), 400
+
+        # 現在のcrontabを取得
+        result = subprocess.run(['crontab', '-l'],
+                              capture_output=True,
+                              text=True)
+
+        if result.returncode != 0:
+            return jsonify({'error': 'No crontab found'}), 404
+
+        current_crontab = result.stdout
+        lines = current_crontab.split('\n')
+
+        # 指定されたコマンドを除外
+        new_lines = [line for line in lines if line.strip() != cron_command.strip()]
+        new_crontab = '\n'.join(new_lines)
+
+        # crontabを更新
+        process = subprocess.Popen(['crontab', '-'],
+                                 stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 text=True)
+
+        stdout, stderr = process.communicate(input=new_crontab)
+
+        if process.returncode == 0:
+            return jsonify({'success': True, 'message': 'Cron job removed successfully'})
+        else:
+            return jsonify({'error': stderr}), 500
+
+    except Exception as e:
+        logger.error(f'Remove cron error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/file/delete', methods=['POST'])
+def delete_file():
+    """録音ファイルを削除"""
+    try:
+        data = request.json
+        filepath = data.get('path', '')
+
+        if not filepath:
+            return jsonify({'error': 'File path is required'}), 400
+
+        # セキュリティ: パストラバーサル対策
+        base_dir = '/home/sites/radiko-recorder/output/radio'
+        safe_path = os.path.normpath(os.path.join(base_dir, filepath))
+
+        if not safe_path.startswith(base_dir):
+            return jsonify({'error': 'Invalid file path'}), 400
+
+        if not os.path.exists(safe_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        # ファイルを削除
+        os.remove(safe_path)
+        logger.info(f'File deleted: {safe_path}')
+
+        return jsonify({'success': True, 'message': 'File deleted successfully'})
+
+    except Exception as e:
+        logger.error(f'Delete file error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
