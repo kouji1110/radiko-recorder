@@ -540,9 +540,12 @@
                     </select>
                 </div>
 
-                <div class="setting-group">
-                    <label for="targetDate">日付:</label>
-                    <input type="date" id="targetDate" value="">
+                <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
+                    <label style="margin-bottom: 8px;">日付:</label>
+                    <div id="dateButtons" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <!-- 日付ボタンはJavaScriptで動的に生成 -->
+                    </div>
+                    <input type="hidden" id="targetDate" value="">
                 </div>
 
                 <div class="setting-group">
@@ -563,6 +566,7 @@
 
             <button id="fetchBtn" class="btn btn-primary">番組表を取得</button>
             <button id="searchAllBtn" class="btn btn-primary" style="margin-left: 8px;">全エリアから検索</button>
+            <button id="clearCacheBtn" class="btn" style="margin-left: 8px; background: #667eea; color: white;">🔄 再取得</button>
         </div>
 
             <div class="content">
@@ -743,6 +747,126 @@
         let allProgramsData = [];
         let eventSource = null;
         let currentEditingCron = { original: '', commandPart: '' };
+        // 番組表キャッシュ（エリアID + 日付をキーにする）
+        // 各エントリは { data: [...], timestamp: Date } の形式
+        const programCache = new Map();
+        const CACHE_EXPIRE_MS = 30 * 60 * 1000; // 30分でキャッシュ期限切れ
+
+        // localStorageからキャッシュを読み込む
+        function loadCacheFromStorage() {
+            try {
+                const stored = localStorage.getItem('radikoCache');
+                console.log('localStorage読み込み開始');
+                if (stored) {
+                    const cacheData = JSON.parse(stored);
+                    console.log('localStorage内のキャッシュ:', Object.keys(cacheData));
+                    Object.entries(cacheData).forEach(([key, value]) => {
+                        // Dateオブジェクトを復元
+                        if (value.data) {
+                            value.data.forEach(prog => {
+                                prog.ft = new Date(prog.ft);
+                                prog.to = new Date(prog.to);
+                            });
+                        }
+                        programCache.set(key, value);
+                    });
+                    console.log(`✅ localStorageから${programCache.size}件のキャッシュを読み込み`);
+                } else {
+                    console.log('localStorage: キャッシュなし');
+                }
+            } catch (err) {
+                console.error('❌ キャッシュ読み込みエラー:', err);
+            }
+        }
+
+        // localStorageにキャッシュを保存
+        function saveCacheToStorage() {
+            try {
+                const cacheData = {};
+                programCache.forEach((value, key) => {
+                    cacheData[key] = value;
+                });
+                localStorage.setItem('radikoCache', JSON.stringify(cacheData));
+            } catch (err) {
+                console.error('キャッシュ保存エラー:', err);
+            }
+        }
+
+        // 古いキャッシュを削除する関数
+        function clearOldCache() {
+            console.log('🧹 キャッシュクリーンアップ開始');
+            console.log(`クリーンアップ前のキャッシュ数: ${programCache.size}件`);
+
+            const now = new Date();
+            const today = new Date(now);
+
+            // 朝5時未満の場合は前日として扱う
+            if (today.getHours() < 5) {
+                today.setDate(today.getDate() - 1);
+            }
+
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            console.log(`基準日: ${todayStr} (朝5時基準)`);
+
+            // 8日以上前のキャッシュを削除（過去7日間は保持）
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const sevenDaysAgoStr = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`;
+            console.log(`保持期間: ${sevenDaysAgoStr} 〜 ${todayStr}`);
+
+            // 古いキャッシュ、または期限切れのキャッシュを削除
+            const keysToDelete = [];
+            programCache.forEach((value, key) => {
+                // キーの形式: "JP27_2025-01-23" または "JP27_now"
+                const parts = key.split('_');
+                if (parts.length === 2) {
+                    const date = parts[1];
+
+                    // 8日以上前の日付のキャッシュは削除
+                    if (date !== 'now' && date < sevenDaysAgoStr) {
+                        console.log(`  削除理由: 8日以上前 - ${key} (${date} < ${sevenDaysAgoStr})`);
+                        keysToDelete.push({ key, reason: '8日以上前' });
+                        return;
+                    }
+
+                    // 期限切れ（30分以上経過）のキャッシュも削除
+                    if (!isCacheValid(value)) {
+                        const age = Math.floor((Date.now() - value.timestamp) / 60000);
+                        console.log(`  削除理由: 期限切れ - ${key} (${age}分経過)`);
+                        keysToDelete.push({ key, reason: `期限切れ(${age}分)` });
+                        return;
+                    }
+
+                    // 有効なキャッシュ
+                    const age = Math.floor((Date.now() - value.timestamp) / 60000);
+                    console.log(`  保持: ${key} (${age}分経過, 有効期限内)`);
+                }
+            });
+
+            keysToDelete.forEach(item => {
+                programCache.delete(item.key);
+                console.log(`❌ 削除: ${item.key} (${item.reason})`);
+            });
+
+            if (keysToDelete.length > 0) {
+                console.log(`✅ キャッシュクリーンアップ完了: ${keysToDelete.length}件削除`);
+                // クリーンアップ後にlocalStorageを更新
+                saveCacheToStorage();
+            } else {
+                console.log('✅ キャッシュクリーンアップ: 削除対象なし');
+            }
+            console.log(`クリーンアップ後のキャッシュ数: ${programCache.size}件`);
+        }
+
+        // キャッシュが有効かチェックする関数
+        function isCacheValid(cacheEntry) {
+            if (!cacheEntry || !cacheEntry.timestamp) {
+                return false;
+            }
+            const now = Date.now();
+            const age = now - cacheEntry.timestamp;
+            return age < CACHE_EXPIRE_MS;
+        }
 
         // タブ切り替え
         function switchTab(tabName) {
@@ -769,8 +893,21 @@
 
         // 今日の日付とエリアのデフォルトを設定
         document.addEventListener('DOMContentLoaded', function() {
-            // 日本時間で今日の日付を取得（toISOStringはUTCになるため使わない）
-            const today = new Date();
+            // localStorageからキャッシュを読み込み
+            loadCacheFromStorage();
+
+            // ページ読み込み時に古いキャッシュをクリア
+            clearOldCache();
+
+            // 日本時間で今日の日付を取得（朝5時を日付の変わり目とする）
+            const now = new Date();
+            const today = new Date(now);
+
+            // 朝5時未満の場合は前日として扱う
+            if (today.getHours() < 5) {
+                today.setDate(today.getDate() - 1);
+            }
+
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
             const day = String(today.getDate()).padStart(2, '0');
@@ -778,23 +915,94 @@
 
             document.getElementById('targetDate').value = dateStr;
 
-            // 過去7日間から今日までの範囲を設定
-            const minDate = new Date(today);
-            minDate.setDate(minDate.getDate() - 7);
-            const minYear = minDate.getFullYear();
-            const minMonth = String(minDate.getMonth() + 1).padStart(2, '0');
-            const minDay = String(minDate.getDate()).padStart(2, '0');
-            const minDateStr = `${minYear}-${minMonth}-${minDay}`;
+            // 1週間分の日付ボタンを生成
+            const dateButtonsContainer = document.getElementById('dateButtons');
+            const dayLabels = ['日', '月', '火', '水', '木', '金', '土'];
 
-            document.getElementById('targetDate').min = minDateStr;
-            document.getElementById('targetDate').max = dateStr;
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+
+                const btnYear = date.getFullYear();
+                const btnMonth = String(date.getMonth() + 1).padStart(2, '0');
+                const btnDay = String(date.getDate()).padStart(2, '0');
+                const btnDateStr = `${btnYear}-${btnMonth}-${btnDay}`;
+                const dayOfWeek = dayLabels[date.getDay()];
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = `${btnMonth}/${btnDay}(${dayOfWeek})`;
+                button.dataset.date = btnDateStr;
+
+                // 今日の日付をデフォルトで選択状態にする
+                if (i === 0) {
+                    button.style.cssText = 'padding: 8px 12px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);';
+                } else {
+                    button.style.cssText = 'padding: 8px 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s;';
+                }
+
+                button.addEventListener('click', async function() {
+                    // すべてのボタンのスタイルをリセット
+                    dateButtonsContainer.querySelectorAll('button').forEach(btn => {
+                        btn.style.cssText = 'padding: 8px 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s;';
+                    });
+
+                    // クリックされたボタンを選択状態にする
+                    this.style.cssText = 'padding: 8px 12px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);';
+
+                    // 隠しフィールドに日付を設定
+                    document.getElementById('targetDate').value = this.dataset.date;
+
+                    // 番組表を自動取得
+                    await fetchPrograms();
+                });
+
+                dateButtonsContainer.appendChild(button);
+
+                // 最初のボタン（今日）の場合、初期表示用にクリックイベントを保存
+                if (i === 0) {
+                    // DOMContentLoaded完了後に自動で番組表を取得
+                    setTimeout(() => {
+                        button.click();
+                    }, 100);
+                }
+            }
 
             // エリアのデフォルトを大阪に設定
             document.getElementById('areaId').value = 'JP27';
         });
 
-        document.getElementById('fetchBtn').addEventListener('click', fetchPrograms);
+        // 「番組表を取得」ボタンは強制更新
+        document.getElementById('fetchBtn').addEventListener('click', () => fetchPrograms(true));
         document.getElementById('searchAllBtn').addEventListener('click', searchAllAreas);
+
+        // 再取得ボタン（その日のキャッシュのみクリア）
+        document.getElementById('clearCacheBtn').addEventListener('click', function() {
+            const areaId = document.getElementById('areaId').value;
+            const targetDate = document.getElementById('targetDate').value;
+
+            if (!areaId || !targetDate) {
+                alert('エリアと日付を選択してください');
+                return;
+            }
+
+            const cacheKey = `${areaId}_${targetDate}`;
+
+            if (confirm('この日の番組表を再取得しますか？')) {
+                // その日のキャッシュのみ削除
+                if (programCache.has(cacheKey)) {
+                    programCache.delete(cacheKey);
+                    console.log(`✅ キャッシュを削除: ${cacheKey}`);
+                    // localStorageも更新
+                    saveCacheToStorage();
+                }
+                // 番組表を再取得
+                fetchPrograms(true);
+            }
+        });
+
+        // エリア選択変更時に自動取得（キャッシュ利用）
+        document.getElementById('areaId').addEventListener('change', () => fetchPrograms(false));
 
         // 検索キーワード入力時にリアルタイムフィルタリング
         document.getElementById('searchKeyword').addEventListener('input', function() {
@@ -803,7 +1011,7 @@
             }
         });
 
-        async function fetchPrograms() {
+        async function fetchPrograms(forceRefresh = false) {
             const areaId = document.getElementById('areaId').value;
             const proxyUrl = document.getElementById('proxyUrl').value;
             const targetDate = document.getElementById('targetDate').value;
@@ -817,6 +1025,23 @@
             const error = document.getElementById('error');
             const programList = document.getElementById('programList');
             const fetchBtn = document.getElementById('fetchBtn');
+
+            // キャッシュキーを生成（エリアID + 日付）
+            const cacheKey = `${areaId}_${targetDate || 'now'}`;
+
+            // キャッシュにデータがあり、強制更新でない場合は有効期限をチェック
+            if (!forceRefresh && programCache.has(cacheKey)) {
+                const cacheEntry = programCache.get(cacheKey);
+                if (isCacheValid(cacheEntry)) {
+                    const age = Math.floor((Date.now() - cacheEntry.timestamp) / 1000);
+                    console.log(`キャッシュから番組表を読み込み: ${cacheKey} (${age}秒前に取得)`);
+                    displayPrograms(cacheEntry.data);
+                    return;
+                } else {
+                    console.log('キャッシュ期限切れ、再取得します:', cacheKey);
+                    programCache.delete(cacheKey);
+                }
+            }
 
             loading.style.display = 'block';
             error.style.display = 'none';
@@ -944,6 +1169,17 @@
                 }
 
                 allPrograms.sort((a, b) => a.ft - b.ft);
+
+                // キャッシュに保存（タイムスタンプ付き）
+                programCache.set(cacheKey, {
+                    data: allPrograms,
+                    timestamp: Date.now()
+                });
+                console.log('番組表をキャッシュに保存:', cacheKey, `(${allPrograms.length}件)`);
+
+                // localStorageにも保存
+                saveCacheToStorage();
+
                 displayPrograms(allPrograms);
 
             } catch (err) {
@@ -1010,16 +1246,23 @@
                 return;
             }
 
-            // 日付ごとにグループ化
+            // 日付ごとにグループ化（朝5時を日付の変わり目とする）
             const dateMap = new Map();
             filteredPrograms.forEach((prog, index) => {
                 prog._index = programs.indexOf(prog); // 元のインデックスを保存
                 const progDate = new Date(prog.ft);
-                const dateKey = `${progDate.getFullYear()}-${String(progDate.getMonth() + 1).padStart(2, '0')}-${String(progDate.getDate()).padStart(2, '0')}`;
+
+                // 朝5時未満の番組は前日として扱う
+                const displayDate = new Date(progDate);
+                if (displayDate.getHours() < 5) {
+                    displayDate.setDate(displayDate.getDate() - 1);
+                }
+
+                const dateKey = `${displayDate.getFullYear()}-${String(displayDate.getMonth() + 1).padStart(2, '0')}-${String(displayDate.getDate()).padStart(2, '0')}`;
 
                 if (!dateMap.has(dateKey)) {
                     dateMap.set(dateKey, {
-                        date: progDate,
+                        date: displayDate,
                         programs: []
                     });
                 }
@@ -1249,27 +1492,32 @@
             const scriptPath = document.getElementById('scriptPath').value;
             const startTime = new Date(prog.ft);
             const endTime = new Date(prog.to);
-            endTime.setMinutes(endTime.getMinutes() + 5);
 
-            // cron実行時刻（録音終了5分後）
-            const minute = endTime.getMinutes();
-            const hour = endTime.getHours();
-            // cron実行曜日（録音終了+5分の曜日を使用）
-            const dayOfWeek = endTime.getDay();
+            // cron実行時刻（番組終了の5分後）
+            const cronExecTime = new Date(prog.to);
+            cronExecTime.setMinutes(cronExecTime.getMinutes() + 5);
+            const minute = cronExecTime.getMinutes();
+            const hour = cronExecTime.getHours();
+            const dayOfWeek = cronExecTime.getDay();
 
-            // 開始時刻と終了時刻（時分のみ）
+            // 開始時刻と終了時刻（時分のみ、番組表通り）
             const startHHMM = `${String(startTime.getHours()).padStart(2, '0')}${String(startTime.getMinutes()).padStart(2, '0')}`;
             const endHHMM = `${String(endTime.getHours()).padStart(2, '0')}${String(endTime.getMinutes()).padStart(2, '0')}`;
 
-            // 録音開始日とcron実行日（録音終了+5分）の日付を比較
+            // 録音開始日とcron実行日の日付を比較
             // 録音開始日がcron実行日と異なる場合、開始日はcron実行日の前日
             const startDateStr = `${startTime.getFullYear()}-${String(startTime.getMonth()+1).padStart(2,'0')}-${String(startTime.getDate()).padStart(2,'0')}`;
-            const cronExecDateStr = `${endTime.getFullYear()}-${String(endTime.getMonth()+1).padStart(2,'0')}-${String(endTime.getDate()).padStart(2,'0')}`;
-            const needsYesterday = startDateStr !== cronExecDateStr;
+            const cronExecDateStr = `${cronExecTime.getFullYear()}-${String(cronExecTime.getMonth()+1).padStart(2,'0')}-${String(cronExecTime.getDate()).padStart(2,'0')}`;
+            const endDateStr = `${endTime.getFullYear()}-${String(endTime.getMonth()+1).padStart(2,'0')}-${String(endTime.getDate()).padStart(2,'0')}`;
+
+            // 開始日がcron実行日と異なる場合
+            const startNeedsYesterday = startDateStr !== cronExecDateStr;
+            // 終了日がcron実行日と異なる場合
+            const endNeedsYesterday = endDateStr !== cronExecDateStr;
 
             // 日付計算の部分
             let startDateCalc = '';
-            if (needsYesterday) {
+            if (startNeedsYesterday) {
                 // cron実行日の前日を録音開始日とする
                 startDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
             } else {
@@ -1277,8 +1525,15 @@
                 startDateCalc = '\`date +\\%Y\\%m\\%d\`';
             }
 
-            // 録音終了日は常にcron実行日
-            const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
+            // 録音終了日の計算
+            let endDateCalc = '';
+            if (endNeedsYesterday) {
+                // cron実行日の前日を録音終了日とする
+                endDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
+            } else {
+                // cron実行日と同じ日を録音終了日とする
+                endDateCalc = '\`date +\\%Y\\%m\\%d\`';
+            }
 
             // cronコマンド（動的な日付を使用）
             const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${prog.title}" "${prog.stationId}" "${prog.stationId}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
@@ -1286,7 +1541,21 @@
             currentCommand = command;
             currentProgramData = prog; // プログラム情報を保存
             document.getElementById('modalTitle').textContent = `cronコマンド - ${prog.title}`;
-            document.getElementById('commandBox').textContent = command;
+
+            // 実行時刻の説明を追加
+            const execTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            const daysOfWeekJp = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+            const dayLabel = daysOfWeekJp[dayOfWeek];
+
+            const commandBoxContent = `
+                <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
+                    <div style="font-weight: 600; color: #1976d2; margin-bottom: 4px;">⏰ 実行タイミング</div>
+                    <div style="color: #555; font-size: 0.95em;">毎週${dayLabel} ${execTimeStr} に実行（番組終了の5分後）</div>
+                </div>
+                <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">${command}</div>
+            `;
+
+            document.getElementById('commandBox').innerHTML = commandBoxContent;
             document.getElementById('executeBtn').style.display = 'none';
 
             // cron登録ボタンを表示
@@ -1570,13 +1839,24 @@
             try {
                 const baseUrl = proxyUrl.trim() ? `${proxyUrl}/radiko` : 'https://radiko.jp';
 
-                // 過去7日間の日付リストを生成
+                // 過去7日間の日付リストを生成（朝5時を日付の変わり目とする）
                 const dates = [];
-                const today = new Date();
+                const now = new Date();
+                const today = new Date(now);
+
+                // 朝5時未満の場合は前日として扱う
+                if (today.getHours() < 5) {
+                    today.setDate(today.getDate() - 1);
+                }
+
                 for (let i = 0; i < 7; i++) {
                     const date = new Date(today);
                     date.setDate(date.getDate() - i);
-                    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
+                    // ローカル時間で日付を取得（toISOStringはUTCになるため使わない）
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const dateStr = `${year}${month}${day}`;
                     dates.push(dateStr);
                 }
 
