@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>radiko録音管理システム</title>
+    <title>録音くん - radiko録音管理システム</title>
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
     <style>
         * {
             box-sizing: border-box;
@@ -472,7 +473,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>radiko録音管理システム</h1>
+            <h1>📻 録音くん</h1>
             <p>全国47都道府県のラジオ番組を検索・録音予約</p>
         </header>
 
@@ -610,7 +611,7 @@
         </div>
 
         <footer>
-            <p>&copy; 2025 radiko録音管理システム | Powered by radiko API</p>
+            <p>&copy; 2025 録音くん | Powered by radiko API</p>
         </footer>
     </div>
 
@@ -630,13 +631,64 @@
         </div>
     </div>
 
+    <!-- cronログモーダル -->
+    <div id="cronLogModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>📋 cronログ</h2>
+                <button class="modal-close" onclick="closeCronLogModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <div style="padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 0.85em; color: #6c757d;">
+                    cronの実行履歴とエラーログを表示します。最新100行まで表示されます。
+                </div>
+            </div>
+            <div id="cronLogContent" style="max-height: 500px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.8em; line-height: 1.6;">
+                <div style="text-align: center; color: #888;">読み込み中...</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action" onclick="loadCronLogs()" style="background: #6c757d; color: white;">🔄 更新</button>
+                <button class="btn btn-action btn-close" onclick="closeCronLogModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <!-- cron編集モーダル -->
     <div id="cronEditModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⏰ cronジョブを編集</h2>
+                <h2>⏰ 予約を編集</h2>
                 <button class="modal-close" onclick="closeCronEditModal()">&times;</button>
             </div>
+
+            <!-- 番組情報 -->
+            <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">📺 番組情報</label>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.85em; color: #6c757d;">番組名</label>
+                    <input type="text" id="editProgramTitle" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                </div>
+                <div style="font-size: 0.85em; color: #6c757d;" id="editProgramStation">放送局</div>
+            </div>
+
+            <!-- 録音時間設定 -->
+            <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">📡 録音時間</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-size: 0.85em; color: #6c757d;">開始時刻 (HH:MM)</label>
+                            <input type="time" id="editStartTime" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em; color: #6c757d;">終了時刻 (HH:MM)</label>
+                            <input type="time" id="editEndTime" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 実行タイミング設定 -->
             <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">⏰ 実行タイミング</label>
@@ -650,8 +702,9 @@
                             <input type="number" id="editHour" min="0" max="23" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
                         </div>
                         <div>
-                            <label style="font-size: 0.85em; color: #6c757d;">曜日</label>
+                            <label style="font-size: 0.85em; color: #6c757d;">実行頻度</label>
                             <select id="editDayOfWeek" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                                <option value="*">毎日</option>
                                 <option value="0">日曜日</option>
                                 <option value="1">月曜日</option>
                                 <option value="2">火曜日</option>
@@ -669,6 +722,7 @@
                     </div>
                 </div>
             </div>
+
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">🎯 実行コマンド</label>
                 <div style="font-family: 'Courier New', monospace; font-size: 0.85em; color: #6c757d; background: #f8f9fa; padding: 12px; border-radius: 4px; word-break: break-all; line-height: 1.6;" id="editCommandPreview"></div>
@@ -712,14 +766,24 @@
 
         // 今日の日付とエリアのデフォルトを設定
         document.addEventListener('DOMContentLoaded', function() {
+            // 日本時間で今日の日付を取得（toISOStringはUTCになるため使わない）
             const today = new Date();
-            const dateStr = today.toISOString().split('T')[0];
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
             document.getElementById('targetDate').value = dateStr;
 
-            // 過去7日間までの範囲を設定
+            // 過去7日間から今日までの範囲を設定
             const minDate = new Date(today);
             minDate.setDate(minDate.getDate() - 7);
-            document.getElementById('targetDate').min = minDate.toISOString().split('T')[0];
+            const minYear = minDate.getFullYear();
+            const minMonth = String(minDate.getMonth() + 1).padStart(2, '0');
+            const minDay = String(minDate.getDate()).padStart(2, '0');
+            const minDateStr = `${minYear}-${minMonth}-${minDay}`;
+
+            document.getElementById('targetDate').min = minDateStr;
             document.getElementById('targetDate').max = dateStr;
 
             // エリアのデフォルトを大阪に設定
@@ -983,6 +1047,10 @@
                     const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
                     const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
 
+                    // radikoのURL
+                    const radikoTime = formatRadikoTime(prog.ft);
+                    const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
+
                     card.innerHTML = `
                         <div class="program-time">${startTime} - ${endTime}</div>
                         <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
@@ -991,6 +1059,7 @@
                             <button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>cron</button>
                             <button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>
                             <button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>at</button>
+                            <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #667eea; color: white; text-decoration: none; display: inline-block; line-height: 1;" title="radikoで聴く">📻</a>
                         </div>
                     `;
 
@@ -1044,6 +1113,10 @@
             const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
             const dateStr = `${prog.ft.getFullYear()}/${prog.ft.getMonth() + 1}/${prog.ft.getDate()}`;
 
+            // radikoの番組ページURL
+            const radikoTime = formatRadikoTime(prog.ft);
+            const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
+
             // 番組説明をクリーンアップ
             const cleanDesc = cleanupDescription(prog.desc);
 
@@ -1051,9 +1124,15 @@
                 <div style="font-size: 14px; line-height: 1.6; color: #333;">
                     <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ddd;">
                         <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">${prog.title}</div>
-                        <div style="color: #666; font-size: 13px;">
+                        <div style="color: #666; font-size: 13px; margin-bottom: 8px;">
                             <div>${prog.stationName} (${prog.stationId})</div>
                             <div>${dateStr} ${startTime} - ${endTime}</div>
+                        </div>
+                        <div>
+                            <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer"
+                               style="display: inline-block; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">
+                                📻 radikoで聴く
+                            </a>
                         </div>
                     </div>
             `;
@@ -1115,20 +1194,44 @@
 
         function showCronCommand(prog) {
             const scriptPath = document.getElementById('scriptPath').value;
+            const startTime = new Date(prog.ft);
             const endTime = new Date(prog.to);
             endTime.setMinutes(endTime.getMinutes() + 5);
 
+            // cron実行時刻（録音終了5分後）
             const minute = endTime.getMinutes();
             const hour = endTime.getHours();
+            // cron実行曜日（録音終了+5分の曜日を使用）
             const dayOfWeek = endTime.getDay();
 
-            const startStr = formatRadikoTime(new Date(prog.ft));
-            const endStr = formatRadikoTime(endTime);
+            // 開始時刻と終了時刻（時分のみ）
+            const startHHMM = `${String(startTime.getHours()).padStart(2, '0')}${String(startTime.getMinutes()).padStart(2, '0')}`;
+            const endHHMM = `${String(endTime.getHours()).padStart(2, '0')}${String(endTime.getMinutes()).padStart(2, '0')}`;
 
-            const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}`;
+            // 録音開始日とcron実行日（録音終了+5分）の日付を比較
+            // 録音開始日がcron実行日と異なる場合、開始日はcron実行日の前日
+            const startDateStr = `${startTime.getFullYear()}-${String(startTime.getMonth()+1).padStart(2,'0')}-${String(startTime.getDate()).padStart(2,'0')}`;
+            const cronExecDateStr = `${endTime.getFullYear()}-${String(endTime.getMonth()+1).padStart(2,'0')}-${String(endTime.getDate()).padStart(2,'0')}`;
+            const needsYesterday = startDateStr !== cronExecDateStr;
+
+            // 日付計算の部分
+            let startDateCalc = '';
+            if (needsYesterday) {
+                // cron実行日の前日を録音開始日とする
+                startDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
+            } else {
+                // cron実行日と同じ日を録音開始日とする
+                startDateCalc = '\`date +\\%Y\\%m\\%d\`';
+            }
+
+            // 録音終了日は常にcron実行日
+            const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
+
+            // cronコマンド（動的な日付を使用）
+            const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${prog.title}" "${prog.stationId}" "${prog.stationId}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
 
             currentCommand = command;
-            currentProgramData = null;
+            currentProgramData = prog; // プログラム情報を保存
             document.getElementById('modalTitle').textContent = `cronコマンド - ${prog.title}`;
             document.getElementById('commandBox').textContent = command;
             document.getElementById('executeBtn').style.display = 'none';
@@ -1737,6 +1840,9 @@
                 const data = await response.json();
                 const cronJobs = data.cron_jobs || [];
 
+                // グローバル変数に保存
+                currentCronJobs = cronJobs;
+
                 cronLoading.style.display = 'none';
 
                 if (cronJobs.length === 0) {
@@ -1751,44 +1857,51 @@
                 }
 
                 let html = `
-                    <div style="margin-bottom: 15px; padding: 10px 15px; background: #e7f3ff; border-left: 4px solid #667eea; border-radius: 4px;">
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-size: 0.9em; color: #495057;">
-                            <strong>${cronJobs.length}件</strong>のcronジョブが登録されています
+                            <strong>${cronJobs.length}件</strong>の予約
                         </div>
+                        <button onclick="loadCronLogs()" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer;">
+                            📋 ログを表示
+                        </button>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
                 `;
 
                 cronJobs.forEach((job, index) => {
-                    const cronInfo = parseCronExpression(job);
+                    // cronの実行タイミング情報を作成
+                    const cronInfo = parseCronExpression(job.raw || job);
+
+                    // 番組情報の表示
+                    const title = job.title || '（タイトル不明）';
+                    const station = job.station || '';
+                    const startTime = job.startTime ? `${job.startTime.slice(0,2)}:${job.startTime.slice(2,4)}` : '';
+                    const endTime = job.endTime ? `${job.endTime.slice(0,2)}:${job.endTime.slice(2,4)}` : '';
+                    const timeRange = startTime && endTime ? `${startTime}-${endTime}` : '';
 
                     html += `
-                        <div style="padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="margin-bottom: 10px;">
-                                <div style="display: inline-block; padding: 4px 10px; background: #e7f3ff; border-radius: 4px; font-size: 0.85em; color: #0056b3; font-weight: 600; margin-bottom: 8px;">
-                                    ⏰ ${cronInfo.description}
+                        <div style="padding: 12px; background: white; border: 1px solid #dee2e6; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; color: #212529; margin-bottom: 4px; font-size: 0.95em;">
+                                    ${title}
+                                </div>
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.8em; color: #6c757d;">
+                                    ${station ? `<span>🏢 ${station}</span>` : ''}
+                                    ${timeRange ? `<span>📡 ${timeRange}</span>` : ''}
+                                    <span>⏰ ${cronInfo.description.replace('実行タイミング: ', '')}</span>
                                 </div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font-family: 'Courier New', monospace; font-size: 0.8em; color: #6c757d; word-break: break-all; line-height: 1.6;">
-                                        ${job}
-                                    </div>
-                                </div>
-                                <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                                    <button onclick='editCronJob(${index}, "${job.replace(/'/g, "\\'")}")'
-                                            style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
-                                            onmouseover="this.style.background='#5568d3';"
-                                            onmouseout="this.style.background='#667eea';">
-                                        ✏️ 編集
-                                    </button>
-                                    <button onclick='removeCronJob("${job.replace(/'/g, "\\'")}")'
-                                            style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
-                                            onmouseover="this.style.background='#c82333';"
-                                            onmouseout="this.style.background='#dc3545';">
-                                        🗑️ 削除
-                                    </button>
-                                </div>
+                            <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                                <button onclick='editCronJob(${index}, ${JSON.stringify(job).replace(/'/g, "\\'").replace(/"/g, "&quot;")})'
+                                        style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; font-size: 0.8em; cursor: pointer;"
+                                        title="編集">
+                                    ✏️
+                                </button>
+                                <button onclick='removeCronJobByIndex(${index})'
+                                        style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; cursor: pointer;"
+                                        title="削除">
+                                    🗑️
+                                </button>
                             </div>
                         </div>
                     `;
@@ -1833,12 +1946,27 @@
             }
         }
 
-        // cronジョブを削除
-        async function removeCronJob(command) {
-            if (!confirm('このcronジョブを削除しますか？\n\n' + command)) {
+        // グローバルにcronジョブを保存
+        let currentCronJobs = [];
+
+        // インデックスでcronジョブを削除
+        async function removeCronJobByIndex(index) {
+            const job = currentCronJobs[index];
+            if (!job) {
+                alert('❌ cronジョブが見つかりませんでした');
                 return;
             }
 
+            const title = job.title || 'タイトル不明';
+            if (!confirm(`この予約を削除しますか？\n\n${title}`)) {
+                return;
+            }
+
+            await removeCronJob(job.raw);
+        }
+
+        // cronジョブを削除
+        async function removeCronJob(command) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
 
@@ -1854,14 +1982,14 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('✅ cronジョブを削除しました');
+                    alert('✅ 予約を削除しました');
                     loadCronJobs();
                 } else {
-                    alert('❌ エラー: ' + (data.error || 'cronジョブの削除に失敗しました'));
+                    alert('❌ エラー: ' + (data.error || '予約の削除に失敗しました'));
                 }
             } catch (err) {
                 console.error('Error removing cron job:', err);
-                alert('❌ cronジョブの削除に失敗しました');
+                alert('❌ 予約の削除に失敗しました');
             }
         }
 
@@ -1898,28 +2026,47 @@
         }
 
         // cronジョブを編集
-        function editCronJob(index, cronLine) {
-            const parts = cronLine.trim().split(/\s+/);
-            if (parts.length < 5) {
-                alert('無効なcron式です');
-                return;
+        function editCronJob(index, jobData) {
+            // jobDataはパースされたオブジェクト
+            if (typeof jobData === 'string') {
+                // 旧形式の場合はパースする
+                const parts = jobData.trim().split(/\s+/);
+                if (parts.length < 5) {
+                    alert('無効なcron式です');
+                    return;
+                }
+                jobData = {
+                    raw: jobData,
+                    minute: parts[0],
+                    hour: parts[1],
+                    dayOfWeek: parts[4],
+                    command: parts.slice(5).join(' '),
+                    title: '',
+                    station: '',
+                    startTime: '',
+                    endTime: ''
+                };
             }
 
-            // cron式部分とコマンド部分を分離
-            const minute = parts[0];
-            const hour = parts[1];
-            const dayOfMonth = parts[2];
-            const month = parts[3];
-            const dayOfWeek = parts[4];
-            const commandPart = parts.slice(5).join(' ');
+            // 番組情報を表示
+            document.getElementById('editProgramTitle').value = jobData.title || '';
+            document.getElementById('editProgramStation').textContent = jobData.station ? `放送局: ${jobData.station}` : '';
 
             // 編集モーダルに値を設定
-            document.getElementById('editMinute').value = minute;
-            document.getElementById('editHour').value = hour;
-            document.getElementById('editDayOfWeek').value = dayOfWeek;
+            document.getElementById('editMinute').value = jobData.minute;
+            document.getElementById('editHour').value = jobData.hour;
+            document.getElementById('editDayOfWeek').value = jobData.dayOfWeek;
 
-            currentEditingCron.original = cronLine;
-            currentEditingCron.commandPart = commandPart;
+            // 録音時間を設定
+            if (jobData.startTime) {
+                document.getElementById('editStartTime').value = `${jobData.startTime.slice(0,2)}:${jobData.startTime.slice(2,4)}`;
+            }
+            if (jobData.endTime) {
+                document.getElementById('editEndTime').value = `${jobData.endTime.slice(0,2)}:${jobData.endTime.slice(2,4)}`;
+            }
+
+            currentEditingCron.original = jobData.raw;
+            currentEditingCron.jobData = jobData;
 
             // プレビューを更新
             updateCronPreview();
@@ -1933,6 +2080,8 @@
             const minute = document.getElementById('editMinute').value;
             const hour = document.getElementById('editHour').value;
             const dayOfWeek = document.getElementById('editDayOfWeek').value;
+            const startTime = document.getElementById('editStartTime').value;
+            const endTime = document.getElementById('editEndTime').value;
 
             const daysOfWeekJp = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
 
@@ -1946,9 +2095,44 @@
 
             document.getElementById('cronPreview').textContent = description;
 
-            // 完全なコマンドをプレビュー
-            const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${currentEditingCron.commandPart}`;
-            document.getElementById('editCommandPreview').textContent = fullCommand;
+            // cronコマンドを再構築
+            if (currentEditingCron.jobData) {
+                const scriptPath = document.getElementById('scriptPath').value;
+                const title = document.getElementById('editProgramTitle').value || '';
+                const station = currentEditingCron.jobData.station || '';
+
+                // 時刻をHHMM形式に変換
+                const startHHMM = startTime ? startTime.replace(':', '') : '';
+                const endHHMM = endTime ? endTime.replace(':', '') : '';
+
+                // 録音開始時刻とcron実行時刻を比較
+                // cron実行時刻が録音開始時刻より早い場合、日をまたいでいる
+                const startHour = startTime ? parseInt(startTime.split(':')[0]) : 0;
+                const startMin = startTime ? parseInt(startTime.split(':')[1]) : 0;
+                const cronExecHour = parseInt(hour);
+                const cronExecMin = parseInt(minute);
+
+                // 時刻を分単位に変換して比較
+                const startMinutes = startHour * 60 + startMin;
+                const cronExecMinutes = cronExecHour * 60 + cronExecMin;
+                const needsYesterday = cronExecMinutes < startMinutes;
+
+                // 日付計算の部分
+                let startDateCalc = '';
+                if (needsYesterday) {
+                    // cron実行日の前日を録音開始日とする
+                    startDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
+                } else {
+                    // cron実行日と同じ日を録音開始日とする
+                    startDateCalc = '\`date +\\%Y\\%m\\%d\`';
+                }
+
+                const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
+
+                // cronコマンドを生成
+                const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
+                document.getElementById('editCommandPreview').textContent = fullCommand;
+            }
         }
 
         // cron編集を保存
@@ -1956,13 +2140,58 @@
             const minute = document.getElementById('editMinute').value;
             const hour = document.getElementById('editHour').value;
             const dayOfWeek = document.getElementById('editDayOfWeek').value;
+            const startTime = document.getElementById('editStartTime').value;
+            const endTime = document.getElementById('editEndTime').value;
 
             if (minute === '' || hour === '') {
-                alert('時刻を入力してください');
+                alert('実行タイミングの時刻を入力してください');
                 return;
             }
 
-            const newCronLine = `${minute} ${hour} * * ${dayOfWeek} ${currentEditingCron.commandPart}`;
+            if (!startTime || !endTime) {
+                alert('録音時間を入力してください');
+                return;
+            }
+
+            // cronコマンドを再構築
+            const scriptPath = document.getElementById('scriptPath').value;
+            const title = document.getElementById('editProgramTitle').value || '';
+            const station = currentEditingCron.jobData.station || '';
+
+            if (!title) {
+                alert('番組名を入力してください');
+                return;
+            }
+
+            // 時刻をHHMM形式に変換
+            const startHHMM = startTime.replace(':', '');
+            const endHHMM = endTime.replace(':', '');
+
+            // 録音開始時刻とcron実行時刻を比較
+            const startHour = parseInt(startTime.split(':')[0]);
+            const startMin = parseInt(startTime.split(':')[1]);
+            const cronExecHour = parseInt(hour);
+            const cronExecMin = parseInt(minute);
+
+            // 時刻を分単位に変換して比較
+            const startMinutes = startHour * 60 + startMin;
+            const cronExecMinutes = cronExecHour * 60 + cronExecMin;
+            const needsYesterday = cronExecMinutes < startMinutes;
+
+            // 日付計算の部分
+            let startDateCalc = '';
+            if (needsYesterday) {
+                // cron実行日の前日を録音開始日とする
+                startDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
+            } else {
+                // cron実行日と同じ日を録音開始日とする
+                startDateCalc = '\`date +\\%Y\\%m\\%d\`';
+            }
+
+            const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
+
+            // cronコマンドを生成
+            const newCronLine = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
 
             // 古いcronを削除して新しいcronを追加
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -1990,15 +2219,15 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('✅ cronジョブを更新しました');
+                    alert('✅ 予約を更新しました');
                     closeCronEditModal();
                     loadCronJobs();
                 } else {
-                    alert('❌ エラー: ' + (data.error || 'cronジョブの更新に失敗しました'));
+                    alert('❌ エラー: ' + (data.error || '予約の更新に失敗しました'));
                 }
             } catch (err) {
                 console.error('Error updating cron job:', err);
-                alert('❌ cronジョブの更新に失敗しました');
+                alert('❌ 予約の更新に失敗しました');
             }
         }
 
@@ -2007,9 +2236,77 @@
             document.getElementById('cronEditModal').classList.remove('active');
         }
 
+        // cronログを読み込む
+        async function loadCronLogs() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const logContent = document.getElementById('cronLogContent');
+
+            // モーダルを開く
+            document.getElementById('cronLogModal').classList.add('active');
+            logContent.innerHTML = '<div style="text-align: center; color: #888;">読み込み中...</div>';
+
+            try {
+                const response = await fetch(`${baseUrl}/cron/logs`);
+                if (!response.ok) {
+                    logContent.innerHTML = '<div style="color: #ff6b6b;">ログの取得に失敗しました</div>';
+                    return;
+                }
+
+                const data = await response.json();
+                const logs = data.logs || [];
+
+                if (logs.length === 0) {
+                    logContent.innerHTML = '<div style="color: #888;">ログがありません</div>';
+                    return;
+                }
+
+                // ログを整形して表示
+                let html = '';
+                logs.forEach(log => {
+                    // エラーや警告を色分け
+                    let color = '#d4d4d4';
+                    if (log.toLowerCase().includes('error') || log.toLowerCase().includes('failed')) {
+                        color = '#ff6b6b';
+                    } else if (log.toLowerCase().includes('warn')) {
+                        color = '#ffd43b';
+                    } else if (log.toLowerCase().includes('success')) {
+                        color = '#51cf66';
+                    }
+
+                    html += `<div style="color: ${color}; margin-bottom: 4px;">${escapeHtml(log)}</div>`;
+                });
+
+                logContent.innerHTML = html;
+                // 最下部にスクロール
+                logContent.scrollTop = logContent.scrollHeight;
+
+            } catch (err) {
+                console.error('Error loading cron logs:', err);
+                logContent.innerHTML = '<div style="color: #ff6b6b;">エラーが発生しました</div>';
+            }
+        }
+
+        // cronログモーダルを閉じる
+        function closeCronLogModal() {
+            document.getElementById('cronLogModal').classList.remove('active');
+        }
+
+        // HTMLエスケープ
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
         // 時刻の入力が変わったらプレビューを更新
         document.addEventListener('DOMContentLoaded', function() {
-            const editInputs = ['editMinute', 'editHour', 'editDayOfWeek'];
+            const editInputs = ['editProgramTitle', 'editMinute', 'editHour', 'editDayOfWeek', 'editStartTime', 'editEndTime'];
             editInputs.forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
@@ -2028,6 +2325,12 @@
         document.getElementById('cronEditModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeCronEditModal();
+            }
+        });
+
+        document.getElementById('cronLogModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCronLogModal();
             }
         });
     </script>

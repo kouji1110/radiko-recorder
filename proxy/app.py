@@ -231,7 +231,7 @@ def check_file_exists():
 
 @app.route('/cron/list', methods=['GET'])
 def list_cron():
-    """現在のcrontabを取得"""
+    """現在のcrontabを取得してパース"""
     try:
         result = subprocess.run(['crontab', '-l'],
                               capture_output=True,
@@ -243,7 +243,8 @@ def list_cron():
 
             for line in lines:
                 if line and not line.startswith('#'):
-                    cron_jobs.append(line)
+                    parsed = parse_cron_command(line)
+                    cron_jobs.append(parsed)
 
             return jsonify({'cron_jobs': cron_jobs})
         else:
@@ -252,6 +253,62 @@ def list_cron():
     except Exception as e:
         logger.error(f'List cron error: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+def parse_cron_command(cron_line):
+    """cronコマンドをパースして番組情報を抽出"""
+    import re
+
+    parts = cron_line.split(None, 5)  # 最初の5つのフィールド（cron式）とコマンド部分を分離
+
+    if len(parts) < 6:
+        return {
+            'raw': cron_line,
+            'minute': '',
+            'hour': '',
+            'dayOfWeek': '',
+            'command': cron_line,
+            'title': '',
+            'station': '',
+            'startTime': '',
+            'endTime': ''
+        }
+
+    minute = parts[0]
+    hour = parts[1]
+    day_of_month = parts[2]
+    month = parts[3]
+    day_of_week = parts[4]
+    command_part = parts[5]
+
+    # myradikoコマンドのパターンマッチング
+    # 新形式: /path/to/myradiko "番組名" "RSS" "放送局" "`date...`HHMM" "`date...`HHMM" "" "" ""
+    # 引数1=タイトル, 引数2=RSS, 引数3=放送局, 引数4=開始時刻, 引数5=終了時刻
+    pattern = r'([^\s]+)\s+"([^"]*)"\s+"([^"]*)"\s+"([^"]*)"\s+"[^"]*(\d{4})".*?"[^"]*(\d{4})"'
+    match = re.search(pattern, command_part)
+
+    title = ''
+    station = ''
+    start_time = ''
+    end_time = ''
+
+    if match:
+        title = match.group(2)        # 引数1: タイトル
+        # 引数2はRSSなので、引数3の放送局IDを使用
+        station = match.group(4)      # 引数3: 放送局ID
+        start_time = match.group(5)   # HHMM形式
+        end_time = match.group(6)     # HHMM形式
+
+    return {
+        'raw': cron_line,
+        'minute': minute,
+        'hour': hour,
+        'dayOfWeek': day_of_week,
+        'command': command_part,
+        'title': title,
+        'station': station,
+        'startTime': start_time,
+        'endTime': end_time
+    }
 
 @app.route('/cron/add', methods=['POST'])
 def add_cron():
@@ -336,6 +393,68 @@ def remove_cron():
 
     except Exception as e:
         logger.error(f'Remove cron error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/cron/logs', methods=['GET'])
+def get_cron_logs():
+    """cronのログを取得"""
+    try:
+        logs = []
+
+        # myradiko実行ログを確認
+        myradiko_log = '/tmp/myradiko_output.log'
+        if os.path.exists(myradiko_log):
+            try:
+                with open(myradiko_log, 'r') as f:
+                    lines = f.readlines()
+                    # 最新100行
+                    recent_lines = lines[-100:] if len(lines) > 100 else lines
+                    logs.extend([line.rstrip() for line in recent_lines if line.strip()])
+            except Exception as e:
+                logger.error(f'Error reading myradiko log: {str(e)}')
+
+        # システムのcronログも確認
+        system_log_files = [
+            '/var/log/cron.log',
+            '/var/log/syslog',
+            '/var/log/messages'
+        ]
+
+        for log_file in system_log_files:
+            if os.path.exists(log_file):
+                try:
+                    result = subprocess.run(
+                        ['grep', '-i', 'cron', log_file],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0:
+                        lines = result.stdout.strip().split('\n')
+                        logs.extend(lines[-50:])
+                except Exception as e:
+                    logger.error(f'Error reading {log_file}: {str(e)}')
+                    continue
+
+        # cronジョブ一覧も表示
+        try:
+            result = subprocess.run(['crontab', '-l'],
+                                  capture_output=True,
+                                  text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                logs.insert(0, '=== 登録されているcronジョブ ===')
+                logs.insert(1, result.stdout.strip())
+                logs.insert(2, '')
+        except Exception as e:
+            pass
+
+        if not logs:
+            logs = ['ログがありません。cronが実行されるとここにログが表示されます。']
+
+        return jsonify({'logs': logs})
+
+    except Exception as e:
+        logger.error(f'Get cron logs error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 @app.route('/file/delete', methods=['POST'])
