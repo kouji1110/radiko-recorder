@@ -397,44 +397,51 @@ def remove_cron():
 
 @app.route('/cron/logs', methods=['GET'])
 def get_cron_logs():
-    """cronのログを取得"""
+    """cronのログを取得（実行サマリーのみ）"""
     try:
-        logs = []
+        summary_logs = []
 
-        # myradiko実行ログを確認
+        # myradiko実行ログを確認してサマリーを作成
         myradiko_log = '/tmp/myradiko_output.log'
         if os.path.exists(myradiko_log):
             try:
                 with open(myradiko_log, 'r') as f:
-                    lines = f.readlines()
-                    # 最新100行
-                    recent_lines = lines[-100:] if len(lines) > 100 else lines
-                    logs.extend([line.rstrip() for line in recent_lines if line.strip()])
+                    content = f.read()
+
+                # ログをセクションごとに分割（localeエラー以降がひとつの実行）
+                sections = content.split('warning: setlocale:')
+
+                # 最新10件の実行ログを解析
+                recent_sections = sections[-11:-1] if len(sections) > 11 else sections[1:]
+
+                for section in reversed(recent_sections):
+                    # 成功/失敗を判定
+                    if 'size=' in section and 'time=' in section:
+                        # ファイルサイズと時間が記録されていれば成功
+                        # ファイル名を抽出
+                        lines = section.split('\n')
+                        filename = '不明'
+                        for line in lines:
+                            if '.mp3' in line or '.m4a' in line:
+                                # Output行からファイル名を抽出
+                                if 'Output #0' in line or 'to ' in line:
+                                    parts = line.split("'")
+                                    if len(parts) >= 2:
+                                        filename = parts[1].replace('.m4a', '.mp3')
+                                        break
+
+                        # サイズを抽出
+                        size_match = section.split('size=')[-1].split()[0] if 'size=' in section else '不明'
+
+                        summary_logs.append(f'✅ 成功: {filename} ({size_match})')
+                    elif 'Error' in section or 'failed' in section.lower():
+                        # エラーメッセージを抽出
+                        error_lines = [l for l in section.split('\n') if 'Error' in l or 'failed' in l.lower()]
+                        error_msg = error_lines[0] if error_lines else 'エラー発生'
+                        summary_logs.append(f'❌ 失敗: {error_msg[:80]}')
+
             except Exception as e:
                 logger.error(f'Error reading myradiko log: {str(e)}')
-
-        # システムのcronログも確認
-        system_log_files = [
-            '/var/log/cron.log',
-            '/var/log/syslog',
-            '/var/log/messages'
-        ]
-
-        for log_file in system_log_files:
-            if os.path.exists(log_file):
-                try:
-                    result = subprocess.run(
-                        ['grep', '-i', 'cron', log_file],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    if result.returncode == 0:
-                        lines = result.stdout.strip().split('\n')
-                        logs.extend(lines[-50:])
-                except Exception as e:
-                    logger.error(f'Error reading {log_file}: {str(e)}')
-                    continue
 
         # cronジョブ一覧も表示
         try:
@@ -442,16 +449,17 @@ def get_cron_logs():
                                   capture_output=True,
                                   text=True)
             if result.returncode == 0 and result.stdout.strip():
-                logs.insert(0, '=== 登録されているcronジョブ ===')
-                logs.insert(1, result.stdout.strip())
-                logs.insert(2, '')
+                summary_logs.insert(0, '=== 登録されているcronジョブ ===')
+                summary_logs.insert(1, result.stdout.strip())
+                summary_logs.insert(2, '')
+                summary_logs.insert(3, '=== 最近の実行結果 ===')
         except Exception as e:
             pass
 
-        if not logs:
-            logs = ['ログがありません。cronが実行されるとここにログが表示されます。']
+        if not summary_logs:
+            summary_logs = ['ログがありません。cronが実行されるとここに実行結果が表示されます。']
 
-        return jsonify({'logs': logs})
+        return jsonify({'logs': summary_logs})
 
     except Exception as e:
         logger.error(f'Get cron logs error: {str(e)}')

@@ -725,7 +725,10 @@
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">🎯 実行コマンド</label>
-                <div style="font-family: 'Courier New', monospace; font-size: 0.85em; color: #6c757d; background: #f8f9fa; padding: 12px; border-radius: 4px; word-break: break-all; line-height: 1.6;" id="editCommandPreview"></div>
+                <textarea id="editCommandPreview" style="width: 100%; min-height: 120px; font-family: 'Courier New', monospace; font-size: 0.85em; color: #495057; background: #f8f9fa; padding: 12px; border: 1px solid #dee2e6; border-radius: 4px; resize: vertical; line-height: 1.6;" placeholder="cronコマンド"></textarea>
+                <div style="font-size: 0.8em; color: #6c757d; margin-top: 5px;">
+                    💡 コマンドを直接編集できます。録音時間を細かく調整したい場合などに使用してください。
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-action" onclick="saveCronEdit()" style="background: #28a745; color: white;">💾 保存</button>
@@ -1767,16 +1770,17 @@
                             </div>
                             <div style="display: flex; gap: 8px;">
                                 <a href="${baseUrl}/download/${file.path}" download="${file.name}"
-                                   style="flex: 1; display: block; text-align: center; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; transition: all 0.2s;"
-                                   onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-2px)';"
-                                   onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)';">
-                                    📥 DL
+                                   style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
+                                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.5)';"
+                                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.3)';">
+                                    <span style="font-size: 1.2em;">📥</span>
+                                    <span>ダウンロード</span>
                                 </a>
                                 <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
-                                        onmouseover="this.style.background='#c82333'; this.style.transform='translateY(-2px)';"
-                                        onmouseout="this.style.background='#dc3545'; this.style.transform='translateY(0)';">
-                                    🗑️
+                                        style="display: flex; align-items: center; justify-content: center; padding: 10px 16px; background: #e57373; color: white; border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(229, 115, 115, 0.3);"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(229, 115, 115, 0.5)'; this.style.background='#ef5350';"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 115, 115, 0.3)'; this.style.background='#e57373';">
+                                    削除
                                 </button>
                             </div>
                         </div>
@@ -1943,14 +1947,18 @@
                             </div>
                             <div style="display: flex; gap: 6px; flex-shrink: 0;">
                                 <button onclick='editCronJob(${index}, ${JSON.stringify(job).replace(/'/g, "\\'").replace(/"/g, "&quot;")})'
-                                        style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; font-size: 0.8em; cursor: pointer;"
+                                        style="padding: 8px 14px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#5568d3'"
+                                        onmouseout="this.style.background='#667eea'"
                                         title="編集">
-                                    ✏️
+                                    編集
                                 </button>
                                 <button onclick='removeCronJobByIndex(${index})'
-                                        style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; cursor: pointer;"
+                                        style="padding: 8px 14px; background: #e57373; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#ef5350'"
+                                        onmouseout="this.style.background='#e57373'"
                                         title="削除">
-                                    🗑️
+                                    削除
                                 </button>
                             </div>
                         </div>
@@ -1985,6 +1993,8 @@
 
                 if (response.ok) {
                     alert('✅ cronジョブを登録しました');
+                    // モーダルを閉じる
+                    closeModal();
                     // cron管理タブに切り替えて一覧を更新
                     switchTab('cron');
                 } else {
@@ -2181,67 +2191,19 @@
 
                 // cronコマンドを生成
                 const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
-                document.getElementById('editCommandPreview').textContent = fullCommand;
+                document.getElementById('editCommandPreview').value = fullCommand;
             }
         }
 
         // cron編集を保存
         async function saveCronEdit() {
-            const minute = document.getElementById('editMinute').value;
-            const hour = document.getElementById('editHour').value;
-            const dayOfWeek = document.getElementById('editDayOfWeek').value;
-            const startTime = document.getElementById('editStartTime').value;
-            const endTime = document.getElementById('editEndTime').value;
+            // テキストエリアから直接コマンドを取得
+            const newCronLine = document.getElementById('editCommandPreview').value.trim();
 
-            if (minute === '' || hour === '') {
-                alert('実行タイミングの時刻を入力してください');
+            if (!newCronLine) {
+                alert('コマンドを入力してください');
                 return;
             }
-
-            if (!startTime || !endTime) {
-                alert('録音時間を入力してください');
-                return;
-            }
-
-            // cronコマンドを再構築
-            const scriptPath = document.getElementById('scriptPath').value;
-            const title = document.getElementById('editProgramTitle').value || '';
-            const station = currentEditingCron.jobData.station || '';
-
-            if (!title) {
-                alert('番組名を入力してください');
-                return;
-            }
-
-            // 時刻をHHMM形式に変換
-            const startHHMM = startTime.replace(':', '');
-            const endHHMM = endTime.replace(':', '');
-
-            // 録音開始時刻とcron実行時刻を比較
-            const startHour = parseInt(startTime.split(':')[0]);
-            const startMin = parseInt(startTime.split(':')[1]);
-            const cronExecHour = parseInt(hour);
-            const cronExecMin = parseInt(minute);
-
-            // 時刻を分単位に変換して比較
-            const startMinutes = startHour * 60 + startMin;
-            const cronExecMinutes = cronExecHour * 60 + cronExecMin;
-            const needsYesterday = cronExecMinutes < startMinutes;
-
-            // 日付計算の部分
-            let startDateCalc = '';
-            if (needsYesterday) {
-                // cron実行日の前日を録音開始日とする
-                startDateCalc = '\`date -d yesterday +\\%Y\\%m\\%d\`';
-            } else {
-                // cron実行日と同じ日を録音開始日とする
-                startDateCalc = '\`date +\\%Y\\%m\\%d\`';
-            }
-
-            const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
-
-            // cronコマンドを生成
-            const newCronLine = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
 
             // 古いcronを削除して新しいcronを追加
             const proxyUrl = document.getElementById('proxyUrl').value;
