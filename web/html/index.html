@@ -630,11 +630,62 @@
         </div>
     </div>
 
+    <!-- cron編集モーダル -->
+    <div id="cronEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⏰ cronジョブを編集</h2>
+                <button class="modal-close" onclick="closeCronEditModal()">&times;</button>
+            </div>
+            <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">⏰ 実行タイミング</label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div>
+                            <label style="font-size: 0.85em; color: #6c757d;">分 (0-59)</label>
+                            <input type="number" id="editMinute" min="0" max="59" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em; color: #6c757d;">時 (0-23)</label>
+                            <input type="number" id="editHour" min="0" max="23" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85em; color: #6c757d;">曜日</label>
+                            <select id="editDayOfWeek" style="width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;">
+                                <option value="0">日曜日</option>
+                                <option value="1">月曜日</option>
+                                <option value="2">火曜日</option>
+                                <option value="3">水曜日</option>
+                                <option value="4">木曜日</option>
+                                <option value="5">金曜日</option>
+                                <option value="6">土曜日</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 10px; background: #e7f3ff; border-radius: 4px; border-left: 4px solid #667eea;">
+                    <div style="font-size: 0.9em; color: #0056b3; font-weight: 600;" id="cronPreview">
+                        実行タイミング: -
+                    </div>
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">🎯 実行コマンド</label>
+                <div style="font-family: 'Courier New', monospace; font-size: 0.85em; color: #6c757d; background: #f8f9fa; padding: 12px; border-radius: 4px; word-break: break-all; line-height: 1.6;" id="editCommandPreview"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action" onclick="saveCronEdit()" style="background: #28a745; color: white;">💾 保存</button>
+                <button class="btn btn-action btn-close" onclick="closeCronEditModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentCommand = '';
         let currentProgramData = null;
         let allProgramsData = [];
         let eventSource = null;
+        let currentEditingCron = { original: '', commandPart: '' };
 
         // タブ切り替え
         function switchTab(tabName) {
@@ -1621,6 +1672,49 @@
             }
         }
 
+        // cron式を人間が読める形式に変換
+        function parseCronExpression(cronLine) {
+            // cronコマンドからcron式部分を抽出
+            const parts = cronLine.trim().split(/\s+/);
+            if (parts.length < 5) return { description: '無効なcron式', parts: null };
+
+            const minute = parts[0];
+            const hour = parts[1];
+            const dayOfMonth = parts[2];
+            const month = parts[3];
+            const dayOfWeek = parts[4];
+
+            const daysOfWeekJp = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+
+            let description = '実行タイミング: ';
+
+            // 曜日の解析
+            if (dayOfWeek !== '*') {
+                const day = parseInt(dayOfWeek);
+                description += `毎週${daysOfWeekJp[day]}の `;
+            } else if (dayOfMonth !== '*') {
+                description += `毎月${dayOfMonth}日の `;
+            } else {
+                description += '毎日 ';
+            }
+
+            // 時刻の解析
+            if (hour === '*' && minute === '*') {
+                description += '毎時毎分';
+            } else if (hour === '*') {
+                description += `毎時${minute}分`;
+            } else if (minute === '*') {
+                description += `${hour}時台の毎分`;
+            } else {
+                description += `${hour}:${minute.padStart(2, '0')}`;
+            }
+
+            return {
+                description,
+                parts: { minute, hour, dayOfMonth, month, dayOfWeek }
+            };
+        }
+
         // cron一覧を読み込む
         async function loadCronJobs() {
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -1666,20 +1760,35 @@
                 `;
 
                 cronJobs.forEach((job, index) => {
+                    const cronInfo = parseCronExpression(job);
+
                     html += `
                         <div style="padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
-                                <div style="flex: 1; min-width: 0; margin-right: 15px;">
-                                    <div style="font-family: 'Courier New', monospace; font-size: 0.85em; color: #212529; word-break: break-all; line-height: 1.6;">
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: inline-block; padding: 4px 10px; background: #e7f3ff; border-radius: 4px; font-size: 0.85em; color: #0056b3; font-weight: 600; margin-bottom: 8px;">
+                                    ⏰ ${cronInfo.description}
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: start; gap: 10px;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-family: 'Courier New', monospace; font-size: 0.8em; color: #6c757d; word-break: break-all; line-height: 1.6;">
                                         ${job}
                                     </div>
                                 </div>
-                                <button onclick='removeCronJob("${job.replace(/'/g, "\\'")}")'
-                                        style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
-                                        onmouseover="this.style.background='#c82333';"
-                                        onmouseout="this.style.background='#dc3545';">
-                                    🗑️ 削除
-                                </button>
+                                <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                                    <button onclick='editCronJob(${index}, "${job.replace(/'/g, "\\'")}")'
+                                            style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                                            onmouseover="this.style.background='#5568d3';"
+                                            onmouseout="this.style.background='#667eea';">
+                                        ✏️ 編集
+                                    </button>
+                                    <button onclick='removeCronJob("${job.replace(/'/g, "\\'")}")'
+                                            style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; font-size: 0.8em; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                                            onmouseover="this.style.background='#c82333';"
+                                            onmouseout="this.style.background='#dc3545';">
+                                        🗑️ 削除
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -1788,9 +1897,137 @@
             }
         }
 
+        // cronジョブを編集
+        function editCronJob(index, cronLine) {
+            const parts = cronLine.trim().split(/\s+/);
+            if (parts.length < 5) {
+                alert('無効なcron式です');
+                return;
+            }
+
+            // cron式部分とコマンド部分を分離
+            const minute = parts[0];
+            const hour = parts[1];
+            const dayOfMonth = parts[2];
+            const month = parts[3];
+            const dayOfWeek = parts[4];
+            const commandPart = parts.slice(5).join(' ');
+
+            // 編集モーダルに値を設定
+            document.getElementById('editMinute').value = minute;
+            document.getElementById('editHour').value = hour;
+            document.getElementById('editDayOfWeek').value = dayOfWeek;
+
+            currentEditingCron.original = cronLine;
+            currentEditingCron.commandPart = commandPart;
+
+            // プレビューを更新
+            updateCronPreview();
+
+            // モーダルを表示
+            document.getElementById('cronEditModal').classList.add('active');
+        }
+
+        // cronプレビューを更新
+        function updateCronPreview() {
+            const minute = document.getElementById('editMinute').value;
+            const hour = document.getElementById('editHour').value;
+            const dayOfWeek = document.getElementById('editDayOfWeek').value;
+
+            const daysOfWeekJp = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+
+            let description = '実行タイミング: ';
+            if (dayOfWeek !== '*') {
+                description += `毎週${daysOfWeekJp[dayOfWeek]}の `;
+            } else {
+                description += '毎日 ';
+            }
+            description += `${hour}:${String(minute).padStart(2, '0')}`;
+
+            document.getElementById('cronPreview').textContent = description;
+
+            // 完全なコマンドをプレビュー
+            const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${currentEditingCron.commandPart}`;
+            document.getElementById('editCommandPreview').textContent = fullCommand;
+        }
+
+        // cron編集を保存
+        async function saveCronEdit() {
+            const minute = document.getElementById('editMinute').value;
+            const hour = document.getElementById('editHour').value;
+            const dayOfWeek = document.getElementById('editDayOfWeek').value;
+
+            if (minute === '' || hour === '') {
+                alert('時刻を入力してください');
+                return;
+            }
+
+            const newCronLine = `${minute} ${hour} * * ${dayOfWeek} ${currentEditingCron.commandPart}`;
+
+            // 古いcronを削除して新しいcronを追加
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            try {
+                // 削除
+                await fetch(`${baseUrl}/cron/remove`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: currentEditingCron.original })
+                });
+
+                // 追加
+                const response = await fetch(`${baseUrl}/cron/add`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: newCronLine })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('✅ cronジョブを更新しました');
+                    closeCronEditModal();
+                    loadCronJobs();
+                } else {
+                    alert('❌ エラー: ' + (data.error || 'cronジョブの更新に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error updating cron job:', err);
+                alert('❌ cronジョブの更新に失敗しました');
+            }
+        }
+
+        // cron編集モーダルを閉じる
+        function closeCronEditModal() {
+            document.getElementById('cronEditModal').classList.remove('active');
+        }
+
+        // 時刻の入力が変わったらプレビューを更新
+        document.addEventListener('DOMContentLoaded', function() {
+            const editInputs = ['editMinute', 'editHour', 'editDayOfWeek'];
+            editInputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateCronPreview);
+                    element.addEventListener('change', updateCronPreview);
+                }
+            });
+        });
+
         document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeModal();
+            }
+        });
+
+        document.getElementById('cronEditModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCronEditModal();
             }
         });
     </script>
