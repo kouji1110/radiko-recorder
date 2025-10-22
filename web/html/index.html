@@ -481,6 +481,7 @@
             <button class="tab active" onclick="switchTab('search')">📻 番組検索</button>
             <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
             <button class="tab" onclick="switchTab('cron')">⏰ cron管理</button>
+            <button class="tab" onclick="switchTab('at')">⏱️ at予約</button>
         </div>
 
         <!-- 番組検索タブ -->
@@ -613,6 +614,23 @@
             </div>
         </div>
 
+        <!-- at予約タブ -->
+        <div id="atTab" class="tab-content">
+            <div class="content">
+                <div style="padding: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏱️ at予約管理</h2>
+                        <button class="btn btn-primary" onclick="loadAtJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                    </div>
+                    <div id="atLoading" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>at予約一覧を読み込み中...</p>
+                    </div>
+                    <div id="atList"></div>
+                </div>
+            </div>
+        </div>
+
         <footer>
             <p>&copy; 2025 録音くん | Powered by radiko API</p>
         </footer>
@@ -652,6 +670,29 @@
             <div class="modal-actions">
                 <button class="btn btn-action" onclick="loadCronLogs()" style="background: #6c757d; color: white;">🔄 更新</button>
                 <button class="btn btn-action btn-close" onclick="closeCronLogModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- オーディオプレイヤーモーダル -->
+    <div id="audioPlayerModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="audioPlayerTitle">🎵 再生中</h2>
+                <button class="modal-close" onclick="closeAudioPlayer()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 15px;">
+                    <source id="audioSource" src="" type="audio/mpeg">
+                    お使いのブラウザは音声再生をサポートしていません。
+                </audio>
+                <div id="audioInfo" style="padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 0.9em; color: #495057;">
+                    <div style="margin-bottom: 8px;"><strong>ファイル名:</strong> <span id="audioFileName"></span></div>
+                    <div style="color: #6c757d; font-size: 0.85em;">再生速度の調整やシークが可能です</div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action btn-close" onclick="closeAudioPlayer()">閉じる</button>
             </div>
         </div>
     </div>
@@ -887,6 +928,11 @@
                 document.getElementById('cronTab').classList.add('active');
                 // cronタブを開いた時に自動読み込み
                 loadCronJobs();
+            } else if (tabName === 'at') {
+                document.querySelectorAll('.tab')[3].classList.add('active');
+                document.getElementById('atTab').classList.add('active');
+                // at予約タブを開いた時に自動読み込み
+                loadAtJobs();
             }
         }
 
@@ -1408,8 +1454,8 @@
             const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
             const dateStr = `${prog.ft.getFullYear()}/${prog.ft.getMonth() + 1}/${prog.ft.getDate()}`;
 
-            // radikoの番組ページURL
-            const radikoTime = formatRadikoTime(prog.ft);
+            // radikoの番組ページURL（秒まで含む14桁形式）
+            const radikoTime = formatRadikoUrl(prog.ft);
             const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
 
             // 番組説明をクリーンアップ
@@ -1616,23 +1662,71 @@
             document.getElementById('modal').classList.add('active');
         }
 
-        function showAtCommand(prog) {
+        async function showAtCommand(prog) {
             const scriptPath = document.getElementById('scriptPath').value;
+            const startTime = new Date(prog.ft);
             const endTime = new Date(prog.to);
-            endTime.setMinutes(endTime.getMinutes() + 5);
 
-            const startStr = formatRadikoTime(new Date(prog.ft));
+            // at実行時刻（番組終了の5分後）
+            const atExecTime = new Date(prog.to);
+            atExecTime.setMinutes(atExecTime.getMinutes() + 5);
+
+            // 開始時刻と終了時刻（YYYYMMDDHHmm形式）
+            const startStr = formatRadikoTime(startTime);
             const endStr = formatRadikoTime(endTime);
 
-            const atTime = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')} ${endTime.getFullYear()}-${String(endTime.getMonth() + 1).padStart(2, '0')}-${String(endTime.getDate()).padStart(2, '0')}`;
+            // at実行時刻
+            const atTime = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')} ${atExecTime.getFullYear()}-${String(atExecTime.getMonth() + 1).padStart(2, '0')}-${String(atExecTime.getDate()).padStart(2, '0')}`;
 
-            const command = `echo "${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}" | at ${atTime}`;
+            // cronと同じ形式のコマンド
+            const command = `echo '${scriptPath} "${prog.title}" "${prog.stationId}" "${prog.stationId}" "${startStr}" "${endStr}" "" "" "" >> /tmp/myradiko_output.log 2>&1' | at ${atTime}`;
 
             currentCommand = command;
-            currentProgramData = null; // atは実行ボタンなし
+            currentProgramData = prog; // 実行用にデータを保存
             document.getElementById('modalTitle').textContent = `at予約コマンド - ${prog.title}`;
-            document.getElementById('commandBox').textContent = command;
-            document.getElementById('executeBtn').style.display = 'none';
+
+            // ファイルの存在確認
+            const fileCheck = await checkFileExists(prog);
+
+            let commandBoxContent = command;
+
+            if (fileCheck && fileCheck.exists) {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
+
+                commandBoxContent = `
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="color: #856404; font-weight: bold; margin-bottom: 8px; font-size: 1.1em;">⚠️ このファイルは既に録音済みです</div>
+                        <div style="color: #856404; font-size: 0.9em; margin-bottom: 10px;">ファイル名: ${fileCheck.filename}</div>
+                        <a href="${downloadUrl}" download="${fileCheck.filename}"
+                           style="display: inline-block; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 0.9em;">
+                            📥 既存ファイルをダウンロード
+                        </a>
+                    </div>
+                    <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.9em; color: #6c757d;">
+                        ${command}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.85em; color: #856404;">
+                        ※ 「実行」ボタンを押すと既存ファイルが上書きされます
+                    </div>
+                `;
+            } else {
+                // 実行予定時刻を表示
+                const execTimeStr = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')}`;
+                const execDateStr = `${atExecTime.getFullYear()}/${atExecTime.getMonth() + 1}/${atExecTime.getDate()}`;
+
+                commandBoxContent = `
+                    <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
+                        <div style="font-weight: 600; color: #1976d2; margin-bottom: 4px;">⏰ 実行予定時刻</div>
+                        <div style="color: #555; font-size: 0.95em;">${execDateStr} ${execTimeStr}（番組終了の5分後）</div>
+                    </div>
+                    <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">${command}</div>
+                `;
+            }
+
+            document.getElementById('commandBox').innerHTML = commandBoxContent;
+            document.getElementById('executeBtn').style.display = 'inline-block';
             document.getElementById('modal').classList.add('active');
         }
 
@@ -1644,6 +1738,17 @@
             const minute = String(date.getMinutes()).padStart(2, '0');
             // rec_radiko_ts.shは12桁（秒なし）を期待
             return `${year}${month}${day}${hour}${minute}`;
+        }
+
+        function formatRadikoUrl(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            const second = String(date.getSeconds()).padStart(2, '0');
+            // radikoのURLは14桁（秒まで含む）を期待
+            return `${year}${month}${day}${hour}${minute}${second}`;
         }
 
         function closeModal() {
@@ -1662,13 +1767,65 @@
             }
 
             const prog = currentProgramData;
-            const endTime = new Date(prog.to);
-            endTime.setMinutes(endTime.getMinutes() + 5);
 
+            // 録音は番組開始から終了まで
             const startStr = formatRadikoTime(new Date(prog.ft));
-            const endStr = formatRadikoTime(endTime);
+            const endStr = formatRadikoTime(new Date(prog.to));
 
-            // ログ表示エリアに切り替え
+            // at実行時刻は番組終了の5分後
+            const atExecTime = new Date(prog.to);
+            atExecTime.setMinutes(atExecTime.getMinutes() + 5);
+
+            // currentCommandからat予約かどうかを判定
+            const isAtCommand = currentCommand.includes('| at ');
+
+            const executeBtn = document.getElementById('executeBtn');
+            executeBtn.disabled = true;
+            executeBtn.textContent = '実行中...';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? `${proxyUrl}` : 'http://localhost:8080';
+
+            // at予約の場合
+            if (isAtCommand) {
+                const scriptPath = document.getElementById('scriptPath').value;
+                const atTime = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')} ${atExecTime.getFullYear()}-${String(atExecTime.getMonth() + 1).padStart(2, '0')}-${String(atExecTime.getDate()).padStart(2, '0')}`;
+
+                try {
+                    const response = await fetch(`${baseUrl}/schedule-at`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            script_path: scriptPath,
+                            title: prog.title,
+                            start_time: startStr,
+                            end_time: endStr,
+                            station_id: prog.stationId,
+                            at_time: atTime
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(`✅ at予約を登録しました\n\n実行予定: ${atTime}\n\n${data.output || ''}`);
+                        closeModal();
+                    } else {
+                        alert(`❌ at予約の登録に失敗しました\n\n${data.error || 'Unknown error'}`);
+                    }
+                } catch (err) {
+                    console.error('at schedule error:', err);
+                    alert(`❌ at予約の登録に失敗しました\n\n${err.message}`);
+                } finally {
+                    executeBtn.disabled = false;
+                    executeBtn.textContent = '実行';
+                }
+                return;
+            }
+
+            // 即時実行（DL）の場合
             const commandBox = document.getElementById('commandBox');
             commandBox.innerHTML = `
                 <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 400px; overflow-y: auto;" id="logArea">
@@ -1678,13 +1835,6 @@
                     <div id="logContent"></div>
                 </div>
             `;
-
-            const executeBtn = document.getElementById('executeBtn');
-            executeBtn.disabled = true;
-            executeBtn.textContent = '実行中...';
-
-            const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? `${proxyUrl}` : 'http://localhost:8080';
 
             // POSTリクエストで実行
             const response = await fetch(`${baseUrl}/execute`, {
@@ -2047,13 +2197,20 @@
                                     <div>🕒 ${dateStr}</div>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 8px;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
+                                        style="flex: 1; min-width: 100px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.5)';"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)';">
+                                    <span style="font-size: 1.2em;">▶️</span>
+                                    <span>再生</span>
+                                </button>
                                 <a href="${baseUrl}/download/${file.path}" download="${file.name}"
-                                   style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
+                                   style="flex: 1; min-width: 100px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.5)';"
                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.3)';">
                                     <span style="font-size: 1.2em;">📥</span>
-                                    <span>ダウンロード</span>
+                                    <span>DL</span>
                                 </a>
                                 <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         style="display: flex; align-items: center; justify-content: center; padding: 10px 16px; background: #e57373; color: white; border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(229, 115, 115, 0.3);"
@@ -2624,6 +2781,161 @@
                 closeCronLogModal();
             }
         });
+
+        // at予約一覧を読み込む
+        async function loadAtJobs() {
+            const atLoading = document.getElementById('atLoading');
+            const atList = document.getElementById('atList');
+
+            atLoading.style.display = 'block';
+            atList.innerHTML = '';
+
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+                const response = await fetch(`${baseUrl}/at/list`);
+                const data = await response.json();
+
+                atLoading.style.display = 'none';
+
+                if (!data.jobs || data.jobs.length === 0) {
+                    atList.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d; font-size: 0.95em;">at予約はありません</div>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 15px;">';
+
+                data.jobs.forEach(job => {
+                    html += `
+                        <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #212529; margin-bottom: 5px; font-size: 0.95em;">
+                                        ⏱️ Job #${job.id}
+                                    </div>
+                                    <div style="color: #6c757d; font-size: 0.9em;">
+                                        実行予定: ${job.datetime}
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick='showAtJobDetail("${job.id}")'
+                                            style="padding: 8px 14px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                            onmouseover="this.style.background='#5568d3'"
+                                            onmouseout="this.style.background='#667eea'"
+                                            title="詳細">
+                                        詳細
+                                    </button>
+                                    <button onclick='cancelAtJob("${job.id}")'
+                                            style="padding: 8px 14px; background: #e57373; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                            onmouseover="this.style.background='#ef5350'"
+                                            onmouseout="this.style.background='#e57373'"
+                                            title="キャンセル">
+                                        キャンセル
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                atList.innerHTML = html;
+
+            } catch (err) {
+                console.error('Error loading at jobs:', err);
+                atLoading.style.display = 'none';
+                atList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">エラーが発生しました</div>';
+            }
+        }
+
+        // at予約の詳細を表示
+        async function showAtJobDetail(jobId) {
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+                const response = await fetch(`${baseUrl}/at/detail/${jobId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`at予約 #${jobId} の詳細\n\nコマンド:\n${data.command || 'コマンドが見つかりませんでした'}`);
+                } else {
+                    alert(`エラー: ${data.error || 'Unknown error'}`);
+                }
+            } catch (err) {
+                console.error('Error getting at job detail:', err);
+                alert(`エラー: ${err.message}`);
+            }
+        }
+
+        // at予約をキャンセル
+        async function cancelAtJob(jobId) {
+            if (!confirm(`at予約 #${jobId} をキャンセルしますか？`)) {
+                return;
+            }
+
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+                const response = await fetch(`${baseUrl}/at/cancel/${jobId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadAtJobs(); // 一覧を再読み込み
+                } else {
+                    alert(`❌ ${data.error || 'Unknown error'}`);
+                }
+            } catch (err) {
+                console.error('Error cancelling at job:', err);
+                alert(`❌ エラー: ${err.message}`);
+            }
+        }
+
+        // 音声ファイルを再生
+        function playAudio(filepath, filename) {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            // オーディオプレイヤーのソースを設定
+            const audioPlayer = document.getElementById('audioPlayer');
+            const audioSource = document.getElementById('audioSource');
+            const streamUrl = `${baseUrl}/stream/${filepath}`;
+
+            // ファイル名を表示
+            document.getElementById('audioFileName').textContent = filename;
+            document.getElementById('audioPlayerTitle').textContent = '🎵 ' + filename;
+
+            // モーダルを表示
+            document.getElementById('audioPlayerModal').classList.add('active');
+
+            // ソースを設定して読み込み
+            audioSource.src = streamUrl;
+            audioPlayer.load();
+
+            // loadが完了したら自動再生
+            audioPlayer.addEventListener('canplay', function playWhenReady() {
+                audioPlayer.play().catch(err => {
+                    console.error('Auto-play failed:', err);
+                    // 自動再生が失敗してもエラーは表示しない（ユーザーが手動で再生できる）
+                });
+                // イベントリスナーを削除（一度だけ実行）
+                audioPlayer.removeEventListener('canplay', playWhenReady);
+            }, { once: true });
+        }
+
+        // オーディオプレイヤーを閉じる
+        function closeAudioPlayer() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            document.getElementById('audioPlayerModal').classList.remove('active');
+        }
     </script>
 </body>
 </html>

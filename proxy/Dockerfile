@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     cron \
+    at \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -14,9 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 
-# cronサービスを起動するスクリプトを作成
+# cronとatdサービスを起動するスクリプトを作成
 RUN echo '#!/bin/bash\n\
 service cron start\n\
+service atd start\n\
 python app.py' > /start.sh && chmod +x /start.sh
 
 EXPOSE 8080

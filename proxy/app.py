@@ -495,5 +495,184 @@ def delete_file():
         logger.error(f'Delete file error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@app.route('/stream/<path:filepath>')
+def stream_file(filepath):
+    """音声ファイルをストリーミング配信"""
+    try:
+        # セキュリティ: パストラバーサル対策
+        base_dir = '/home/sites/radiko-recorder/output/radio'
+        safe_path = os.path.normpath(os.path.join(base_dir, filepath))
+
+        if not safe_path.startswith(base_dir):
+            return jsonify({'error': 'Invalid file path'}), 400
+
+        if not os.path.exists(safe_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        # ファイルの拡張子を確認
+        ext = os.path.splitext(safe_path)[1].lower()
+
+        # MIMEタイプを設定
+        mime_types = {
+            '.mp3': 'audio/mpeg',
+            '.m4a': 'audio/mp4',
+            '.aac': 'audio/aac',
+            '.wav': 'audio/wav'
+        }
+
+        mime_type = mime_types.get(ext, 'application/octet-stream')
+
+        # ストリーミング配信（Range Request対応）
+        return send_file(
+            safe_path,
+            mimetype=mime_type,
+            as_attachment=False,
+            conditional=True  # Range Request対応
+        )
+
+    except Exception as e:
+        logger.error(f'Stream file error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/schedule-at', methods=['POST'])
+def schedule_at():
+    """at予約を登録"""
+    try:
+        data = request.json
+        script_path = data.get('script_path', '/home/sites/radiko-recorder/script/myradiko')
+        title = data.get('title', '')        # 番組名
+        start_time = data.get('start_time')  # YYYYMMDDHHmm形式
+        end_time = data.get('end_time')      # YYYYMMDDHHmm形式
+        station_id = data.get('station_id')
+        at_time = data.get('at_time')        # HH:MM YYYY-MM-DD形式
+
+        if not all([start_time, end_time, station_id, at_time]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        # cronと同じ形式のコマンドを生成
+        command = f'{script_path} "{title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
+        at_command = f"echo '{command}' | at {at_time}"
+
+        logger.info(f'Scheduling at job: {at_command}')
+
+        result = subprocess.run(
+            at_command,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f'at command failed: {result.stderr}')
+            return jsonify({'error': result.stderr}), 500
+
+        logger.info(f'at job scheduled successfully: {result.stdout}')
+
+        return jsonify({
+            'success': True,
+            'message': 'at予約を登録しました',
+            'output': result.stdout
+        })
+
+    except Exception as e:
+        logger.error(f'Schedule at error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/at/list', methods=['GET'])
+def list_at_jobs():
+    """at予約一覧を取得"""
+    try:
+        result = subprocess.run(
+            ['atq'],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f'atq command failed: {result.stderr}')
+            return jsonify({'jobs': []})
+
+        jobs = []
+        for line in result.stdout.strip().split('\n'):
+            if line:
+                # atqの出力形式: job_id date time queue user
+                # 例: 1	Thu Oct 24 00:00:00 2025 a root
+                parts = line.split()
+                if len(parts) >= 6:
+                    job_id = parts[0]
+                    weekday = parts[1]
+                    month = parts[2]
+                    day = parts[3]
+                    time = parts[4]
+                    year = parts[5]
+
+                    jobs.append({
+                        'id': job_id,
+                        'datetime': f'{year}/{month}/{day} {weekday} {time}',
+                        'raw': line
+                    })
+
+        return jsonify({'jobs': jobs})
+
+    except Exception as e:
+        logger.error(f'List at jobs error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/at/cancel/<job_id>', methods=['DELETE'])
+def cancel_at_job(job_id):
+    """at予約をキャンセル"""
+    try:
+        result = subprocess.run(
+            ['atrm', job_id],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f'atrm command failed: {result.stderr}')
+            return jsonify({'error': result.stderr}), 500
+
+        logger.info(f'at job {job_id} cancelled successfully')
+
+        return jsonify({
+            'success': True,
+            'message': f'at予約 #{job_id} をキャンセルしました'
+        })
+
+    except Exception as e:
+        logger.error(f'Cancel at job error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/at/detail/<job_id>', methods=['GET'])
+def get_at_job_detail(job_id):
+    """at予約の詳細を取得"""
+    try:
+        result = subprocess.run(
+            ['at', '-c', job_id],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            logger.error(f'at -c command failed: {result.stderr}')
+            return jsonify({'error': result.stderr}), 500
+
+        # コマンド部分を抽出（最後の行がコマンド）
+        lines = result.stdout.strip().split('\n')
+        command = ''
+        for line in reversed(lines):
+            if line and not line.startswith('#') and 'myradiko' in line:
+                command = line
+                break
+
+        return jsonify({
+            'command': command,
+            'full_output': result.stdout
+        })
+
+    except Exception as e:
+        logger.error(f'Get at job detail error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
