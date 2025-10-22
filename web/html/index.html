@@ -540,9 +540,8 @@
                     </select>
                 </div>
 
-                <div class="setting-group" style="flex-direction: column; align-items: flex-start;">
-                    <label style="margin-bottom: 8px;">日付:</label>
-                    <div id="dateButtons" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <div class="setting-group">
+                    <div id="dateButtons" style="display: flex; gap: 4px; flex-wrap: wrap;">
                         <!-- 日付ボタンはJavaScriptで動的に生成 -->
                     </div>
                     <input type="hidden" id="targetDate" value="">
@@ -936,19 +935,19 @@
 
                 // 今日の日付をデフォルトで選択状態にする
                 if (i === 0) {
-                    button.style.cssText = 'padding: 8px 12px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);';
+                    button.style.cssText = 'padding: 4px 8px; border: 1px solid #667eea; background: #667eea; color: white; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: all 0.15s;';
                 } else {
-                    button.style.cssText = 'padding: 8px 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s;';
+                    button.style.cssText = 'padding: 4px 8px; border: 1px solid #ced4da; background: #f8f9fa; color: #6c757d; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: all 0.15s;';
                 }
 
                 button.addEventListener('click', async function() {
                     // すべてのボタンのスタイルをリセット
                     dateButtonsContainer.querySelectorAll('button').forEach(btn => {
-                        btn.style.cssText = 'padding: 8px 12px; border: 2px solid #dee2e6; background: white; color: #495057; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s;';
+                        btn.style.cssText = 'padding: 4px 8px; border: 1px solid #ced4da; background: #f8f9fa; color: #6c757d; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: all 0.15s;';
                     });
 
                     // クリックされたボタンを選択状態にする
-                    this.style.cssText = 'padding: 8px 12px; border: 2px solid #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);';
+                    this.style.cssText = 'padding: 4px 8px; border: 1px solid #667eea; background: #667eea; color: white; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: all 0.15s;';
 
                     // 隠しフィールドに日付を設定
                     document.getElementById('targetDate').value = this.dataset.date;
