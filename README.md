@@ -505,3 +505,17 @@ sudo htpasswd -c /etc/nginx/.htpasswd username
 2. ブラウザからアクセスして番組表が表示される
 3. 各種コマンドが正常に生成される
 4. システムが安定して動作する
+
+## 🔐 ログイン情報
+
+Basic認証が設定されています：
+
+- **ユーザー名**: `radiko`
+- **パスワード**: `radiko2025`
+
+※ パスワードを変更する場合は以下のコマンドで新しいハッシュを生成してください：
+```bash
+docker run --rm httpd:2.4-alpine htpasswd -nbB radiko "新しいパスワード"
+```
+
+生成されたハッシュを `web/.htpasswd` ファイルに貼り付けてコンテナを再ビルドしてください。
