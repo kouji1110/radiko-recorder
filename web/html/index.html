@@ -1388,19 +1388,39 @@
                     const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
                     const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
 
+                    // 番組が終了しているかチェック
+                    const isPastProgram = prog.to < now;
+                    const isFutureProgram = prog.ft > now;
+
                     // radikoのURL
-                    const radikoTime = formatRadikoTime(prog.ft);
+                    const radikoTime = formatRadikoUrl(prog.ft);
                     const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
+
+                    // ボタンを生成
+                    let buttonsHtml = '';
+
+                    // 終了済み番組：ダウンロードボタン
+                    if (isPastProgram) {
+                        buttonsHtml += `<button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>`;
+                    }
+
+                    // 未来の番組：予約ボタン
+                    if (isFutureProgram) {
+                        buttonsHtml += `<button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>予約</button>`;
+                    }
+
+                    // 定期録音ボタン（常に表示）
+                    buttonsHtml += `<button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>定期</button>`;
+
+                    // radikoボタン（常に表示）
+                    buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
 
                     card.innerHTML = `
                         <div class="program-time">${startTime} - ${endTime}</div>
                         <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
                         ${prog.pfm ? `<div class="program-detail">${prog.pfm}</div>` : ''}
                         <div class="program-actions">
-                            <button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>cron</button>
-                            <button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>
-                            <button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>at</button>
-                            <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #667eea; color: white; text-decoration: none; display: inline-block; line-height: 1;" title="radikoで聴く">📻</a>
+                            ${buttonsHtml}
                         </div>
                     `;
 
@@ -1585,7 +1605,7 @@
 
             currentCommand = command;
             currentProgramData = prog; // プログラム情報を保存
-            document.getElementById('modalTitle').textContent = `cronコマンド - ${prog.title}`;
+            document.getElementById('modalTitle').textContent = `定期録音 - ${prog.title}`;
 
             // 実行時刻の説明を追加
             const execTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -1625,7 +1645,7 @@
 
             currentCommand = command;
             currentProgramData = prog; // 実行用にデータを保存
-            document.getElementById('modalTitle').textContent = `ダウンロードコマンド - ${prog.title}`;
+            document.getElementById('modalTitle').textContent = `ダウンロード - ${prog.title}`;
 
             // ファイルの存在確認
             const fileCheck = await checkFileExists(prog);
@@ -1683,7 +1703,7 @@
 
             currentCommand = command;
             currentProgramData = prog; // 実行用にデータを保存
-            document.getElementById('modalTitle').textContent = `at予約コマンド - ${prog.title}`;
+            document.getElementById('modalTitle').textContent = `予約 - ${prog.title}`;
 
             // ファイルの存在確認
             const fileCheck = await checkFileExists(prog);
