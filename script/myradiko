@@ -1,0 +1,68 @@
+#! /bin/bash
+export LANG=ja_JP.UTF-8
+export LC_CTYPE=ja_JP.UTF-8
+
+# 引数
+# 1:タイトル 2:RSS 3:放送局
+# 4:開始時刻 5:終了時刻 6:RSS作成スキップ
+# 7:出力ディレクトリ 8:メール送信コード
+
+# Ubuntu環境用パス設定
+BASE_DIR="/home/sites/radiko-recorder"
+DOC_ROUTE="${BASE_DIR}/output/radio"
+WORK_DIR="${BASE_DIR}/work"
+SCRIPT_DIR="${BASE_DIR}/script"
+REC_RADIKO_SCRIPT="${BASE_DIR}/rec_radiko_ts-master/rec_radiko_ts.sh"
+COPY_DIR="${BASE_DIR}/backup/Radio"
+
+# 環境変数からメール設定を取得（デフォルト値あり）
+RADIKO_EMAIL="${RADIKO_EMAIL:-hedgehog.mouse@gmail.com}"
+RADIKO_PASSWORD="${RADIKO_PASSWORD:-s1008467}"
+
+TITLE=$1
+RSS=$2
+STATION=$3
+START=$4
+END=$5
+SKIP=$6
+DIR=$7
+MAIL=$8
+FNAME_DATE=${START:0:4}.${START:4:2}.${START:6:2}
+TITLE_HOME="${WORK_DIR}/${RSS}"
+TITLE_DIR="${DOC_ROUTE}/${RSS}"
+TODAY=$(date +%Y%m%d)
+
+if [ -n "$DIR" ]; then
+   COPY_DIR="${COPY_DIR}${DIR}"
+   if [ ! -d "$COPY_DIR" ]; then
+    mkdir -p "$COPY_DIR"
+   fi
+fi
+
+# mkdir
+[ ! -e $TITLE_HOME ] && mkdir -p $TITLE_HOME
+[ ! -e $TITLE_DIR  ] && mkdir -p $TITLE_DIR
+
+# rec
+cd $TITLE_HOME
+"${REC_RADIKO_SCRIPT}" -s $STATION -f ${START} -t ${END} -o "${TITLE}(${FNAME_DATE})" -m "${RADIKO_EMAIL}" -p "${RADIKO_PASSWORD}"
+
+# convert
+ffmpeg -i "${TITLE}(${FNAME_DATE}).m4a" -ab 48k "${TITLE}(${FNAME_DATE}).mp3"
+rm -rf "${TITLE}(${FNAME_DATE}).m4a"
+cp "${TITLE}(${FNAME_DATE}).mp3" "$COPY_DIR" 
+
+# $SKIP
+if [ -z "$SKIP" ]; then
+  mv "${TITLE}(${FNAME_DATE}).mp3" $TITLE_DIR
+
+  # make rss file
+  #   ruby $SCRIPT_DIR/ruby/makepodcast.rb "${TITLE}" http://100.76.149.58:8080/radio/$RSS/ $TITLE_DIR > $TITLE_DIR/$RSS.rss
+else
+  rm "${TITLE}(${FNAME_DATE}).mp3"
+fi
+
+# $MAIL
+#if [ "$MAIL" = "blog" ]; then
+#  echo "${START:0:4}年${START:4:2}月${START:6:2}日の「${TITLE}」を録音しました" | /usr/local/bin/nkf -j | mail -s "${START:0:4}.${START:4:2}.${START:6:2} ${TITLE}" post-mediamemo-radio@blog.seesaa.jp
+#fi

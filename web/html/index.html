@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>radiko録音管理システム</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 10px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            background: #667eea;
+            color: white;
+            padding: 10px 15px;
+        }
+
+        header h1 {
+            font-size: 1.2em;
+            margin: 0;
+        }
+
+        header p {
+            font-size: 0.75em;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            padding: 0 15px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #495057;
+            background: #e9ecef;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .settings {
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .settings-grid {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .setting-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.75em;
+            white-space: nowrap;
+        }
+
+        .setting-group input,
+        .setting-group select {
+            padding: 4px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .setting-group input:focus,
+        .setting-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .content {
+            padding: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f5c6cb;
+        }
+
+        .program-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 6px;
+        }
+
+        .station-column {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .station-header {
+            background: #667eea;
+            color: white;
+            padding: 6px 8px;
+            font-weight: 700;
+            font-size: 0.85em;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .station-programs {
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+
+        .program-card {
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            padding: 4px 6px;
+            transition: background 0.1s;
+            cursor: pointer;
+        }
+
+        .program-card:last-child {
+            border-bottom: none;
+        }
+
+        .program-card:hover {
+            background: #f8f9fa;
+        }
+
+        .program-card.now-playing {
+            background: #fff9e6;
+            border-left: 3px solid #ffc107;
+        }
+
+        .program-time {
+            color: #667eea;
+            font-weight: 700;
+            font-size: 0.7em;
+            margin-bottom: 2px;
+        }
+
+        .program-title {
+            color: #212529;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .program-detail {
+            color: #6c757d;
+            font-size: 0.7em;
+            margin-bottom: 3px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .program-actions {
+            display: flex;
+            gap: 2px;
+            margin-top: 3px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 2px 4px;
+            border: none;
+            border-radius: 3px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.1s;
+            font-size: 0.65em;
+            white-space: nowrap;
+        }
+
+        .btn-cron {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-cron:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-download {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: #0069d9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-at {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-at:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .modal-header h2 {
+            color: #212529;
+            font-size: 1.8em;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: #f8f9fa;
+            color: #212529;
+        }
+
+        .command-box {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            line-height: 1.6;
+            word-break: break-all;
+            color: #212529;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-execute {
+            flex: 1;
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-execute:hover {
+            background: #218838;
+        }
+
+        .btn-copy {
+            flex: 1;
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-copy:hover {
+            background: #5568d3;
+        }
+
+        .btn-close {
+            flex: 1;
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-close:hover {
+            background: #5a6268;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 6px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.7em;
+            border-top: 1px solid #e9ecef;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .program-header {
+                flex-direction: column;
+            }
+
+            .program-actions {
+                flex-direction: column;
+            }
+
+            .btn-action {
+                width: 100%;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>radiko録音管理システム</h1>
+            <p>全国47都道府県のラジオ番組を検索・録音予約</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('search')">📻 番組検索</button>
+            <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
+        </div>
+
+        <!-- 番組検索タブ -->
+        <div id="searchTab" class="tab-content active">
+            <div class="settings">
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label for="areaId">エリアを選択:</label>
+                    <select id="areaId">
+                        <option value="JP1">北海道</option>
+                        <option value="JP2">青森県</option>
+                        <option value="JP3">岩手県</option>
+                        <option value="JP4">宮城県</option>
+                        <option value="JP5">秋田県</option>
+                        <option value="JP6">山形県</option>
+                        <option value="JP7">福島県</option>
+                        <option value="JP8">茨城県</option>
+                        <option value="JP9">栃木県</option>
+                        <option value="JP10">群馬県</option>
+                        <option value="JP11">埼玉県</option>
+                        <option value="JP12">千葉県</option>
+                        <option value="JP13">東京都</option>
+                        <option value="JP14">神奈川県</option>
+                        <option value="JP15">新潟県</option>
+                        <option value="JP16">富山県</option>
+                        <option value="JP17">石川県</option>
+                        <option value="JP18">福井県</option>
+                        <option value="JP19">山梨県</option>
+                        <option value="JP20">長野県</option>
+                        <option value="JP21">岐阜県</option>
+                        <option value="JP22">静岡県</option>
+                        <option value="JP23">愛知県</option>
+                        <option value="JP24">三重県</option>
+                        <option value="JP25">滋賀県</option>
+                        <option value="JP26">京都府</option>
+                        <option value="JP27">大阪府</option>
+                        <option value="JP28">兵庫県</option>
+                        <option value="JP29">奈良県</option>
+                        <option value="JP30">和歌山県</option>
+                        <option value="JP31">鳥取県</option>
+                        <option value="JP32">島根県</option>
+                        <option value="JP33">岡山県</option>
+                        <option value="JP34">広島県</option>
+                        <option value="JP35">山口県</option>
+                        <option value="JP36">徳島県</option>
+                        <option value="JP37">香川県</option>
+                        <option value="JP38">愛媛県</option>
+                        <option value="JP39">高知県</option>
+                        <option value="JP40">福岡県</option>
+                        <option value="JP41">佐賀県</option>
+                        <option value="JP42">長崎県</option>
+                        <option value="JP43">熊本県</option>
+                        <option value="JP44">大分県</option>
+                        <option value="JP45">宮崎県</option>
+                        <option value="JP46">鹿児島県</option>
+                        <option value="JP47">沖縄県</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label for="targetDate">日付:</label>
+                    <input type="date" id="targetDate" value="">
+                </div>
+
+                <div class="setting-group">
+                    <label for="searchKeyword">検索:</label>
+                    <input type="text" id="searchKeyword" placeholder="番組名で検索" style="width: 150px;">
+                </div>
+
+                <div class="setting-group">
+                    <label for="proxyUrl">プロキシURL:</label>
+                    <input type="text" id="proxyUrl" value="" placeholder="/api" style="width: 80px;">
+                </div>
+
+                <div class="setting-group">
+                    <label for="scriptPath">スクリプトパス:</label>
+                    <input type="text" id="scriptPath" value="/home/sites/radiko-recorder/script/myradiko" placeholder="パス" style="width: 250px;">
+                </div>
+            </div>
+
+            <button id="fetchBtn" class="btn btn-primary">番組表を取得</button>
+            <button id="searchAllBtn" class="btn btn-primary" style="margin-left: 8px;">全エリアから検索</button>
+        </div>
+
+            <div class="content">
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>番組表を読み込み中...</p>
+                </div>
+                <div id="error" class="error" style="display: none;"></div>
+                <div id="searchInfo" style="padding: 8px; font-size: 0.85em; color: #6c757d; display: none;"></div>
+                <div id="programList" class="program-list"></div>
+            </div>
+        </div>
+
+        <!-- 録音済みファイルタブ -->
+        <div id="filesTab" class="tab-content">
+            <div class="content">
+                <div style="padding: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">📁 録音済みファイル一覧</h2>
+                        <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                    </div>
+                    <div id="filesLoading" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <p>ファイル一覧を読み込み中...</p>
+                    </div>
+                    <div id="filesList"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 radiko録音管理システム | Powered by radiko API</p>
+        </footer>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">コマンド</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="command-box" id="commandBox"></div>
+            <div class="modal-actions">
+                <button class="btn btn-action btn-execute" id="executeBtn" onclick="executeCommand()" style="display: none;">実行</button>
+                <button class="btn btn-action btn-copy" onclick="copyCommand(event)">コピー</button>
+                <button class="btn btn-action btn-close" onclick="closeModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCommand = '';
+        let currentProgramData = null;
+        let allProgramsData = [];
+        let eventSource = null;
+
+        // タブ切り替え
+        function switchTab(tabName) {
+            // 全てのタブとコンテンツを非アクティブに
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            // 選択されたタブをアクティブに
+            if (tabName === 'search') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('searchTab').classList.add('active');
+            } else if (tabName === 'files') {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('filesTab').classList.add('active');
+                // ファイルタブを開いた時に自動読み込み
+                loadRecordedFiles();
+            }
+        }
+
+        // 今日の日付とエリアのデフォルトを設定
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0];
+            document.getElementById('targetDate').value = dateStr;
+
+            // 過去7日間までの範囲を設定
+            const minDate = new Date(today);
+            minDate.setDate(minDate.getDate() - 7);
+            document.getElementById('targetDate').min = minDate.toISOString().split('T')[0];
+            document.getElementById('targetDate').max = dateStr;
+
+            // エリアのデフォルトを大阪に設定
+            document.getElementById('areaId').value = 'JP27';
+        });
+
+        document.getElementById('fetchBtn').addEventListener('click', fetchPrograms);
+        document.getElementById('searchAllBtn').addEventListener('click', searchAllAreas);
+
+        // 検索キーワード入力時にリアルタイムフィルタリング
+        document.getElementById('searchKeyword').addEventListener('input', function() {
+            if (allProgramsData.length > 0) {
+                displayPrograms(allProgramsData);
+            }
+        });
+
+        async function fetchPrograms() {
+            const areaId = document.getElementById('areaId').value;
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const targetDate = document.getElementById('targetDate').value;
+
+            if (!areaId) {
+                showError('エリアを選択してください');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const programList = document.getElementById('programList');
+            const fetchBtn = document.getElementById('fetchBtn');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            programList.innerHTML = '';
+            fetchBtn.disabled = true;
+
+            try {
+                // プロキシURLが空欄の場合は直接radikoにアクセス
+                const baseUrl = proxyUrl.trim() ? `${proxyUrl}/radiko` : 'https://radiko.jp';
+                let allPrograms = [];
+
+                if (targetDate) {
+                    // 日付指定の場合: まず放送局一覧を取得
+                    const dateStr = targetDate.replace(/-/g, ''); // YYYYMMDD形式に変換
+                    const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
+
+                    console.log('Fetching station list:', nowUrl);
+                    const nowResponse = await fetch(nowUrl);
+                    if (!nowResponse.ok) {
+                        throw new Error(`放送局一覧の取得に失敗: ${nowResponse.status}`);
+                    }
+
+                    const nowXmlText = await nowResponse.text();
+                    const parser = new DOMParser();
+                    const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
+                    const stations = nowXmlDoc.querySelectorAll('station');
+
+                    // 各放送局ごとに日付指定のデータを取得
+                    const stationPromises = Array.from(stations).map(async (station) => {
+                        const stationId = station.getAttribute('id');
+                        const stationName = station.querySelector('name')?.textContent || 'Unknown';
+
+                        try {
+                            const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
+                            console.log('Fetching:', stationUrl);
+                            const response = await fetch(stationUrl);
+
+                            if (!response.ok) {
+                                console.warn(`${stationId} のデータ取得失敗: ${response.status}`);
+                                return [];
+                            }
+
+                            const xmlText = await response.text();
+                            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                            const progs = xmlDoc.querySelectorAll('prog');
+
+                            const programs = [];
+                            progs.forEach(prog => {
+                                const title = prog.querySelector('title')?.textContent || '';
+                                const ftString = prog.getAttribute('ft');
+                                const toString = prog.getAttribute('to');
+                                const desc = prog.querySelector('desc')?.textContent || '説明なし';
+                                const pfm = prog.querySelector('pfm')?.textContent || '';
+                                const info = prog.querySelector('info')?.textContent || '';
+                                const url = prog.querySelector('url')?.textContent || '';
+
+                                if (ftString && toString) {
+                                    programs.push({
+                                        stationId,
+                                        stationName,
+                                        title,
+                                        ft: parseRadikoTime(ftString),
+                                        to: parseRadikoTime(toString),
+                                        desc,
+                                        pfm,
+                                        info,
+                                        url
+                                    });
+                                }
+                            });
+                            return programs;
+                        } catch (err) {
+                            console.warn(`${stationId} の取得エラー:`, err);
+                            return [];
+                        }
+                    });
+
+                    const results = await Promise.all(stationPromises);
+                    allPrograms = results.flat();
+
+                } else {
+                    // 日付指定なし: 現在の番組表を取得
+                    const url = `${baseUrl}/v3/program/now/${areaId}.xml`;
+                    console.log('Fetching URL:', url);
+                    const response = await fetch(url);
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const xmlText = await response.text();
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                    const stations = xmlDoc.querySelectorAll('station');
+
+                    stations.forEach(station => {
+                        const stationId = station.getAttribute('id');
+                        const stationName = station.querySelector('name')?.textContent || 'Unknown';
+
+                        const progs = station.querySelectorAll('prog');
+                        progs.forEach(prog => {
+                            const title = prog.querySelector('title')?.textContent || '';
+                            const ftString = prog.getAttribute('ft');
+                            const toString = prog.getAttribute('to');
+                            const desc = prog.querySelector('desc')?.textContent || '説明なし';
+                            const pfm = prog.querySelector('pfm')?.textContent || '';
+                            const info = prog.querySelector('info')?.textContent || '';
+                            const url = prog.querySelector('url')?.textContent || '';
+
+                            if (ftString && toString) {
+                                allPrograms.push({
+                                    stationId,
+                                    stationName,
+                                    title,
+                                    ft: parseRadikoTime(ftString),
+                                    to: parseRadikoTime(toString),
+                                    desc,
+                                    pfm,
+                                    info,
+                                    url
+                                });
+                            }
+                        });
+                    });
+                }
+
+                allPrograms.sort((a, b) => a.ft - b.ft);
+                displayPrograms(allPrograms);
+
+            } catch (err) {
+                showError(`エラーが発生しました: ${err.message}`);
+            } finally {
+                loading.style.display = 'none';
+                fetchBtn.disabled = false;
+            }
+        }
+
+        function parseRadikoTime(timeStr) {
+            const year = parseInt(timeStr.substring(0, 4), 10);
+            const month = parseInt(timeStr.substring(4, 6), 10) - 1;
+            const day = parseInt(timeStr.substring(6, 8), 10);
+            const hour = parseInt(timeStr.substring(8, 10), 10);
+            const minute = parseInt(timeStr.substring(10, 12), 10);
+            const second = parseInt(timeStr.substring(12, 14), 10);
+            return new Date(year, month, day, hour, minute, second);
+        }
+
+        function formatDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hour}:${minute}`;
+        }
+
+        function displayPrograms(programs) {
+            const programList = document.getElementById('programList');
+            programList.innerHTML = '';
+            allProgramsData = programs;
+
+            if (programs.length === 0) {
+                programList.innerHTML = '<p class="loading">番組が見つかりませんでした</p>';
+                return;
+            }
+
+            // 検索キーワードでフィルタリング
+            const searchKeyword = document.getElementById('searchKeyword').value.trim().toLowerCase();
+            const searchInfo = document.getElementById('searchInfo');
+            let filteredPrograms = programs;
+
+            if (searchKeyword) {
+                filteredPrograms = programs.filter(prog =>
+                    prog.title.toLowerCase().includes(searchKeyword) ||
+                    (prog.pfm && prog.pfm.toLowerCase().includes(searchKeyword)) ||
+                    (prog.desc && prog.desc.toLowerCase().includes(searchKeyword))
+                );
+
+                searchInfo.textContent = `「${searchKeyword}」の検索結果: ${filteredPrograms.length}件 / 全${programs.length}件`;
+                searchInfo.style.display = 'block';
+            } else {
+                searchInfo.style.display = 'none';
+            }
+
+            if (filteredPrograms.length === 0) {
+                programList.innerHTML = `<p class="loading">「${searchKeyword}」に一致する番組が見つかりませんでした</p>`;
+                return;
+            }
+
+            // 放送局ごとにグループ化
+            const stationMap = new Map();
+            filteredPrograms.forEach((prog, index) => {
+                prog._index = programs.indexOf(prog); // 元のインデックスを保存
+                if (!stationMap.has(prog.stationId)) {
+                    stationMap.set(prog.stationId, {
+                        name: prog.stationName,
+                        id: prog.stationId,
+                        programs: []
+                    });
+                }
+                stationMap.get(prog.stationId).programs.push(prog);
+            });
+
+            // 各放送局の列を作成
+            stationMap.forEach(station => {
+                const column = document.createElement('div');
+                column.className = 'station-column';
+
+                const header = document.createElement('div');
+                header.className = 'station-header';
+                header.textContent = `${station.name} (${station.id})`;
+                column.appendChild(header);
+
+                const programsContainer = document.createElement('div');
+                programsContainer.className = 'station-programs';
+
+                const now = new Date();
+
+                // 時刻順にソート
+                station.programs.sort((a, b) => a.ft - b.ft);
+
+                station.programs.forEach(prog => {
+                    const card = document.createElement('div');
+                    card.className = 'program-card';
+
+                    // 放送中の番組をハイライト
+                    if (prog.ft <= now && prog.to > now) {
+                        card.classList.add('now-playing');
+                    }
+
+                    const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
+                    const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
+
+                    card.innerHTML = `
+                        <div class="program-time">${startTime} - ${endTime}</div>
+                        <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
+                        ${prog.pfm ? `<div class="program-detail">${prog.pfm}</div>` : ''}
+                        <div class="program-actions">
+                            <button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>cron</button>
+                            <button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>
+                            <button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>at</button>
+                        </div>
+                    `;
+
+                    programsContainer.appendChild(card);
+                });
+
+                column.appendChild(programsContainer);
+                programList.appendChild(column);
+            });
+        }
+
+        function showCronCommandByIndex(index) {
+            showCronCommand(allProgramsData[index]);
+        }
+
+        function showDownloadCommandByIndex(index) {
+            showDownloadCommand(allProgramsData[index]);
+        }
+
+        function showAtCommandByIndex(index) {
+            showAtCommand(allProgramsData[index]);
+        }
+
+        function showProgramDetailByIndex(index) {
+            showProgramDetail(allProgramsData[index]);
+        }
+
+        function cleanupDescription(text) {
+            if (!text) return '';
+
+            // &nbsp;を通常のスペースに変換
+            let cleaned = text.replace(/&nbsp;/gi, ' ');
+
+            // 連続する<br>を1つの改行に変換
+            cleaned = cleaned.replace(/(<br\s*\/?>)+/gi, '\n');
+
+            // 連続する空行を1つに
+            cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+            // 連続するスペースを1つに
+            cleaned = cleaned.replace(/ {2,}/g, ' ');
+
+            // 前後の空白を削除
+            cleaned = cleaned.trim();
+
+            return cleaned;
+        }
+
+        function showProgramDetail(prog) {
+            const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
+            const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
+            const dateStr = `${prog.ft.getFullYear()}/${prog.ft.getMonth() + 1}/${prog.ft.getDate()}`;
+
+            // 番組説明をクリーンアップ
+            const cleanDesc = cleanupDescription(prog.desc);
+
+            let detailHtml = `
+                <div style="font-size: 14px; line-height: 1.6; color: #333;">
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ddd;">
+                        <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">${prog.title}</div>
+                        <div style="color: #666; font-size: 13px;">
+                            <div>${prog.stationName} (${prog.stationId})</div>
+                            <div>${dateStr} ${startTime} - ${endTime}</div>
+                        </div>
+                    </div>
+            `;
+
+            if (prog.pfm) {
+                const cleanPfm = cleanupDescription(prog.pfm);
+                detailHtml += `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">出演者</div>
+                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; white-space: pre-line;">${cleanPfm}</div>
+                    </div>
+                `;
+            }
+
+            if (cleanDesc && cleanDesc !== '説明なし') {
+                // テンポラリ要素でHTMLをパース
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cleanDesc;
+
+                detailHtml += `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">番組説明</div>
+                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    </div>
+                `;
+            }
+
+            if (prog.url) {
+                detailHtml += `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">URL</div>
+                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; word-break: break-all;">
+                            <a href="${prog.url}" target="_blank" style="color: #007bff; text-decoration: none;">${prog.url}</a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (prog.info) {
+                const cleanInfo = cleanupDescription(prog.info);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cleanInfo;
+
+                detailHtml += `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">その他情報</div>
+                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 12px; color: #666; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    </div>
+                `;
+            }
+
+            detailHtml += '</div>';
+
+            currentCommand = ''; // コマンドはクリアする
+            document.getElementById('modalTitle').textContent = '番組詳細';
+            document.getElementById('commandBox').innerHTML = detailHtml;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function showCronCommand(prog) {
+            const scriptPath = document.getElementById('scriptPath').value;
+            const endTime = new Date(prog.to);
+            endTime.setMinutes(endTime.getMinutes() + 5);
+
+            const minute = endTime.getMinutes();
+            const hour = endTime.getHours();
+            const dayOfWeek = endTime.getDay();
+
+            const startStr = formatRadikoTime(new Date(prog.ft));
+            const endStr = formatRadikoTime(endTime);
+
+            const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}`;
+
+            currentCommand = command;
+            currentProgramData = null; // cronは実行ボタンなし
+            document.getElementById('modalTitle').textContent = `cronコマンド - ${prog.title}`;
+            document.getElementById('commandBox').textContent = command;
+            document.getElementById('executeBtn').style.display = 'none';
+            document.getElementById('modal').classList.add('active');
+        }
+
+        async function showDownloadCommand(prog) {
+            const scriptPath = document.getElementById('scriptPath').value;
+            const endTime = new Date(prog.to);
+            endTime.setMinutes(endTime.getMinutes() + 5);
+
+            const startStr = formatRadikoTime(new Date(prog.ft));
+            const endStr = formatRadikoTime(endTime);
+
+            const command = `${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}`;
+
+            currentCommand = command;
+            currentProgramData = prog; // 実行用にデータを保存
+            document.getElementById('modalTitle').textContent = `ダウンロードコマンド - ${prog.title}`;
+
+            // ファイルの存在確認
+            const fileCheck = await checkFileExists(prog);
+
+            let commandBoxContent = command;
+
+            if (fileCheck && fileCheck.exists) {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
+
+                commandBoxContent = `
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <div style="color: #856404; font-weight: bold; margin-bottom: 8px; font-size: 1.1em;">⚠️ このファイルは既に録音済みです</div>
+                        <div style="color: #856404; font-size: 0.9em; margin-bottom: 10px;">ファイル名: ${fileCheck.filename}</div>
+                        <a href="${downloadUrl}" download="${fileCheck.filename}"
+                           style="display: inline-block; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 0.9em;">
+                            📥 既存ファイルをダウンロード
+                        </a>
+                    </div>
+                    <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.9em; color: #6c757d;">
+                        ${command}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.85em; color: #856404;">
+                        ※ 「実行」ボタンを押すと既存ファイルが上書きされます
+                    </div>
+                `;
+            } else {
+                commandBoxContent = `<div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.9em;">${command}</div>`;
+            }
+
+            document.getElementById('commandBox').innerHTML = commandBoxContent;
+            document.getElementById('executeBtn').style.display = 'inline-block';
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function showAtCommand(prog) {
+            const scriptPath = document.getElementById('scriptPath').value;
+            const endTime = new Date(prog.to);
+            endTime.setMinutes(endTime.getMinutes() + 5);
+
+            const startStr = formatRadikoTime(new Date(prog.ft));
+            const endStr = formatRadikoTime(endTime);
+
+            const atTime = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')} ${endTime.getFullYear()}-${String(endTime.getMonth() + 1).padStart(2, '0')}-${String(endTime.getDate()).padStart(2, '0')}`;
+
+            const command = `echo "${scriptPath} -s ${startStr} -e ${endStr} -i ${prog.stationId}" | at ${atTime}`;
+
+            currentCommand = command;
+            currentProgramData = null; // atは実行ボタンなし
+            document.getElementById('modalTitle').textContent = `at予約コマンド - ${prog.title}`;
+            document.getElementById('commandBox').textContent = command;
+            document.getElementById('executeBtn').style.display = 'none';
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function formatRadikoTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            // rec_radiko_ts.shは12桁（秒なし）を期待
+            return `${year}${month}${day}${hour}${minute}`;
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
+        async function executeCommand() {
+            if (!currentProgramData) {
+                alert('実行可能なコマンドがありません');
+                return;
+            }
+
+            const prog = currentProgramData;
+            const endTime = new Date(prog.to);
+            endTime.setMinutes(endTime.getMinutes() + 5);
+
+            const startStr = formatRadikoTime(new Date(prog.ft));
+            const endStr = formatRadikoTime(endTime);
+
+            // ログ表示エリアに切り替え
+            const commandBox = document.getElementById('commandBox');
+            commandBox.innerHTML = `
+                <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 400px; overflow-y: auto;" id="logArea">
+                    <div style="color: #4ec9b0;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+                    <div style="color: #ce9178;">実行ログ</div>
+                    <div style="color: #4ec9b0;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+                    <div id="logContent"></div>
+                </div>
+            `;
+
+            const executeBtn = document.getElementById('executeBtn');
+            executeBtn.disabled = true;
+            executeBtn.textContent = '実行中...';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? `${proxyUrl}` : 'http://localhost:8080';
+
+            // POSTリクエストで実行
+            const response = await fetch(`${baseUrl}/execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: prog.title,
+                    rss: prog.stationId,
+                    station: prog.stationId,
+                    start_time: startStr,
+                    end_time: endStr
+                })
+            });
+
+            if (!response.ok) {
+                addLog('error', `エラー: ${response.statusText}`);
+                executeBtn.disabled = false;
+                executeBtn.textContent = '実行';
+                return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = JSON.parse(line.substring(6));
+                        addLog(data.type, data.message, data.file);
+
+                        if (data.type === 'success' || data.type === 'error') {
+                            executeBtn.disabled = false;
+                            executeBtn.textContent = '実行';
+
+                            // 成功時はファイル一覧を更新
+                            if (data.type === 'success') {
+                                setTimeout(() => loadRecordedFiles(), 1000);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function addLog(type, message, file) {
+            const logContent = document.getElementById('logContent');
+            const logLine = document.createElement('div');
+            logLine.style.marginBottom = '4px';
+
+            if (type === 'error') {
+                logLine.style.color = '#f48771';
+            } else if (type === 'success') {
+                logLine.style.color = '#4ec9b0';
+            } else {
+                logLine.style.color = '#d4d4d4';
+            }
+
+            logLine.textContent = message;
+            logContent.appendChild(logLine);
+
+            // ダウンロードリンクを追加
+            if (file && type === 'success') {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const downloadUrl = `${baseUrl}/download/${file}`;
+
+                const downloadLine = document.createElement('div');
+                downloadLine.style.marginTop = '12px';
+                downloadLine.style.padding = '12px';
+                downloadLine.style.background = '#2d2d2d';
+                downloadLine.style.borderRadius = '4px';
+                downloadLine.style.border = '1px solid #4ec9b0';
+
+                const downloadBtn = document.createElement('a');
+                downloadBtn.href = downloadUrl;
+                downloadBtn.download = file.split('/').pop();
+                downloadBtn.textContent = '📥 ファイルをダウンロード';
+                downloadBtn.style.color = '#4ec9b0';
+                downloadBtn.style.textDecoration = 'none';
+                downloadBtn.style.fontWeight = 'bold';
+                downloadBtn.style.display = 'inline-block';
+                downloadBtn.style.padding = '8px 16px';
+                downloadBtn.style.background = '#1e1e1e';
+                downloadBtn.style.border = '1px solid #4ec9b0';
+                downloadBtn.style.borderRadius = '4px';
+                downloadBtn.style.cursor = 'pointer';
+
+                downloadBtn.onmouseover = function() {
+                    this.style.background = '#4ec9b0';
+                    this.style.color = '#1e1e1e';
+                };
+                downloadBtn.onmouseout = function() {
+                    this.style.background = '#1e1e1e';
+                    this.style.color = '#4ec9b0';
+                };
+
+                downloadLine.appendChild(downloadBtn);
+                logContent.appendChild(downloadLine);
+            }
+
+            // 自動スクロール
+            const logArea = document.getElementById('logArea');
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        async function copyCommand(event) {
+            try {
+                await navigator.clipboard.writeText(currentCommand);
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'コピーしました！';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            } catch (err) {
+                alert('コピーに失敗しました: ' + err.message);
+            }
+        }
+
+        async function searchAllAreas() {
+            const searchKeyword = document.getElementById('searchKeyword').value.trim();
+            const proxyUrl = document.getElementById('proxyUrl').value;
+
+            if (!searchKeyword) {
+                showError('検索キーワードを入力してください');
+                return;
+            }
+
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const programList = document.getElementById('programList');
+            const fetchBtn = document.getElementById('fetchBtn');
+            const searchAllBtn = document.getElementById('searchAllBtn');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            programList.innerHTML = '';
+            fetchBtn.disabled = true;
+            searchAllBtn.disabled = true;
+
+            try {
+                const baseUrl = proxyUrl.trim() ? `${proxyUrl}/radiko` : 'https://radiko.jp';
+
+                // 過去7日間の日付リストを生成
+                const dates = [];
+                const today = new Date();
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '');
+                    dates.push(dateStr);
+                }
+
+                // 全エリアのIDリスト
+                const allAreaIds = [
+                    'JP1', 'JP2', 'JP3', 'JP4', 'JP5', 'JP6', 'JP7', 'JP8', 'JP9', 'JP10',
+                    'JP11', 'JP12', 'JP13', 'JP14', 'JP15', 'JP16', 'JP17', 'JP18', 'JP19', 'JP20',
+                    'JP21', 'JP22', 'JP23', 'JP24', 'JP25', 'JP26', 'JP27', 'JP28', 'JP29', 'JP30',
+                    'JP31', 'JP32', 'JP33', 'JP34', 'JP35', 'JP36', 'JP37', 'JP38', 'JP39', 'JP40',
+                    'JP41', 'JP42', 'JP43', 'JP44', 'JP45', 'JP46', 'JP47'
+                ];
+
+                let allPrograms = [];
+                let processedAreas = 0;
+
+                // 各エリアごとに処理
+                for (const areaId of allAreaIds) {
+                    try {
+                        // 放送局一覧を取得
+                        const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
+                        const nowResponse = await fetch(nowUrl);
+                        if (!nowResponse.ok) continue;
+
+                        const nowXmlText = await nowResponse.text();
+                        const parser = new DOMParser();
+                        const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
+                        const stations = nowXmlDoc.querySelectorAll('station');
+
+                        // 各放送局の過去7日間のデータを取得
+                        const stationPromises = Array.from(stations).map(async (station) => {
+                            const stationId = station.getAttribute('id');
+                            const stationName = station.querySelector('name')?.textContent || 'Unknown';
+
+                            const allDatesPrograms = [];
+
+                            // 過去7日間分のデータを取得
+                            for (const dateStr of dates) {
+                                try {
+                                    const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
+                                    const response = await fetch(stationUrl);
+                                    if (!response.ok) continue;
+
+                                    const xmlText = await response.text();
+                                    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                                    const progs = xmlDoc.querySelectorAll('prog');
+
+                                    progs.forEach(prog => {
+                                        const title = prog.querySelector('title')?.textContent || '';
+                                        const ftString = prog.getAttribute('ft');
+                                        const toString = prog.getAttribute('to');
+                                        const desc = prog.querySelector('desc')?.textContent || '説明なし';
+                                        const pfm = prog.querySelector('pfm')?.textContent || '';
+                                        const info = prog.querySelector('info')?.textContent || '';
+                                        const url = prog.querySelector('url')?.textContent || '';
+
+                                        // 検索キーワードでフィルタリング
+                                        const keyword = searchKeyword.toLowerCase();
+                                        if (ftString && toString &&
+                                            (title.toLowerCase().includes(keyword) ||
+                                             pfm.toLowerCase().includes(keyword) ||
+                                             desc.toLowerCase().includes(keyword))) {
+                                            allDatesPrograms.push({
+                                                stationId,
+                                                stationName,
+                                                areaId,
+                                                title,
+                                                ft: parseRadikoTime(ftString),
+                                                to: parseRadikoTime(toString),
+                                                desc,
+                                                pfm,
+                                                info,
+                                                url
+                                            });
+                                        }
+                                    });
+                                } catch (err) {
+                                    // 日付ごとのエラーは無視
+                                }
+                            }
+                            return allDatesPrograms;
+                        });
+
+                        const results = await Promise.all(stationPromises);
+                        allPrograms = allPrograms.concat(results.flat());
+
+                        processedAreas++;
+                        loading.querySelector('p').textContent =
+                            `検索中... ${processedAreas}/${allAreaIds.length} エリア (${allPrograms.length}件見つかりました)`;
+
+                    } catch (err) {
+                        console.warn(`${areaId} の取得エラー:`, err);
+                    }
+                }
+
+                if (allPrograms.length === 0) {
+                    showError(`「${searchKeyword}」に一致する番組が見つかりませんでした`);
+                } else {
+                    // 重複を除去（同じ放送局IDと開始時刻の組み合わせ）
+                    const uniquePrograms = [];
+                    const seen = new Set();
+
+                    allPrograms.forEach(prog => {
+                        const key = `${prog.stationId}_${prog.ft.getTime()}`;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            uniquePrograms.push(prog);
+                        }
+                    });
+
+                    uniquePrograms.sort((a, b) => a.ft - b.ft);
+                    displayPrograms(uniquePrograms);
+                }
+
+            } catch (err) {
+                showError(`エラーが発生しました: ${err.message}`);
+            } finally {
+                loading.style.display = 'none';
+                loading.querySelector('p').textContent = '番組表を読み込み中...';
+                fetchBtn.disabled = false;
+                searchAllBtn.disabled = false;
+            }
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        // 録音済みファイル一覧を読み込む
+        async function loadRecordedFiles() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            const filesLoading = document.getElementById('filesLoading');
+            const filesList = document.getElementById('filesList');
+
+            filesLoading.style.display = 'block';
+            filesList.innerHTML = '';
+
+            try {
+                const response = await fetch(`${baseUrl}/files`);
+                if (!response.ok) {
+                    console.error('Failed to load recorded files:', response.statusText);
+                    filesLoading.style.display = 'none';
+                    filesList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">ファイル一覧の取得に失敗しました</div>';
+                    return;
+                }
+
+                const data = await response.json();
+                const files = data.files || [];
+
+                filesLoading.style.display = 'none';
+
+                if (files.length === 0) {
+                    filesList.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px;">
+                            <div style="font-size: 3em; margin-bottom: 15px;">📭</div>
+                            <div style="color: #6c757d; font-size: 1.1em; font-weight: 500;">録音済みファイルはありません</div>
+                            <div style="color: #adb5bd; font-size: 0.9em; margin-top: 8px;">番組を録音すると、ここに表示されます</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // ファイル一覧を表示
+                let html = `
+                    <div style="margin-bottom: 15px; padding: 10px 15px; background: #e7f3ff; border-left: 4px solid #667eea; border-radius: 4px;">
+                        <div style="font-size: 0.9em; color: #495057;">
+                            <strong>${files.length}件</strong>のファイルが見つかりました
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+                `;
+
+                files.forEach(file => {
+                    const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+                    const modDate = new Date(file.modified * 1000);
+                    const dateStr = `${modDate.getFullYear()}/${String(modDate.getMonth() + 1).padStart(2, '0')}/${String(modDate.getDate()).padStart(2, '0')} ${String(modDate.getHours()).padStart(2, '0')}:${String(modDate.getMinutes()).padStart(2, '0')}`;
+
+                    html += `
+                        <div style="padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 8px; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.borderColor='#667eea';"
+                             onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'; this.style.borderColor='#dee2e6';">
+                            <div style="margin-bottom: 12px;">
+                                <div style="font-size: 0.95em; font-weight: 600; color: #212529; margin-bottom: 6px; line-height: 1.4;">${file.name}</div>
+                                <div style="font-size: 0.8em; color: #6c757d;">
+                                    <div style="margin-bottom: 3px;">📊 ${fileSize} MB</div>
+                                    <div>🕒 ${dateStr}</div>
+                                </div>
+                            </div>
+                            <a href="${baseUrl}/download/${file.path}" download="${file.name}"
+                               style="display: block; text-align: center; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; transition: all 0.2s;"
+                               onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-2px)';"
+                               onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)';">
+                                📥 ダウンロード
+                            </a>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                filesList.innerHTML = html;
+
+            } catch (err) {
+                console.error('Error loading recorded files:', err);
+                filesLoading.style.display = 'none';
+                filesList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">エラーが発生しました</div>';
+            }
+        }
+
+        // ファイルの存在確認
+        async function checkFileExists(prog) {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            const startStr = formatRadikoTime(new Date(prog.ft));
+
+            try {
+                const response = await fetch(`${baseUrl}/check-file`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: prog.title,
+                        rss: prog.stationId,
+                        start_time: startStr
+                    })
+                });
+
+                if (!response.ok) {
+                    return null;
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (err) {
+                console.error('Error checking file:', err);
+                return null;
+            }
+        }
+
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
