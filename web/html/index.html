@@ -945,44 +945,13 @@
         const programCache = new Map();
         const CACHE_EXPIRE_MS = 30 * 60 * 1000; // 30分でキャッシュ期限切れ
 
-        // localStorageからキャッシュを読み込む
-        function loadCacheFromStorage() {
-            try {
-                const stored = localStorage.getItem('radikoCache');
-                console.log('localStorage読み込み開始');
-                if (stored) {
-                    const cacheData = JSON.parse(stored);
-                    console.log('localStorage内のキャッシュ:', Object.keys(cacheData));
-                    Object.entries(cacheData).forEach(([key, value]) => {
-                        // Dateオブジェクトを復元
-                        if (value.data) {
-                            value.data.forEach(prog => {
-                                prog.ft = new Date(prog.ft);
-                                prog.to = new Date(prog.to);
-                            });
-                        }
-                        programCache.set(key, value);
-                    });
-                    console.log(`✅ localStorageから${programCache.size}件のキャッシュを読み込み`);
-                } else {
-                    console.log('localStorage: キャッシュなし');
-                }
-            } catch (err) {
-                console.error('❌ キャッシュ読み込みエラー:', err);
-            }
+        // キャッシュ関連の関数（互換性のため空実装を残す）
+        async function loadCacheFromStorage() {
+            console.log('ℹ️ キャッシュはサーバー側DBで管理されています');
         }
 
-        // localStorageにキャッシュを保存
-        function saveCacheToStorage() {
-            try {
-                const cacheData = {};
-                programCache.forEach((value, key) => {
-                    cacheData[key] = value;
-                });
-                localStorage.setItem('radikoCache', JSON.stringify(cacheData));
-            } catch (err) {
-                console.error('キャッシュ保存エラー:', err);
-            }
+        async function saveCacheToStorage() {
+            console.log('ℹ️ キャッシュはサーバー側DBで管理されています');
         }
 
         // 古いキャッシュを削除する関数
@@ -1001,11 +970,15 @@
             const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             console.log(`基準日: ${todayStr} (朝5時基準)`);
 
-            // 8日以上前のキャッシュを削除（過去7日間は保持）
+            // 過去7日間から未来7日間までのキャッシュを保持（計15日間）
             const sevenDaysAgo = new Date(today);
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             const sevenDaysAgoStr = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`;
-            console.log(`保持期間: ${sevenDaysAgoStr} 〜 ${todayStr}`);
+
+            const sevenDaysLater = new Date(today);
+            sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+            const sevenDaysLaterStr = `${sevenDaysLater.getFullYear()}-${String(sevenDaysLater.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLater.getDate()).padStart(2, '0')}`;
+            console.log(`保持期間: ${sevenDaysAgoStr} 〜 ${sevenDaysLaterStr}`);
 
             // 古いキャッシュ、または期限切れのキャッシュを削除
             const keysToDelete = [];
@@ -1015,10 +988,10 @@
                 if (parts.length === 2) {
                     const date = parts[1];
 
-                    // 8日以上前の日付のキャッシュは削除
-                    if (date !== 'now' && date < sevenDaysAgoStr) {
-                        console.log(`  削除理由: 8日以上前 - ${key} (${date} < ${sevenDaysAgoStr})`);
-                        keysToDelete.push({ key, reason: '8日以上前' });
+                    // 保持期間外の日付のキャッシュは削除
+                    if (date !== 'now' && (date < sevenDaysAgoStr || date > sevenDaysLaterStr)) {
+                        console.log(`  削除理由: 保持期間外 - ${key} (保持期間: ${sevenDaysAgoStr} 〜 ${sevenDaysLaterStr})`);
+                        keysToDelete.push({ key, reason: '保持期間外' });
                         return;
                     }
 
@@ -1093,12 +1066,22 @@
         }
 
         // 今日の日付とエリアのデフォルトを設定
-        document.addEventListener('DOMContentLoaded', function() {
-            // localStorageからキャッシュを読み込み
-            loadCacheFromStorage();
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 旧キャッシュシステムのデータを削除
+            if (localStorage.getItem('radikoCache')) {
+                console.log('🗑️ 旧キャッシュデータを削除');
+                localStorage.removeItem('radikoCache');
+            }
 
-            // ページ読み込み時に古いキャッシュをクリア
-            clearOldCache();
+            // IndexedDBがあれば削除
+            try {
+                indexedDB.deleteDatabase('RadikoCacheDB');
+                console.log('🗑️ 旧IndexedDBを削除');
+            } catch (err) {
+                console.log('ℹ️ IndexedDB削除スキップ');
+            }
+
+            console.log('✅ キャッシュシステム: サーバー側DB使用')
 
             // 保存されているタブを復元
             const savedTab = localStorage.getItem('currentTab');
@@ -1128,13 +1111,13 @@
 
             document.getElementById('targetDate').value = dateStr;
 
-            // 1週間分の日付ボタンを生成
+            // 過去7日間 + 今日 + 未来7日間の日付ボタンを生成（計15日間）
             const dateButtonsContainer = document.getElementById('dateButtons');
             const dayLabels = ['日', '月', '火', '水', '木', '金', '土'];
 
-            for (let i = 0; i < 7; i++) {
+            for (let i = -7; i <= 7; i++) {
                 const date = new Date(today);
-                date.setDate(date.getDate() - i);
+                date.setDate(date.getDate() + i);
 
                 const btnYear = date.getFullYear();
                 const btnMonth = String(date.getMonth() + 1).padStart(2, '0');
@@ -1144,7 +1127,14 @@
 
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.textContent = `${btnMonth}/${btnDay}(${dayOfWeek})`;
+
+                // 今日の場合は「今日」と表示
+                if (i === 0) {
+                    button.textContent = `今日 ${btnMonth}/${btnDay}(${dayOfWeek})`;
+                } else {
+                    button.textContent = `${btnMonth}/${btnDay}(${dayOfWeek})`;
+                }
+
                 button.dataset.date = btnDateStr;
 
                 // 今日の日付をデフォルトで選択状態にする
@@ -1172,7 +1162,7 @@
 
                 dateButtonsContainer.appendChild(button);
 
-                // 最初のボタン（今日）の場合、初期表示用にクリックイベントを保存
+                // 今日のボタンの場合、初期表示用にクリックイベントを保存
                 if (i === 0) {
                     // DOMContentLoaded完了後に自動で番組表を取得
                     setTimeout(() => {
@@ -2157,166 +2147,46 @@
             const searchAllBtn = document.getElementById('searchAllBtn');
 
             loading.style.display = 'block';
+            loading.querySelector('p').textContent = '検索中...';
             error.style.display = 'none';
             programList.innerHTML = '';
             fetchBtn.disabled = true;
             searchAllBtn.disabled = true;
 
             try {
-                const baseUrl = proxyUrl.trim() ? `${proxyUrl}/radiko` : 'https://radiko.jp';
+                // サーバー側DB検索APIを呼び出す
+                const apiUrl = proxyUrl.trim() ? `${proxyUrl}/api/programs/search` : '/api/programs/search';
+                const searchUrl = `${apiUrl}?keyword=${encodeURIComponent(searchKeyword)}`;
 
-                // 過去7日間の日付リストを生成（朝5時を日付の変わり目とする）
-                const dates = [];
-                const now = new Date();
-                const today = new Date(now);
+                console.log('🔍 Searching via API:', searchUrl);
 
-                // 朝5時未満の場合は前日として扱う
-                if (today.getHours() < 5) {
-                    today.setDate(today.getDate() - 1);
+                const response = await fetch(searchUrl);
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
                 }
 
-                for (let i = 0; i < 7; i++) {
-                    const date = new Date(today);
-                    date.setDate(date.getDate() - i);
-                    // ローカル時間で日付を取得（toISOStringはUTCになるため使わない）
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const dateStr = `${year}${month}${day}`;
-                    dates.push(dateStr);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
                 }
 
-                // 全エリアのIDリスト
-                const allAreaIds = [
-                    'JP1', 'JP2', 'JP3', 'JP4', 'JP5', 'JP6', 'JP7', 'JP8', 'JP9', 'JP10',
-                    'JP11', 'JP12', 'JP13', 'JP14', 'JP15', 'JP16', 'JP17', 'JP18', 'JP19', 'JP20',
-                    'JP21', 'JP22', 'JP23', 'JP24', 'JP25', 'JP26', 'JP27', 'JP28', 'JP29', 'JP30',
-                    'JP31', 'JP32', 'JP33', 'JP34', 'JP35', 'JP36', 'JP37', 'JP38', 'JP39', 'JP40',
-                    'JP41', 'JP42', 'JP43', 'JP44', 'JP45', 'JP46', 'JP47'
-                ];
+                console.log(`✅ Found ${data.count} programs from API`);
 
-                let allPrograms = [];
-                let processedAreas = 0;
-
-                // 各エリアごとに処理
-                for (const areaId of allAreaIds) {
-                    try {
-                        // 各日付のデータを取得（キャッシュを活用）
-                        for (const dateStr of dates) {
-                            const cacheKey = `${areaId}_${dateStr}`;
-                            let programs = [];
-
-                            // キャッシュをチェック
-                            if (programCache.has(cacheKey)) {
-                                const cacheEntry = programCache.get(cacheKey);
-                                if (isCacheValid(cacheEntry)) {
-                                    programs = cacheEntry.data;
-                                    // キャッシュから取得した番組をフィルタリング
-                                    const keyword = searchKeyword.toLowerCase();
-                                    const filtered = programs.filter(prog => {
-                                        const title = prog.title || '';
-                                        const pfm = prog.pfm || '';
-                                        const desc = prog.desc || '';
-                                        return title.toLowerCase().includes(keyword) ||
-                                               pfm.toLowerCase().includes(keyword) ||
-                                               desc.toLowerCase().includes(keyword);
-                                    });
-                                    allPrograms = allPrograms.concat(filtered);
-                                    continue; // キャッシュから取得できたので次へ
-                                }
-                            }
-
-                            // キャッシュにない、または期限切れの場合は取得
-                            try {
-                                const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
-                                const nowResponse = await fetch(nowUrl);
-                                if (!nowResponse.ok) continue;
-
-                                const nowXmlText = await nowResponse.text();
-                                const parser = new DOMParser();
-                                const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
-                                const stations = nowXmlDoc.querySelectorAll('station');
-
-                                // 各放送局のデータを取得
-                                const stationPromises = Array.from(stations).map(async (station) => {
-                                    const stationId = station.getAttribute('id');
-                                    const stationName = station.querySelector('name')?.textContent || 'Unknown';
-
-                                    try {
-                                        const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
-                                        const response = await fetch(stationUrl);
-                                        if (!response.ok) return [];
-
-                                        const xmlText = await response.text();
-                                        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                                        const progs = xmlDoc.querySelectorAll('prog');
-
-                                        const stationPrograms = [];
-                                        progs.forEach(prog => {
-                                            const title = prog.querySelector('title')?.textContent || '';
-                                            const ftString = prog.getAttribute('ft');
-                                            const toString = prog.getAttribute('to');
-                                            const desc = prog.querySelector('desc')?.textContent || '説明なし';
-                                            const pfm = prog.querySelector('pfm')?.textContent || '';
-                                            const info = prog.querySelector('info')?.textContent || '';
-                                            const url = prog.querySelector('url')?.textContent || '';
-
-                                            if (ftString && toString) {
-                                                stationPrograms.push({
-                                                    stationId,
-                                                    stationName,
-                                                    areaId,
-                                                    title,
-                                                    ft: parseRadikoTime(ftString),
-                                                    to: parseRadikoTime(toString),
-                                                    desc,
-                                                    pfm,
-                                                    info,
-                                                    url
-                                                });
-                                            }
-                                        });
-                                        return stationPrograms;
-                                    } catch (err) {
-                                        return [];
-                                    }
-                                });
-
-                                const results = await Promise.all(stationPromises);
-                                programs = results.flat();
-
-                                // キャッシュに保存
-                                programCache.set(cacheKey, {
-                                    data: programs,
-                                    timestamp: Date.now()
-                                });
-                                saveCacheToStorage();
-
-                                // 検索キーワードでフィルタリング
-                                const keyword = searchKeyword.toLowerCase();
-                                const filtered = programs.filter(prog => {
-                                    const title = prog.title || '';
-                                    const pfm = prog.pfm || '';
-                                    const desc = prog.desc || '';
-                                    return title.toLowerCase().includes(keyword) ||
-                                           pfm.toLowerCase().includes(keyword) ||
-                                           desc.toLowerCase().includes(keyword);
-                                });
-                                allPrograms = allPrograms.concat(filtered);
-
-                            } catch (err) {
-                                console.warn(`${areaId} - ${dateStr} の取得エラー:`, err);
-                            }
-                        }
-
-                        processedAreas++;
-                        loading.querySelector('p').textContent =
-                            `検索中... ${processedAreas}/${allAreaIds.length} エリア (${allPrograms.length}件見つかりました)`;
-
-                    } catch (err) {
-                        console.warn(`${areaId} の取得エラー:`, err);
-                    }
-                }
+                // APIレスポンスの形式をフロントエンド形式に変換
+                const allPrograms = data.programs.map(prog => ({
+                    areaId: prog.areaId,
+                    stationId: prog.stationId,
+                    stationName: prog.stationName,
+                    title: prog.title,
+                    ft: new Date(prog.ft),
+                    to: new Date(prog.to),
+                    desc: prog.desc || '説明なし',
+                    pfm: prog.pfm || '',
+                    info: prog.info || '',
+                    url: prog.url || ''
+                }));
 
                 if (allPrograms.length === 0) {
                     showError(`「${searchKeyword}」に一致する番組が見つかりませんでした`);

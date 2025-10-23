@@ -6,6 +6,12 @@ import subprocess
 import json
 import os
 from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+
+# DBモジュールをインポート
+import db
+import fetch_programs
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -13,6 +19,26 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# DB初期化
+db.init_database()
+
+# スケジューラー設定
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.add_job(
+    func=fetch_programs.update_all_areas,
+    trigger='interval',
+    minutes=30,  # 30分ごとに更新
+    id='update_programs',
+    name='Update radiko programs',
+    replace_existing=True
+)
+scheduler.start()
+
+# アプリ終了時にスケジューラーをシャットダウン
+atexit.register(lambda: scheduler.shutdown())
+
+logger.info('✅ Scheduler started: updating programs every 30 minutes')
 
 @app.route('/health')
 def health():
@@ -673,6 +699,91 @@ def get_at_job_detail(job_id):
     except Exception as e:
         logger.error(f'Get at job detail error: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+# ========================================
+# 番組表DB関連API
+# ========================================
+
+@app.route('/api/programs/search', methods=['GET'])
+def search_programs_api():
+    """番組を検索"""
+    try:
+        keyword = request.args.get('keyword', '')
+        area_id = request.args.get('area_id')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+
+        if not keyword:
+            return jsonify({'error': 'keyword parameter is required'}), 400
+
+        results = db.search_programs(keyword, area_id, date_from, date_to)
+
+        return jsonify({
+            'success': True,
+            'count': len(results),
+            'programs': results
+        })
+
+    except Exception as e:
+        logger.error(f'Search API error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/programs/area/<area_id>/date/<date>', methods=['GET'])
+def get_area_programs_api(area_id, date):
+    """特定エリア・日付の番組を取得"""
+    try:
+        programs = db.get_programs_by_area_date(area_id, date)
+
+        return jsonify({
+            'success': True,
+            'area_id': area_id,
+            'date': date,
+            'count': len(programs),
+            'programs': programs
+        })
+
+    except Exception as e:
+        logger.error(f'Get area programs API error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/programs/update/status', methods=['GET'])
+def get_update_status_api():
+    """番組表の更新ステータスを取得"""
+    try:
+        status = db.get_update_status()
+        return jsonify(status)
+
+    except Exception as e:
+        logger.error(f'Get update status API error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/programs/update/trigger', methods=['POST'])
+def trigger_update_api():
+    """番組表の即時更新をトリガー"""
+    try:
+        logger.info('Manual update triggered via API')
+
+        # バックグラウンドで実行（リクエストをブロックしない）
+        scheduler.add_job(
+            func=fetch_programs.update_all_areas,
+            trigger='date',  # 即座に実行
+            id='manual_update',
+            name='Manual update',
+            replace_existing=True
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Update started in background'
+        })
+
+    except Exception as e:
+        logger.error(f'Trigger update API error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
