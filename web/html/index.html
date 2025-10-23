@@ -207,7 +207,7 @@
         }
 
         .station-programs {
-            max-height: calc(100vh - 140px);
+            max-height: 600px;
             overflow-y: auto;
         }
 
@@ -555,19 +555,31 @@
                 </div>
 
                 <div class="setting-group">
-                    <label for="proxyUrl">プロキシURL:</label>
-                    <input type="text" id="proxyUrl" value="" placeholder="/api" style="width: 80px;">
-                </div>
-
-                <div class="setting-group">
-                    <label for="scriptPath">スクリプトパス:</label>
-                    <input type="text" id="scriptPath" value="/home/sites/radiko-recorder/script/myradiko" placeholder="パス" style="width: 250px;">
+                    <button onclick="toggleAdvancedSettings()"
+                            style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: all 0.2s;"
+                            onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">
+                        ⚙️ <span id="advancedToggleText">詳細設定を表示</span>
+                    </button>
                 </div>
             </div>
 
-            <button id="fetchBtn" class="btn btn-primary">番組表を取得</button>
+            <div id="advancedSettings" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 10px 0; border-left: 4px solid #6c757d;">
+                <div style="font-weight: 600; color: #495057; margin-bottom: 12px; font-size: 0.95em;">⚙️ 詳細設定</div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <div class="setting-group" style="margin: 0;">
+                        <label for="proxyUrl">プロキシURL:</label>
+                        <input type="text" id="proxyUrl" value="" placeholder="/api" style="width: 80px;">
+                    </div>
+
+                    <div class="setting-group" style="margin: 0;">
+                        <label for="scriptPath">スクリプトパス:</label>
+                        <input type="text" id="scriptPath" value="/home/sites/radiko-recorder/script/myradiko" placeholder="パス" style="width: 250px;">
+                    </div>
+                </div>
+            </div>
+
+            <button id="fetchBtn" class="btn btn-primary">番組表を更新</button>
             <button id="searchAllBtn" class="btn btn-primary" style="margin-left: 8px;">全エリアから検索</button>
-            <button id="clearCacheBtn" class="btn" style="margin-left: 8px; background: #667eea; color: white;">🔄 再取得</button>
         </div>
 
             <div class="content">
@@ -683,16 +695,46 @@
                 <button class="modal-close" onclick="closeAudioPlayer()">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 15px;">
+                <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 15px;"
+                       ontimeupdate="updatePlaybackPosition()"
+                       onloadedmetadata="loadBookmark()">
                     <source id="audioSource" src="" type="audio/mpeg">
                     お使いのブラウザは音声再生をサポートしていません。
                 </audio>
+
+                <!-- 再生速度コントロール -->
+                <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <label style="font-size: 0.85em; color: #495057; font-weight: 600; min-width: 80px;">⚡ 再生速度:</label>
+                        <input type="range" id="playbackRate" min="0.5" max="2.0" step="0.1" value="1.0"
+                               oninput="changePlaybackRate(this.value)"
+                               style="flex: 1; cursor: pointer;">
+                        <span id="playbackRateValue" style="min-width: 50px; font-size: 0.9em; font-weight: 600; color: #667eea;">1.0x</span>
+                    </div>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button onclick="setPlaybackRate(0.5)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">0.5x</button>
+                        <button onclick="setPlaybackRate(0.75)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">0.75x</button>
+                        <button onclick="setPlaybackRate(1.0)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">1.0x</button>
+                        <button onclick="setPlaybackRate(1.25)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">1.25x</button>
+                        <button onclick="setPlaybackRate(1.5)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">1.5x</button>
+                        <button onclick="setPlaybackRate(2.0)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">2.0x</button>
+                    </div>
+                </div>
+
+                <!-- ブックマーク情報 -->
                 <div id="audioInfo" style="padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 0.9em; color: #495057;">
                     <div style="margin-bottom: 8px;"><strong>ファイル名:</strong> <span id="audioFileName"></span></div>
-                    <div style="color: #6c757d; font-size: 0.85em;">再生速度の調整やシークが可能です</div>
+                    <div style="color: #6c757d; font-size: 0.85em; margin-top: 8px;">
+                        💡 再生位置は自動的に記憶されます
+                    </div>
+                    <div id="bookmarkInfo" style="color: #6c757d; font-size: 0.85em; display: none; margin-top: 8px; padding: 8px; background: #e7f3ff; border-left: 3px solid #667eea; border-radius: 4px;">
+                        📍 前回の続きから再生します (<span id="bookmarkTime"></span>)
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
+                <button class="btn btn-action" onclick="saveBookmark()" style="background: #667eea; color: white;">📍 位置を記憶</button>
+                <button class="btn btn-action" onclick="clearBookmark()" style="background: #6c757d; color: white;">🗑️ 記憶を削除</button>
                 <button class="btn btn-action btn-close" onclick="closeAudioPlayer()">閉じる</button>
             </div>
         </div>
@@ -915,6 +957,9 @@
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
+            // 現在のタブをlocalStorageに保存
+            localStorage.setItem('currentTab', tabName);
+
             // 選択されたタブをアクティブに
             if (tabName === 'search') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
@@ -944,6 +989,18 @@
 
             // ページ読み込み時に古いキャッシュをクリア
             clearOldCache();
+
+            // 保存されているタブを復元
+            const savedTab = localStorage.getItem('currentTab');
+            if (savedTab) {
+                switchTab(savedTab);
+            }
+
+            // 詳細設定の開閉状態を復元
+            const advancedSettingsOpen = localStorage.getItem('advancedSettingsOpen');
+            if (advancedSettingsOpen === 'true') {
+                toggleAdvancedSettings();
+            }
 
             // 日本時間で今日の日付を取得（朝5時を日付の変わり目とする）
             const now = new Date();
@@ -1021,31 +1078,6 @@
         // 「番組表を取得」ボタンは強制更新
         document.getElementById('fetchBtn').addEventListener('click', () => fetchPrograms(true));
         document.getElementById('searchAllBtn').addEventListener('click', searchAllAreas);
-
-        // 再取得ボタン（その日のキャッシュのみクリア）
-        document.getElementById('clearCacheBtn').addEventListener('click', function() {
-            const areaId = document.getElementById('areaId').value;
-            const targetDate = document.getElementById('targetDate').value;
-
-            if (!areaId || !targetDate) {
-                alert('エリアと日付を選択してください');
-                return;
-            }
-
-            const cacheKey = `${areaId}_${targetDate}`;
-
-            if (confirm('この日の番組表を再取得しますか？')) {
-                // その日のキャッシュのみ削除
-                if (programCache.has(cacheKey)) {
-                    programCache.delete(cacheKey);
-                    console.log(`✅ キャッシュを削除: ${cacheKey}`);
-                    // localStorageも更新
-                    saveCacheToStorage();
-                }
-                // 番組表を再取得
-                fetchPrograms(true);
-            }
-        });
 
         // エリア選択変更時に自動取得（キャッシュ利用）
         document.getElementById('areaId').addEventListener('change', () => fetchPrograms(false));
@@ -2307,6 +2339,11 @@
                         <input type="text" id="fileFilter" placeholder="🔍 ファイル名で検索..." value="${filterText}"
                                oninput="filterText = this.value; currentPage = 1; renderFilesList();"
                                style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
+                        <button onclick="clearAllBookmarks()"
+                                style="padding: 8px 12px; background: #f57c00; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
+                                onmouseover="this.style.background='#ef6c00'" onmouseout="this.style.background='#f57c00'">
+                            🗑️ 再生履歴をリセット
+                        </button>
                         <div style="padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 0.85em; color: #495057;">
                             <strong>${filteredFiles.length}</strong>件 / ${totalSize} GB
                         </div>
@@ -2340,22 +2377,37 @@
                 const modDate = new Date(file.modified * 1000);
                 const dateStr = `${modDate.getMonth() + 1}/${modDate.getDate()} ${String(modDate.getHours()).padStart(2, '0')}:${String(modDate.getMinutes()).padStart(2, '0')}`;
 
+                // ブックマークの存在チェック
+                const bookmarkKey = `bookmark_${file.path}`;
+                const savedTime = localStorage.getItem(bookmarkKey);
+                const hasBookmark = savedTime !== null;
+                let progressPercent = 0;
+                let progressText = '';
+
+                if (hasBookmark) {
+                    const time = parseFloat(savedTime);
+                    const minutes = Math.floor(time / 60);
+                    const seconds = Math.floor(time % 60);
+                    progressText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+
                 html += `
-                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s;"
-                        onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s; ${hasBookmark ? 'background: #fff8e1;' : ''}"
+                        onmouseover="this.style.background='${hasBookmark ? '#fff3cd' : '#f8f9fa'}'" onmouseout="this.style.background='${hasBookmark ? '#fff8e1' : 'white'}'">
                         <td style="padding: 10px 12px;">
                             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;" title="${file.name}">
                                 ${file.name}
                             </div>
+                            ${hasBookmark ? `<div style="font-size: 0.75em; color: #f57c00; margin-top: 3px;">再生位置: ${progressText}</div>` : ''}
                         </td>
                         <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.85em;">${dateStr}</td>
                         <td style="padding: 10px 12px;">
                             <div style="display: flex; gap: 6px; justify-content: center;">
                                 <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        title="再生"
-                                        style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
-                                        onmouseover="this.style.background='#45a049'" onmouseout="this.style.background='#4caf50'">
+                                        title="${hasBookmark ? '続きから再生' : '再生'}"
+                                        style="padding: 6px 12px; background: ${hasBookmark ? '#f57c00' : '#4caf50'}; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='${hasBookmark ? '#ef6c00' : '#45a049'}'" onmouseout="this.style.background='${hasBookmark ? '#f57c00' : '#4caf50'}'">
                                     ▶️
                                 </button>
                                 <a href="${baseUrl}/download/${file.path}" download="${file.name}"
@@ -3137,9 +3189,15 @@
         }
 
         // 音声ファイルを再生
+        // 現在再生中のファイルパス（ブックマーク用）
+        let currentAudioFilePath = '';
+
         function playAudio(filepath, filename) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            // 現在のファイルパスを保存
+            currentAudioFilePath = filepath;
 
             // オーディオプレイヤーのソースを設定
             const audioPlayer = document.getElementById('audioPlayer');
@@ -3171,9 +3229,144 @@
         // オーディオプレイヤーを閉じる
         function closeAudioPlayer() {
             const audioPlayer = document.getElementById('audioPlayer');
+
+            // 閉じる前に最後の位置を自動保存
+            if (currentAudioFilePath && audioPlayer.currentTime > 3) {
+                const duration = audioPlayer.duration;
+                // 最後まで再生していなければ保存
+                if (!isNaN(duration) && duration - audioPlayer.currentTime > 3) {
+                    localStorage.setItem(`bookmark_${currentAudioFilePath}`, audioPlayer.currentTime.toString());
+                } else if (!isNaN(duration) && duration - audioPlayer.currentTime < 3) {
+                    // 最後まで再生した場合は削除
+                    localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
+                }
+            }
+
             audioPlayer.pause();
             audioPlayer.currentTime = 0;
             document.getElementById('audioPlayerModal').classList.remove('active');
+            // 再生速度をリセット
+            setPlaybackRate(1.0);
+        }
+
+        // 再生速度を変更
+        function changePlaybackRate(rate) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.playbackRate = parseFloat(rate);
+            document.getElementById('playbackRateValue').textContent = parseFloat(rate).toFixed(1) + 'x';
+            document.getElementById('playbackRate').value = rate;
+        }
+
+        // 再生速度をプリセット値に設定
+        function setPlaybackRate(rate) {
+            changePlaybackRate(rate);
+        }
+
+        // 再生位置を更新（自動保存用）
+        function updatePlaybackPosition() {
+            if (!currentAudioFilePath) return;
+
+            const audioPlayer = document.getElementById('audioPlayer');
+            const currentTime = audioPlayer.currentTime;
+            const duration = audioPlayer.duration;
+
+            // 再生中は常に位置を自動保存（開始3秒後から）
+            if (currentTime > 3 && !isNaN(duration)) {
+                localStorage.setItem(`bookmark_${currentAudioFilePath}`, currentTime.toString());
+
+                // 最後まで再生した場合はブックマークを削除
+                if (duration - currentTime < 3) {
+                    localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
+                }
+            }
+        }
+
+        // ブックマークを読み込み
+        function loadBookmark() {
+            if (!currentAudioFilePath) return;
+
+            const savedTime = localStorage.getItem(`bookmark_${currentAudioFilePath}`);
+            const bookmarkInfo = document.getElementById('bookmarkInfo');
+
+            if (savedTime) {
+                const audioPlayer = document.getElementById('audioPlayer');
+                const time = parseFloat(savedTime);
+
+                // ブックマーク情報を表示
+                const minutes = Math.floor(time / 60);
+                const seconds = Math.floor(time % 60);
+                document.getElementById('bookmarkTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                bookmarkInfo.style.display = 'block';
+
+                // 再生位置を復元
+                audioPlayer.currentTime = time;
+            } else {
+                bookmarkInfo.style.display = 'none';
+            }
+        }
+
+        // ブックマークを手動保存
+        function saveBookmark() {
+            if (!currentAudioFilePath) return;
+
+            const audioPlayer = document.getElementById('audioPlayer');
+            const currentTime = audioPlayer.currentTime;
+
+            localStorage.setItem(`bookmark_${currentAudioFilePath}`, currentTime.toString());
+
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+
+            alert(`📍 再生位置を記憶しました (${minutes}:${seconds.toString().padStart(2, '0')})`);
+        }
+
+        // ブックマークを削除
+        function clearBookmark() {
+            if (!currentAudioFilePath) return;
+
+            localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
+            document.getElementById('bookmarkInfo').style.display = 'none';
+
+            alert('🗑️ 記憶した位置を削除しました');
+        }
+
+        // すべての再生履歴をリセット
+        function clearAllBookmarks() {
+            if (!confirm('すべてのファイルの再生履歴をリセットしますか？\nこの操作は取り消せません。')) {
+                return;
+            }
+
+            // localStorage内のすべてのbookmark_で始まるキーを削除
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('bookmark_')) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+
+            alert(`🗑️ ${keysToRemove.length}件の再生履歴をリセットしました`);
+
+            // ファイル一覧を再描画
+            renderFilesList();
+        }
+
+        // 詳細設定の表示/非表示切り替え
+        function toggleAdvancedSettings() {
+            const advancedSettings = document.getElementById('advancedSettings');
+            const toggleText = document.getElementById('advancedToggleText');
+
+            if (advancedSettings.style.display === 'none') {
+                advancedSettings.style.display = 'block';
+                toggleText.textContent = '詳細設定を非表示';
+                localStorage.setItem('advancedSettingsOpen', 'true');
+            } else {
+                advancedSettings.style.display = 'none';
+                toggleText.textContent = '詳細設定を表示';
+                localStorage.setItem('advancedSettingsOpen', 'false');
+            }
         }
     </script>
 </body>
