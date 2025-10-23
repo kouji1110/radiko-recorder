@@ -1372,6 +1372,7 @@
                 programsContainer.className = 'station-programs';
 
                 const now = new Date();
+                let nowPlayingCard = null;
 
                 // 時刻順にソート
                 station.programs.sort((a, b) => a.ft - b.ft);
@@ -1383,6 +1384,7 @@
                     // 放送中の番組をハイライト
                     if (prog.ft <= now && prog.to > now) {
                         card.classList.add('now-playing');
+                        nowPlayingCard = card;
                     }
 
                     const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
@@ -1429,6 +1431,18 @@
 
                 column.appendChild(programsContainer);
                 programList.appendChild(column);
+
+                // 各放送局のコンテナ内で放送中の番組にスクロール
+                if (nowPlayingCard) {
+                    setTimeout(() => {
+                        // station-programs コンテナ内での位置を計算
+                        const containerTop = programsContainer.offsetTop;
+                        const cardTop = nowPlayingCard.offsetTop;
+                        const scrollPosition = cardTop - containerTop - 20; // 20pxの余白
+
+                        programsContainer.scrollTop = scrollPosition;
+                    }, 100);
+                }
             });
         }
 
