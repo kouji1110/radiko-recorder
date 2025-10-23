@@ -5,7 +5,7 @@ services:
     build: ./proxy
     container_name: radiko-proxy
     ports:
-      - "8080:8080"
+      - "8089:8080"
     volumes:
       - ./script:/home/sites/radiko-recorder/script
       - ./rec_radiko_ts-master:/home/sites/radiko-recorder/rec_radiko_ts-master
@@ -25,7 +25,7 @@ services:
     build: ./web
     container_name: radiko-web
     ports:
-      - "80:80"
+      - "8088:80"
     volumes:
       - ./web/html:/usr/share/nginx/html
       - ./web/nginx.conf:/etc/nginx/nginx.conf
