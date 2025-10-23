@@ -2059,72 +2059,113 @@
                 // 各エリアごとに処理
                 for (const areaId of allAreaIds) {
                     try {
-                        // 放送局一覧を取得
-                        const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
-                        const nowResponse = await fetch(nowUrl);
-                        if (!nowResponse.ok) continue;
+                        // 各日付のデータを取得（キャッシュを活用）
+                        for (const dateStr of dates) {
+                            const cacheKey = `${areaId}_${dateStr}`;
+                            let programs = [];
 
-                        const nowXmlText = await nowResponse.text();
-                        const parser = new DOMParser();
-                        const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
-                        const stations = nowXmlDoc.querySelectorAll('station');
-
-                        // 各放送局の過去7日間のデータを取得
-                        const stationPromises = Array.from(stations).map(async (station) => {
-                            const stationId = station.getAttribute('id');
-                            const stationName = station.querySelector('name')?.textContent || 'Unknown';
-
-                            const allDatesPrograms = [];
-
-                            // 過去7日間分のデータを取得
-                            for (const dateStr of dates) {
-                                try {
-                                    const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
-                                    const response = await fetch(stationUrl);
-                                    if (!response.ok) continue;
-
-                                    const xmlText = await response.text();
-                                    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                                    const progs = xmlDoc.querySelectorAll('prog');
-
-                                    progs.forEach(prog => {
-                                        const title = prog.querySelector('title')?.textContent || '';
-                                        const ftString = prog.getAttribute('ft');
-                                        const toString = prog.getAttribute('to');
-                                        const desc = prog.querySelector('desc')?.textContent || '説明なし';
-                                        const pfm = prog.querySelector('pfm')?.textContent || '';
-                                        const info = prog.querySelector('info')?.textContent || '';
-                                        const url = prog.querySelector('url')?.textContent || '';
-
-                                        // 検索キーワードでフィルタリング
-                                        const keyword = searchKeyword.toLowerCase();
-                                        if (ftString && toString &&
-                                            (title.toLowerCase().includes(keyword) ||
-                                             pfm.toLowerCase().includes(keyword) ||
-                                             desc.toLowerCase().includes(keyword))) {
-                                            allDatesPrograms.push({
-                                                stationId,
-                                                stationName,
-                                                areaId,
-                                                title,
-                                                ft: parseRadikoTime(ftString),
-                                                to: parseRadikoTime(toString),
-                                                desc,
-                                                pfm,
-                                                info,
-                                                url
-                                            });
-                                        }
+                            // キャッシュをチェック
+                            if (programCache.has(cacheKey)) {
+                                const cacheEntry = programCache.get(cacheKey);
+                                if (isCacheValid(cacheEntry)) {
+                                    programs = cacheEntry.data;
+                                    // キャッシュから取得した番組をフィルタリング
+                                    const keyword = searchKeyword.toLowerCase();
+                                    const filtered = programs.filter(prog => {
+                                        const title = prog.title || '';
+                                        const pfm = prog.pfm || '';
+                                        const desc = prog.desc || '';
+                                        return title.toLowerCase().includes(keyword) ||
+                                               pfm.toLowerCase().includes(keyword) ||
+                                               desc.toLowerCase().includes(keyword);
                                     });
-                                } catch (err) {
-                                    // 日付ごとのエラーは無視
+                                    allPrograms = allPrograms.concat(filtered);
+                                    continue; // キャッシュから取得できたので次へ
                                 }
                             }
-                            return allDatesPrograms;
-                        });
 
-                        const results = await Promise.all(stationPromises);
-                        allPrograms = allPrograms.concat(results.flat());
+                            // キャッシュにない、または期限切れの場合は取得
+                            try {
+                                const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
+                                const nowResponse = await fetch(nowUrl);
+                                if (!nowResponse.ok) continue;
+
+                                const nowXmlText = await nowResponse.text();
+                                const parser = new DOMParser();
+                                const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
+                                const stations = nowXmlDoc.querySelectorAll('station');
+
+                                // 各放送局のデータを取得
+                                const stationPromises = Array.from(stations).map(async (station) => {
+                                    const stationId = station.getAttribute('id');
+                                    const stationName = station.querySelector('name')?.textContent || 'Unknown';
+
+                                    try {
+                                        const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
+                                        const response = await fetch(stationUrl);
+                                        if (!response.ok) return [];
+
+                                        const xmlText = await response.text();
+                                        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                                        const progs = xmlDoc.querySelectorAll('prog');
+
+                                        const stationPrograms = [];
+                                        progs.forEach(prog => {
+                                            const title = prog.querySelector('title')?.textContent || '';
+                                            const ftString = prog.getAttribute('ft');
+                                            const toString = prog.getAttribute('to');
+                                            const desc = prog.querySelector('desc')?.textContent || '説明なし';
+                                            const pfm = prog.querySelector('pfm')?.textContent || '';
+                                            const info = prog.querySelector('info')?.textContent || '';
+                                            const url = prog.querySelector('url')?.textContent || '';
+
+                                            if (ftString && toString) {
+                                                stationPrograms.push({
+                                                    stationId,
+                                                    stationName,
+                                                    areaId,
+                                                    title,
+                                                    ft: parseRadikoTime(ftString),
+                                                    to: parseRadikoTime(toString),
+                                                    desc,
+                                                    pfm,
+                                                    info,
+                                                    url
+                                                });
+                                            }
+                                        });
+                                        return stationPrograms;
+                                    } catch (err) {
+                                        return [];
+                                    }
+                                });
+
+                                const results = await Promise.all(stationPromises);
+                                programs = results.flat();
+
+                                // キャッシュに保存
+                                programCache.set(cacheKey, {
+                                    data: programs,
+                                    timestamp: Date.now()
+                                });
+                                saveCacheToStorage();
+
+                                // 検索キーワードでフィルタリング
+                                const keyword = searchKeyword.toLowerCase();
+                                const filtered = programs.filter(prog => {
+                                    const title = prog.title || '';
+                                    const pfm = prog.pfm || '';
+                                    const desc = prog.desc || '';
+                                    return title.toLowerCase().includes(keyword) ||
+                                           pfm.toLowerCase().includes(keyword) ||
+                                           desc.toLowerCase().includes(keyword);
+                                });
+                                allPrograms = allPrograms.concat(filtered);
+
+                            } catch (err) {
+                                console.warn(`${areaId} - ${dateStr} の取得エラー:`, err);
+                            }
+                        }
 
                         processedAreas++;
                         loading.querySelector('p').textContent =
