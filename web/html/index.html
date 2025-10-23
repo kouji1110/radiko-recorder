@@ -2212,6 +2212,12 @@
         }
 
         // 録音済みファイル一覧を読み込む
+        let allRecordedFiles = [];
+        let currentSort = { column: 'modified', direction: 'desc' };
+        let currentPage = 1;
+        const itemsPerPage = 50;
+        let filterText = '';
+
         async function loadRecordedFiles() {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
@@ -2232,11 +2238,11 @@
                 }
 
                 const data = await response.json();
-                const files = data.files || [];
+                allRecordedFiles = data.files || [];
 
                 filesLoading.style.display = 'none';
 
-                if (files.length === 0) {
+                if (allRecordedFiles.length === 0) {
                     filesList.innerHTML = `
                         <div style="text-align: center; padding: 60px 20px;">
                             <div style="font-size: 3em; margin-bottom: 15px;">📭</div>
@@ -2247,66 +2253,173 @@
                     return;
                 }
 
-                // ファイル一覧を表示
-                let html = `
-                    <div style="margin-bottom: 15px; padding: 10px 15px; background: #e7f3ff; border-left: 4px solid #667eea; border-radius: 4px;">
-                        <div style="font-size: 0.9em; color: #495057;">
-                            <strong>${files.length}件</strong>のファイルが見つかりました
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
-                `;
-
-                files.forEach(file => {
-                    const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
-                    const modDate = new Date(file.modified * 1000);
-                    const dateStr = `${modDate.getFullYear()}/${String(modDate.getMonth() + 1).padStart(2, '0')}/${String(modDate.getDate()).padStart(2, '0')} ${String(modDate.getHours()).padStart(2, '0')}:${String(modDate.getMinutes()).padStart(2, '0')}`;
-
-                    html += `
-                        <div style="padding: 15px; background: white; border: 1px solid #dee2e6; border-radius: 8px; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
-                             onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.borderColor='#667eea';"
-                             onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)'; this.style.borderColor='#dee2e6';">
-                            <div style="margin-bottom: 12px;">
-                                <div style="font-size: 0.95em; font-weight: 600; color: #212529; margin-bottom: 6px; line-height: 1.4;">${file.name}</div>
-                                <div style="font-size: 0.8em; color: #6c757d;">
-                                    <div style="margin-bottom: 3px;">📊 ${fileSize} MB</div>
-                                    <div>🕒 ${dateStr}</div>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        style="flex: 1; min-width: 100px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: white; border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);"
-                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(76, 175, 80, 0.5)';"
-                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(76, 175, 80, 0.3)';">
-                                    <span style="font-size: 1.2em;">▶️</span>
-                                    <span>再生</span>
-                                </button>
-                                <a href="${baseUrl}/download/${file.path}" download="${file.name}"
-                                   style="flex: 1; min-width: 100px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
-                                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.5)';"
-                                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.3)';">
-                                    <span style="font-size: 1.2em;">📥</span>
-                                    <span>DL</span>
-                                </a>
-                                <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        style="display: flex; align-items: center; justify-content: center; padding: 10px 16px; background: #e57373; color: white; border: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(229, 115, 115, 0.3);"
-                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(229, 115, 115, 0.5)'; this.style.background='#ef5350';"
-                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(229, 115, 115, 0.3)'; this.style.background='#e57373';">
-                                    削除
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                html += '</div>';
-                filesList.innerHTML = html;
+                currentPage = 1;
+                renderFilesList();
 
             } catch (err) {
                 console.error('Error loading recorded files:', err);
                 filesLoading.style.display = 'none';
                 filesList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">エラーが発生しました</div>';
             }
+        }
+
+        function renderFilesList() {
+            const filesList = document.getElementById('filesList');
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+
+            // フィルタリング
+            let filteredFiles = allRecordedFiles.filter(file => {
+                if (!filterText) return true;
+                return file.name.toLowerCase().includes(filterText.toLowerCase());
+            });
+
+            // ソート
+            filteredFiles.sort((a, b) => {
+                let valA, valB;
+                if (currentSort.column === 'name') {
+                    valA = a.name;
+                    valB = b.name;
+                } else if (currentSort.column === 'size') {
+                    valA = a.size;
+                    valB = b.size;
+                } else if (currentSort.column === 'modified') {
+                    valA = a.modified;
+                    valB = b.modified;
+                }
+
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // ページネーション
+            const totalPages = Math.ceil(filteredFiles.length / itemsPerPage);
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const endIdx = startIdx + itemsPerPage;
+            const pageFiles = filteredFiles.slice(startIdx, endIdx);
+
+            const totalSize = (filteredFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024 / 1024).toFixed(2);
+
+            let html = `
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                        <input type="text" id="fileFilter" placeholder="🔍 ファイル名で検索..." value="${filterText}"
+                               oninput="filterText = this.value; currentPage = 1; renderFilesList();"
+                               style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
+                        <div style="padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 0.85em; color: #495057;">
+                            <strong>${filteredFiles.length}</strong>件 / ${totalSize} GB
+                        </div>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th onclick="sortFiles('name')" style="padding: 12px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap;"
+                                    onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    ファイル名 ${currentSort.column === 'name' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
+                                </th>
+                                <th onclick="sortFiles('size')" style="padding: 12px; text-align: right; cursor: pointer; user-select: none; white-space: nowrap; width: 100px;"
+                                    onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    サイズ ${currentSort.column === 'size' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
+                                </th>
+                                <th onclick="sortFiles('modified')" style="padding: 12px; text-align: center; cursor: pointer; user-select: none; white-space: nowrap; width: 140px;"
+                                    onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    更新日時 ${currentSort.column === 'modified' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
+                                </th>
+                                <th style="padding: 12px; text-align: center; width: 200px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            pageFiles.forEach((file, idx) => {
+                const fileSize = (file.size / 1024 / 1024).toFixed(1);
+                const modDate = new Date(file.modified * 1000);
+                const dateStr = `${modDate.getMonth() + 1}/${modDate.getDate()} ${String(modDate.getHours()).padStart(2, '0')}:${String(modDate.getMinutes()).padStart(2, '0')}`;
+
+                html += `
+                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s;"
+                        onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <td style="padding: 10px 12px;">
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;" title="${file.name}">
+                                ${file.name}
+                            </div>
+                        </td>
+                        <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
+                        <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.85em;">${dateStr}</td>
+                        <td style="padding: 10px 12px;">
+                            <div style="display: flex; gap: 6px; justify-content: center;">
+                                <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
+                                        title="再生"
+                                        style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#45a049'" onmouseout="this.style.background='#4caf50'">
+                                    ▶️
+                                </button>
+                                <a href="${baseUrl}/download/${file.path}" download="${file.name}"
+                                   title="ダウンロード"
+                                   style="padding: 6px 12px; background: #667eea; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85em; transition: all 0.2s; display: inline-block;"
+                                   onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
+                                    📥
+                                </a>
+                                <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
+                                        title="削除"
+                                        style="padding: 6px 12px; background: #e57373; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
+                                        onmouseover="this.style.background='#ef5350'" onmouseout="this.style.background='#e57373'">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // ページネーション
+            if (totalPages > 1) {
+                html += `
+                    <div style="margin-top: 15px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="currentPage = 1; renderFilesList();" ${currentPage === 1 ? 'disabled' : ''}
+                                style="padding: 6px 12px; background: ${currentPage === 1 ? '#e9ecef' : '#667eea'}; color: ${currentPage === 1 ? '#6c757d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'};">
+                            ≪
+                        </button>
+                        <button onclick="if(currentPage > 1) { currentPage--; renderFilesList(); }" ${currentPage === 1 ? 'disabled' : ''}
+                                style="padding: 6px 12px; background: ${currentPage === 1 ? '#e9ecef' : '#667eea'}; color: ${currentPage === 1 ? '#6c757d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'};">
+                            ＜
+                        </button>
+                        <span style="padding: 6px 12px; color: #495057; font-size: 0.9em;">
+                            ${currentPage} / ${totalPages}
+                        </span>
+                        <button onclick="if(currentPage < ${totalPages}) { currentPage++; renderFilesList(); }" ${currentPage === totalPages ? 'disabled' : ''}
+                                style="padding: 6px 12px; background: ${currentPage === totalPages ? '#e9ecef' : '#667eea'}; color: ${currentPage === totalPages ? '#6c757d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'};">
+                            ＞
+                        </button>
+                        <button onclick="currentPage = ${totalPages}; renderFilesList();" ${currentPage === totalPages ? 'disabled' : ''}
+                                style="padding: 6px 12px; background: ${currentPage === totalPages ? '#e9ecef' : '#667eea'}; color: ${currentPage === totalPages ? '#6c757d' : 'white'}; border: none; border-radius: 4px; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'};">
+                            ≫
+                        </button>
+                    </div>
+                `;
+            }
+
+            filesList.innerHTML = html;
+        }
+
+        function sortFiles(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = column === 'name' ? 'asc' : 'desc';
+            }
+            renderFilesList();
         }
 
         // ファイルの存在確認
