@@ -444,29 +444,139 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+
+            .container {
+                border-radius: 0;
+            }
+
             header h1 {
-                font-size: 1.8em;
+                font-size: 1.2em;
+            }
+
+            header p {
+                font-size: 0.7em;
+            }
+
+            /* タブのスマホ対応 */
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 0 10px;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                font-size: 0.85em;
+                white-space: nowrap;
+            }
+
+            /* 設定エリアのスマホ対応 */
+            .settings {
+                padding: 10px;
             }
 
             .settings-grid {
                 grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .setting-group {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 4px;
+            }
+
+            .setting-group label {
+                font-size: 0.8em;
+            }
+
+            .setting-group input,
+            .setting-group select {
+                width: 100%;
+                padding: 8px;
+                font-size: 0.9em;
+            }
+
+            /* ボタンのスマホ対応 */
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9em;
+            }
+
+            /* 番組カードのスマホ対応 */
+            .program-list {
+                grid-template-columns: 1fr !important;
+                gap: 10px;
+            }
+
+            .program-card {
+                font-size: 0.9em;
             }
 
             .program-header {
                 flex-direction: column;
+                gap: 8px;
             }
 
             .program-actions {
                 flex-direction: column;
+                gap: 6px;
             }
 
             .btn-action {
                 width: 100%;
+                padding: 10px;
             }
 
+            /* モーダルのスマホ対応 */
             .modal-content {
                 width: 95%;
-                padding: 20px;
+                max-width: 95%;
+                padding: 15px;
+                margin: 10px;
+            }
+
+            .modal-header h2 {
+                font-size: 1.1em;
+            }
+
+            .command-box {
+                font-size: 0.75em;
+                padding: 10px;
+            }
+
+            /* テーブルのスマホ対応 */
+            table {
+                font-size: 0.8em;
+            }
+
+            th, td {
+                padding: 8px 6px !important;
+            }
+
+            /* 録音済みファイル一覧のスマホ対応 */
+            #fileFilter {
+                font-size: 0.9em !important;
+            }
+
+            /* 詳細設定のスマホ対応 */
+            #advancedSettings {
+                padding: 10px;
+            }
+
+            /* 音声プレイヤーのスマホ対応 */
+            .speed-btn {
+                padding: 6px 10px !important;
+                font-size: 0.75em !important;
+            }
+
+            /* フッターのスマホ対応 */
+            footer {
+                font-size: 0.65em;
+                padding: 8px;
             }
         }
     </style>
