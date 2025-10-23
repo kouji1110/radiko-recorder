@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>録音くん - radiko録音管理システム</title>
-    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
     <style>
         * {
             box-sizing: border-box;
@@ -480,8 +481,8 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('search')">📻 番組検索</button>
             <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
-            <button class="tab" onclick="switchTab('cron')">⏰ cron管理</button>
-            <button class="tab" onclick="switchTab('at')">⏱️ at予約</button>
+            <button class="tab" onclick="switchTab('at')">⏱️ 番組予約管理</button>
+            <button class="tab" onclick="switchTab('cron')">⏰ 定期録音管理</button>
         </div>
 
         <!-- 番組検索タブ -->
@@ -602,7 +603,7 @@
             <div class="content">
                 <div style="padding: 15px; background: white;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏰ cron管理</h2>
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏰ 定期録音管理</h2>
                         <button class="btn btn-primary" onclick="loadCronJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
                     </div>
                     <div id="cronLoading" class="loading" style="display: none;">
@@ -619,7 +620,7 @@
             <div class="content">
                 <div style="padding: 15px; background: white;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏱️ at予約管理</h2>
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏱️ 番組予約管理</h2>
                         <button class="btn btn-primary" onclick="loadAtJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
                     </div>
                     <div id="atLoading" class="loading" style="display: none;">
@@ -923,16 +924,16 @@
                 document.getElementById('filesTab').classList.add('active');
                 // ファイルタブを開いた時に自動読み込み
                 loadRecordedFiles();
-            } else if (tabName === 'cron') {
-                document.querySelectorAll('.tab')[2].classList.add('active');
-                document.getElementById('cronTab').classList.add('active');
-                // cronタブを開いた時に自動読み込み
-                loadCronJobs();
             } else if (tabName === 'at') {
-                document.querySelectorAll('.tab')[3].classList.add('active');
+                document.querySelectorAll('.tab')[2].classList.add('active');
                 document.getElementById('atTab').classList.add('active');
                 // at予約タブを開いた時に自動読み込み
                 loadAtJobs();
+            } else if (tabName === 'cron') {
+                document.querySelectorAll('.tab')[3].classList.add('active');
+                document.getElementById('cronTab').classList.add('active');
+                // cronタブを開いた時に自動読み込み
+                loadCronJobs();
             }
         }
 
@@ -2838,18 +2839,68 @@
                     return;
                 }
 
+                // 各ジョブの詳細を取得して番組名を表示
+                const jobsWithDetails = await Promise.all(data.jobs.map(async (job) => {
+                    try {
+                        const detailResponse = await fetch(`${baseUrl}/at/detail/${job.id}`);
+                        const detailData = await detailResponse.json();
+
+                        // コマンドから番組情報を抽出
+                        let programTitle = 'Unknown';
+                        let stationId = '';
+                        let startTime = '';
+                        let endTime = '';
+
+                        if (detailData.command) {
+                            // myradiko "番組名" "局ID" "局ID" "開始時刻" "終了時刻" ... の形式から抽出
+                            const match = detailData.command.match(/myradiko\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"\s+"(\d+)"\s+"(\d+)"/);
+                            if (match) {
+                                programTitle = match[1];
+                                stationId = match[2];
+                                const startStr = match[4]; // YYYYMMDDHHmm
+                                const endStr = match[5];
+
+                                // 時刻をフォーマット
+                                if (startStr.length === 12) {
+                                    const year = startStr.substring(0, 4);
+                                    const month = startStr.substring(4, 6);
+                                    const day = startStr.substring(6, 8);
+                                    const hour = startStr.substring(8, 10);
+                                    const minute = startStr.substring(10, 12);
+                                    startTime = `${year}/${month}/${day} ${hour}:${minute}`;
+                                }
+                                if (endStr.length === 12) {
+                                    const hour = endStr.substring(8, 10);
+                                    const minute = endStr.substring(10, 12);
+                                    endTime = `${hour}:${minute}`;
+                                }
+                            }
+                        }
+
+                        return { ...job, title: programTitle, station: stationId, startTime, endTime };
+                    } catch (err) {
+                        console.error(`Failed to get detail for job ${job.id}:`, err);
+                        return { ...job, title: 'Unknown', station: '', startTime: '', endTime: '' };
+                    }
+                }));
+
                 let html = '<div style="display: grid; gap: 15px;">';
 
-                data.jobs.forEach(job => {
+                jobsWithDetails.forEach(job => {
                     html += `
-                        <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: #f8f9fa;">
+                        <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: white;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div style="flex: 1;">
-                                    <div style="font-weight: 600; color: #212529; margin-bottom: 5px; font-size: 0.95em;">
+                                    <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 1.05em;">
+                                        ${job.title}
+                                    </div>
+                                    ${job.station ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">📻 ${job.station}</div>` : ''}
+                                    ${job.startTime && job.endTime ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">🕒 ${job.startTime} - ${job.endTime}</div>` : ''}
+                                    <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 3px;">
                                         ⏱️ Job #${job.id}
                                     </div>
-                                    <div style="color: #6c757d; font-size: 0.9em;">
-                                        実行予定: ${job.datetime}
+                                    <div style="color: #6c757d; font-size: 0.85em;">
+                                        録音開始予定: ${job.datetime}
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 8px;">
