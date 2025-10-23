@@ -2155,8 +2155,10 @@
 
             try {
                 // サーバー側DB検索APIを呼び出す
-                const apiUrl = proxyUrl.trim() ? `${proxyUrl}/api/programs/search` : '/api/programs/search';
-                const searchUrl = `${apiUrl}?keyword=${encodeURIComponent(searchKeyword)}`;
+                // proxyUrlが'/api'の場合、'/api/programs/search'になる
+                // proxyUrlが空の場合、'/api/programs/search'になる
+                const baseApiUrl = proxyUrl.trim() || '';
+                const searchUrl = `${baseApiUrl}/api/programs/search?keyword=${encodeURIComponent(searchKeyword)}`;
 
                 console.log('🔍 Searching via API:', searchUrl);
 
