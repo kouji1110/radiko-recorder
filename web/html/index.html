@@ -972,7 +972,7 @@
         <div id="atEditModal" class="modal" style="display: none;">
             <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header">
-                    <h3 style="margin: 0; color: #212529;">⏱️ at予約の編集</h3>
+                    <h3 style="margin: 0; color: #212529;">📝 予約内容の編集</h3>
                     <button onclick="closeAtEditModal()" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #6c757d;">&times;</button>
                 </div>
                 <div class="modal-body" style="padding: 20px;">
@@ -4023,8 +4023,14 @@
                 document.getElementById('editAtStartTime').value = startDatetime;
                 document.getElementById('editAtEndTime').value = endDatetime;
 
-                // 放送局IDから適切なエリアを設定（東京都をデフォルト）
-                document.getElementById('editAtArea').value = 'JP13';
+                // 放送局IDから適切なエリアを検出
+                const detectedArea = await detectAreaFromStation(stationId);
+                if (detectedArea) {
+                    document.getElementById('editAtArea').value = detectedArea;
+                } else {
+                    // 検出できない場合は東京都をデフォルト
+                    document.getElementById('editAtArea').value = 'JP13';
+                }
 
                 // 放送局一覧を読み込んでから放送局を設定
                 await updateEditAtStations();
@@ -4045,6 +4051,61 @@
         }
 
         // at予約編集：エリア変更時に放送局一覧を更新
+        // 放送局IDからエリアを検出する関数
+        async function detectAreaFromStation(stationId) {
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() || '';
+
+                // 全エリアリスト
+                const allAreas = [
+                    'JP1', 'JP2', 'JP3', 'JP4', 'JP5', 'JP6', 'JP7', 'JP8', 'JP9', 'JP10',
+                    'JP11', 'JP12', 'JP13', 'JP14', 'JP15', 'JP16', 'JP17', 'JP18', 'JP19', 'JP20',
+                    'JP21', 'JP22', 'JP23', 'JP24', 'JP25', 'JP26', 'JP27', 'JP28', 'JP29', 'JP30',
+                    'JP31', 'JP32', 'JP33', 'JP34', 'JP35', 'JP36', 'JP37', 'JP38', 'JP39', 'JP40',
+                    'JP41', 'JP42', 'JP43', 'JP44', 'JP45', 'JP46', 'JP47'
+                ];
+
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+                // 優先的にチェックするエリア（東京、大阪など）
+                const priorityAreas = ['JP13', 'JP27', 'JP14', 'JP28', 'JP40', 'JP1'];
+
+                // 優先エリアから検索
+                for (const areaId of priorityAreas) {
+                    const response = await fetch(`${baseUrl}/api/programs/area/${areaId}/date/${today}`);
+                    const data = await response.json();
+
+                    if (data.programs) {
+                        const found = data.programs.find(prog => prog.stationId === stationId);
+                        if (found) {
+                            return areaId;
+                        }
+                    }
+                }
+
+                // 見つからなければ全エリアを検索（優先エリアを除く）
+                for (const areaId of allAreas) {
+                    if (priorityAreas.includes(areaId)) continue;
+
+                    const response = await fetch(`${baseUrl}/api/programs/area/${areaId}/date/${today}`);
+                    const data = await response.json();
+
+                    if (data.programs) {
+                        const found = data.programs.find(prog => prog.stationId === stationId);
+                        if (found) {
+                            return areaId;
+                        }
+                    }
+                }
+
+                return null; // 見つからなかった
+            } catch (err) {
+                console.error('Error detecting area:', err);
+                return null;
+            }
+        }
+
         async function updateEditAtStations() {
             const areaId = document.getElementById('editAtArea').value;
             const stationSelect = document.getElementById('editAtStation');
@@ -4145,15 +4206,16 @@
                 }
 
                 // 2. 新しい内容で再登録
-                // 各時刻をYYYYMMDDHHmm形式に変換
-                const execDate = new Date(executeTime);
-                const executeStr = `${execDate.getFullYear()}${String(execDate.getMonth() + 1).padStart(2, '0')}${String(execDate.getDate()).padStart(2, '0')}${String(execDate.getHours()).padStart(2, '0')}${String(execDate.getMinutes()).padStart(2, '0')}`;
-
+                // 録音開始・終了時刻をYYYYMMDDHHmm形式に変換
                 const startDate = new Date(startDatetime);
                 const startStr = `${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}${String(startDate.getHours()).padStart(2, '0')}${String(startDate.getMinutes()).padStart(2, '0')}`;
 
                 const endDate = new Date(endDatetime);
                 const endStr = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, '0')}${String(endDate.getDate()).padStart(2, '0')}${String(endDate.getHours()).padStart(2, '0')}${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+                // 実行時刻をat形式に変換（HH:MM YYYY-MM-DD）
+                const execDate = new Date(executeTime);
+                const atTime = `${String(execDate.getHours()).padStart(2, '0')}:${String(execDate.getMinutes()).padStart(2, '0')} ${execDate.getFullYear()}-${String(execDate.getMonth() + 1).padStart(2, '0')}-${String(execDate.getDate()).padStart(2, '0')}`;
 
                 // スクリプトパスを取得
                 const scriptPath = document.getElementById('scriptPath').value;
@@ -4167,7 +4229,7 @@
                         script_path: scriptPath,
                         title: title,
                         station_id: stationId,
-                        execute_time: executeStr,
+                        at_time: atTime,  // 正しいパラメータ名
                         start_time: startStr,
                         end_time: endStr
                     })
