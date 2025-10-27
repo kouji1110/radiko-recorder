@@ -941,5 +941,258 @@ def trigger_update_api():
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== 管理メニューAPI ====================
+
+@app.route('/admin/update-programs-stream', methods=['GET'])
+def admin_update_programs_stream():
+    """管理画面からの番組表一括更新（SSEストリーミング）"""
+    def generate():
+        try:
+            days = int(request.args.get('days', 3))
+            logger.info(f'Admin: manual program update for {days} days (streaming)')
+
+            # 進捗情報をストリーミング送信
+            yield f"data: {json.dumps({'type': 'start', 'message': f'{days}日分の番組表更新を開始します...'})}\n\n"
+
+            # fetch_programs.pyのALL_AREA_IDSを取得
+            from fetch_programs import ALL_AREA_IDS
+            from datetime import datetime, timedelta
+            import time
+
+            # 日付リストを生成（今日から指定日数分）
+            today = datetime.now()
+            if today.hour < 5:
+                today = today - timedelta(days=1)
+
+            dates = []
+            for i in range(days):
+                date = today + timedelta(days=i)
+                date_str = date.strftime('%Y%m%d')
+                dates.append(date_str)
+
+            total_tasks = len(ALL_AREA_IDS) * len(dates)
+            completed = 0
+            total_programs = 0
+            success_count = 0
+            error_count = 0
+            warning_count = 0
+
+            yield f"data: {json.dumps({'type': 'info', 'message': f'全{len(ALL_AREA_IDS)}エリア × {len(dates)}日 = {total_tasks}件の処理'})}\n\n"
+
+            # 各エリアを処理
+            for idx, area_id in enumerate(ALL_AREA_IDS, 1):
+                yield f"data: {json.dumps({'type': 'progress', 'area': area_id, 'current': idx, 'total': len(ALL_AREA_IDS)})}\n\n"
+
+                for date in dates:
+                    try:
+                        programs = fetch_programs.fetch_area_programs(area_id, date)
+
+                        if programs:
+                            db.save_programs(programs, area_id, date)
+                            total_programs += len(programs)
+                            success_count += 1
+                            yield f"data: {json.dumps({'type': 'success', 'area': area_id, 'date': date, 'programs': len(programs)})}\n\n"
+                        else:
+                            warning_count += 1
+                            yield f"data: {json.dumps({'type': 'warning', 'area': area_id, 'date': date, 'message': 'No programs found'})}\n\n"
+
+                        completed += 1
+                        progress_percent = int((completed / total_tasks) * 100)
+                        yield f"data: {json.dumps({'type': 'percent', 'percent': progress_percent, 'completed': completed, 'total': total_tasks, 'success': success_count, 'error': error_count, 'warning': warning_count})}\n\n"
+
+                        time.sleep(0.2)  # レート制限対策
+
+                    except Exception as e:
+                        error_count += 1
+                        error_msg = str(e)
+                        # タイムアウトエラーをわかりやすく
+                        if 'timed out' in error_msg or 'timeout' in error_msg.lower():
+                            error_msg = 'タイムアウト (radikoサーバー応答なし)'
+                        yield f"data: {json.dumps({'type': 'error', 'area': area_id, 'date': date, 'message': error_msg})}\n\n"
+                        completed += 1
+                        progress_percent = int((completed / total_tasks) * 100)
+                        yield f"data: {json.dumps({'type': 'percent', 'percent': progress_percent, 'completed': completed, 'total': total_tasks, 'success': success_count, 'error': error_count, 'warning': warning_count})}\n\n"
+
+            # 古いデータを削除
+            yield f"data: {json.dumps({'type': 'info', 'message': '古いデータを削除中...'})}\n\n"
+            db.cleanup_old_data(days_to_keep=15)
+
+            # 完了
+            yield f"data: {json.dumps({'type': 'complete', 'total_programs': total_programs, 'success': success_count, 'error': error_count, 'warning': warning_count, 'message': '更新が完了しました'})}\n\n"
+
+        except Exception as e:
+            logger.error(f'Admin update programs stream error: {str(e)}')
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+
+@app.route('/admin/logs/<log_type>')
+def admin_view_logs(log_type):
+    """ログファイルを表示"""
+    try:
+        log_content = ''
+
+        if log_type == 'myradiko':
+            # myradiko実行ログ
+            log_path = '/tmp/myradiko_output.log'
+            if os.path.exists(log_path):
+                with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+                    # 最新500行のみ
+                    log_content = ''.join(lines[-500:])
+            else:
+                log_content = 'ログファイルが見つかりません'
+
+        elif log_type == 'docker':
+            # Flaskアプリのログ（このコンテナ内では取得不可）
+            log_content = 'Dockerログはホスト側で `docker-compose logs proxy` コマンドを実行して確認してください。\n\n'
+            log_content += 'コンテナ内からホストのDockerコマンドは実行できません。'
+
+        elif log_type == 'nginx':
+            # Nginxログ（このコンテナ内では取得不可）
+            log_content = 'Nginxログはホスト側で `docker-compose logs web` コマンドを実行して確認してください。\n\n'
+            log_content += 'または、docker exec コマンドでwebコンテナに入り、/var/log/nginx/以下のログを確認してください。'
+
+        else:
+            return jsonify({'error': 'Invalid log type'}), 400
+
+        return jsonify({
+            'success': True,
+            'log': log_content
+        })
+
+    except Exception as e:
+        logger.error(f'Admin view logs error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/execute-manual', methods=['POST'])
+def admin_execute_manual():
+    """手動でmyradikoコマンドを実行"""
+    try:
+        data = request.json
+        script_path = data.get('script_path', '/home/sites/radiko-recorder/script/myradiko')
+        title = data.get('title', '')
+        station_id = data.get('station_id')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+
+        if not all([station_id, start_time, end_time]):
+            return jsonify({'error': 'Missing required parameters'}), 400
+
+        # コマンドを構築
+        command = f'{script_path} "{title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
+
+        logger.info(f'Admin: executing manual command: {command}')
+
+        # コマンドを実行（同期実行）
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=600  # 10分タイムアウト
+        )
+
+        output = result.stdout + result.stderr
+
+        if result.returncode != 0:
+            logger.error(f'Command failed: {output}')
+            return jsonify({
+                'success': False,
+                'error': 'コマンド実行に失敗しました',
+                'output': output
+            }), 500
+
+        logger.info(f'Command executed successfully: {output}')
+
+        return jsonify({
+            'success': True,
+            'message': 'コマンドを実行しました',
+            'output': output
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'コマンドがタイムアウトしました（10分以上）'}), 500
+    except Exception as e:
+        logger.error(f'Admin execute manual error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/cleanup', methods=['POST'])
+def admin_cleanup():
+    """古いDBデータを削除"""
+    try:
+        deleted = db.cleanup_old_data(days_to_keep=15)
+
+        return jsonify({
+            'success': True,
+            'message': '古いデータを削除しました',
+            'deleted': deleted
+        })
+
+    except Exception as e:
+        logger.error(f'Admin cleanup error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/disk-space')
+def admin_disk_space():
+    """ディスク容量を確認"""
+    try:
+        # dfコマンドでディスク容量を取得
+        result = subprocess.run(
+            ['df', '-h', '/home/sites/radiko-recorder'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        return jsonify({
+            'success': True,
+            'info': result.stdout
+        })
+
+    except Exception as e:
+        logger.error(f'Admin disk space error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/db-status')
+def admin_db_status():
+    """DB統計情報を取得"""
+    try:
+        import sqlite3
+
+        conn = sqlite3.connect(db.DB_PATH)
+        cursor = conn.cursor()
+
+        # 総番組数
+        cursor.execute('SELECT COUNT(*) FROM programs')
+        total_programs = cursor.fetchone()[0]
+
+        # 更新履歴数
+        cursor.execute('SELECT COUNT(*) FROM update_log')
+        total_updates = cursor.fetchone()[0]
+
+        # DBファイルサイズ
+        db_size = os.path.getsize(db.DB_PATH)
+        db_size_mb = round(db_size / 1024 / 1024, 2)
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'total_programs': total_programs,
+            'total_updates': total_updates,
+            'db_size': f'{db_size_mb} MB'
+        })
+
+    except Exception as e:
+        logger.error(f'Admin DB status error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)

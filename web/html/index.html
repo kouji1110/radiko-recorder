@@ -593,6 +593,7 @@
             <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
             <button class="tab" onclick="switchTab('at')">⏱️ 番組予約管理</button>
             <button class="tab" onclick="switchTab('cron')">⏰ 定期録音管理</button>
+            <button class="tab" onclick="switchTab('admin')">🔧 管理メニュー</button>
         </div>
 
         <!-- 番組検索タブ -->
@@ -661,7 +662,14 @@
 
                 <div class="setting-group">
                     <label for="searchKeyword">検索:</label>
-                    <input type="text" id="searchKeyword" placeholder="番組名で検索" style="width: 150px;">
+                    <div style="position: relative; display: inline-block;">
+                        <input type="text" id="searchKeyword" placeholder="番組名で検索" style="width: 150px; padding-right: 25px;">
+                        <button id="clearSearchBtn" onclick="clearSearchKeyword()"
+                                style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #999; cursor: pointer; padding: 2px 6px; font-size: 1.1em; display: none;"
+                                onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">
+                            ×
+                        </button>
+                    </div>
                 </div>
 
                 <div class="setting-group">
@@ -750,6 +758,314 @@
                         <p>at予約一覧を読み込み中...</p>
                     </div>
                     <div id="atList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 管理メニュータブ -->
+        <div id="adminTab" class="tab-content">
+            <div class="content">
+                <!-- パスワード認証画面 -->
+                <div id="adminAuth" style="padding: 40px; background: white; text-align: center;">
+                    <h2 style="margin-bottom: 20px; color: #212529;">🔐 管理メニュー</h2>
+                    <p style="margin-bottom: 20px; color: #6c757d;">管理者パスワードを入力してください</p>
+                    <div style="max-width: 300px; margin: 0 auto;">
+                        <input type="password" id="adminPassword" placeholder="パスワード"
+                               style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; margin-bottom: 15px;"
+                               onkeypress="if(event.key==='Enter') authenticateAdmin()">
+                        <button onclick="authenticateAdmin()"
+                                style="width: 100%; padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em;">
+                            ログイン
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 管理メニュー本体（認証後に表示） -->
+                <div id="adminPanel" style="display: none; padding: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
+                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">🔧 管理メニュー</h2>
+                        <button onclick="logoutAdmin()" style="padding: 6px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">ログアウト</button>
+                    </div>
+
+                    <!-- DB番組表一括更新 -->
+                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">📊 DB番組表一括更新</h3>
+                        <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">全エリアの番組表をデータベースに取得・更新します（深夜バッチ処理相当）</p>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="updateDays" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <option value="1">今日のみ</option>
+                                <option value="2">2日分 (今日+明日)</option>
+                                <option value="3" selected>3日分</option>
+                                <option value="7">7日分</option>
+                            </select>
+                            <button onclick="updateAllPrograms()" class="btn btn-primary" style="background: #007bff;">
+                                🔄 一括更新開始 (進捗表示)
+                            </button>
+                        </div>
+                        <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 0.85em;">
+                            ⚠️ 進捗を表示するにはブラウザを開いたままにしてください。<br>
+                            バックグラウンドで実行する場合は、深夜3時の自動実行をお待ちください。
+                        </p>
+                        <div id="updateProgress" style="margin-top: 10px; display: none;">
+                            <!-- プログレスバー -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span id="updateProgressText" style="font-weight: 600; color: #495057; font-size: 0.9em;">準備中...</span>
+                                    <span id="updateProgressPercent" style="font-weight: 600; color: #007bff; font-size: 0.9em;">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 24px; background: #e9ecef; border-radius: 12px; overflow: hidden; position: relative;">
+                                    <div id="updateProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center;">
+                                        <span id="updateProgressBarText" style="color: white; font-size: 0.8em; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.3);"></span>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 5px; font-size: 0.85em; color: #6c757d;" id="updateProgressDetail">待機中...</div>
+                            </div>
+                            <!-- 統計情報 -->
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                                <div style="background: #d4edda; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #c3e6cb;">
+                                    <div style="font-size: 0.75em; color: #155724; font-weight: 600;">✅ 成功</div>
+                                    <div style="font-size: 1.2em; font-weight: bold; color: #155724;" id="updateSuccessCount">0</div>
+                                </div>
+                                <div style="background: #f8d7da; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #f5c6cb;">
+                                    <div style="font-size: 0.75em; color: #721c24; font-weight: 600;">❌ エラー</div>
+                                    <div style="font-size: 1.2em; font-weight: bold; color: #721c24;" id="updateErrorCount">0</div>
+                                </div>
+                                <div style="background: #fff3cd; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #ffeaa7;">
+                                    <div style="font-size: 0.75em; color: #856404; font-weight: 600;">⚠️ 警告</div>
+                                    <div style="font-size: 1.2em; font-weight: bold; color: #856404;" id="updateWarningCount">0</div>
+                                </div>
+                            </div>
+                            <!-- ログ表示 -->
+                            <details open style="margin-bottom: 10px;">
+                                <summary style="cursor: pointer; padding: 8px; background: #e9ecef; border-radius: 4px; font-weight: 600; user-select: none;">
+                                    📋 詳細ログ
+                                </summary>
+                                <div style="background: #212529; color: #e9ecef; padding: 12px; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.8em; max-height: 300px; overflow-y: auto; margin-top: 5px; line-height: 1.6;" id="updateLog"></div>
+                            </details>
+                        </div>
+                    </div>
+
+                    <!-- 手動コマンド実行 -->
+                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">⚡ 手動myradikoコマンド実行</h3>
+                        <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">番組表を経由せずに直接録音コマンドを実行します</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div style="grid-column: 1 / -1;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">番組名</label>
+                                <input type="text" id="manualTitle" placeholder="例: ラジオニュース" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">エリア</label>
+                                <select id="manualArea" onchange="updateManualStations()" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                    <option value="">エリアを選択</option>
+                                    <option value="JP13">東京都</option>
+                                    <option value="JP14">神奈川県</option>
+                                    <option value="JP27">大阪府</option>
+                                    <option value="JP1">北海道</option>
+                                    <option value="JP2">青森県</option>
+                                    <option value="JP3">岩手県</option>
+                                    <option value="JP4">宮城県</option>
+                                    <option value="JP5">秋田県</option>
+                                    <option value="JP6">山形県</option>
+                                    <option value="JP7">福島県</option>
+                                    <option value="JP8">茨城県</option>
+                                    <option value="JP9">栃木県</option>
+                                    <option value="JP10">群馬県</option>
+                                    <option value="JP11">埼玉県</option>
+                                    <option value="JP12">千葉県</option>
+                                    <option value="JP15">新潟県</option>
+                                    <option value="JP16">富山県</option>
+                                    <option value="JP17">石川県</option>
+                                    <option value="JP18">福井県</option>
+                                    <option value="JP19">山梨県</option>
+                                    <option value="JP20">長野県</option>
+                                    <option value="JP21">岐阜県</option>
+                                    <option value="JP22">静岡県</option>
+                                    <option value="JP23">愛知県</option>
+                                    <option value="JP24">三重県</option>
+                                    <option value="JP25">滋賀県</option>
+                                    <option value="JP26">京都府</option>
+                                    <option value="JP28">兵庫県</option>
+                                    <option value="JP29">奈良県</option>
+                                    <option value="JP30">和歌山県</option>
+                                    <option value="JP31">鳥取県</option>
+                                    <option value="JP32">島根県</option>
+                                    <option value="JP33">岡山県</option>
+                                    <option value="JP34">広島県</option>
+                                    <option value="JP35">山口県</option>
+                                    <option value="JP36">徳島県</option>
+                                    <option value="JP37">香川県</option>
+                                    <option value="JP38">愛媛県</option>
+                                    <option value="JP39">高知県</option>
+                                    <option value="JP40">福岡県</option>
+                                    <option value="JP41">佐賀県</option>
+                                    <option value="JP42">長崎県</option>
+                                    <option value="JP43">熊本県</option>
+                                    <option value="JP44">大分県</option>
+                                    <option value="JP45">宮崎県</option>
+                                    <option value="JP46">鹿児島県</option>
+                                    <option value="JP47">沖縄県</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">放送局</label>
+                                <select id="manualStation" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                    <option value="">まずエリアを選択してください</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">コマンド実行時刻（予約実行時間）</label>
+                                <input type="datetime-local" id="manualExecuteTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <small style="color: #6c757d; font-size: 0.8em;">at コマンドでこの時刻に実行されます</small>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">録音開始日時</label>
+                                <input type="datetime-local" id="manualStart" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <small style="color: #6c757d; font-size: 0.8em;">実際に録音が開始される時刻</small>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">録音終了日時</label>
+                                <input type="datetime-local" id="manualEnd" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <small style="color: #6c757d; font-size: 0.8em;">日付を跨ぐ場合も指定可能</small>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button onclick="executeManualCommand()" class="btn btn-primary" style="background: #dc3545; color: white;">
+                                ▶️ 即座に実行
+                            </button>
+                            <button onclick="scheduleManualCommand()" class="btn" style="background: #007bff; color: white;">
+                                ⏰ at予約（コマンド実行時刻に実行）
+                            </button>
+                            <button onclick="copyManualCommand()" class="btn" style="background: #6c757d; color: white;">
+                                📋 コマンドをコピー
+                            </button>
+                        </div>
+                        <div id="manualCommandPreview" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; font-family: monospace; font-size: 0.85em; display: none; white-space: pre-wrap;"></div>
+                        <div id="manualOutput" style="margin-top: 10px; display: none;">
+                            <div style="background: #212529; color: #0f0; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; white-space: pre-wrap;" id="manualLog"></div>
+                        </div>
+                    </div>
+
+                    <!-- その他メニュー -->
+                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🛠️ その他のメンテナンス</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="cleanupOldData()" class="btn" style="background: #ffc107; color: #212529;">
+                                🗑️ 古いDB データ削除
+                            </button>
+                            <button onclick="checkDiskSpace()" class="btn" style="background: #6c757d; color: white;">
+                                💾 ディスク容量確認
+                            </button>
+                            <button onclick="viewDbStatus()" class="btn" style="background: #20c997; color: white;">
+                                📈 DB統計情報
+                            </button>
+                        </div>
+                        <div id="maintenanceOutput" style="margin-top: 10px; display: none;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; white-space: pre-wrap;" id="maintenanceLog"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- at予約編集モーダル -->
+        <div id="atEditModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3 style="margin: 0; color: #212529;">⏱️ at予約の編集</h3>
+                    <button onclick="closeAtEditModal()" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #6c757d;">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">番組名</label>
+                        <input type="text" id="editAtTitle" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">エリア</label>
+                            <select id="editAtArea" onchange="updateEditAtStations()" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <option value="">エリアを選択</option>
+                                <option value="JP13">東京都</option>
+                                <option value="JP14">神奈川県</option>
+                                <option value="JP27">大阪府</option>
+                                <option value="JP28">兵庫県</option>
+                                <option value="JP1">北海道</option>
+                                <option value="JP2">青森県</option>
+                                <option value="JP3">岩手県</option>
+                                <option value="JP4">宮城県</option>
+                                <option value="JP5">秋田県</option>
+                                <option value="JP6">山形県</option>
+                                <option value="JP7">福島県</option>
+                                <option value="JP8">茨城県</option>
+                                <option value="JP9">栃木県</option>
+                                <option value="JP10">群馬県</option>
+                                <option value="JP11">埼玉県</option>
+                                <option value="JP12">千葉県</option>
+                                <option value="JP15">新潟県</option>
+                                <option value="JP16">富山県</option>
+                                <option value="JP17">石川県</option>
+                                <option value="JP18">福井県</option>
+                                <option value="JP19">山梨県</option>
+                                <option value="JP20">長野県</option>
+                                <option value="JP21">岐阜県</option>
+                                <option value="JP22">静岡県</option>
+                                <option value="JP23">愛知県</option>
+                                <option value="JP24">三重県</option>
+                                <option value="JP25">滋賀県</option>
+                                <option value="JP26">京都府</option>
+                                <option value="JP29">奈良県</option>
+                                <option value="JP30">和歌山県</option>
+                                <option value="JP31">鳥取県</option>
+                                <option value="JP32">島根県</option>
+                                <option value="JP33">岡山県</option>
+                                <option value="JP34">広島県</option>
+                                <option value="JP35">山口県</option>
+                                <option value="JP36">徳島県</option>
+                                <option value="JP37">香川県</option>
+                                <option value="JP38">愛媛県</option>
+                                <option value="JP39">高知県</option>
+                                <option value="JP40">福岡県</option>
+                                <option value="JP41">佐賀県</option>
+                                <option value="JP42">長崎県</option>
+                                <option value="JP43">熊本県</option>
+                                <option value="JP44">大分県</option>
+                                <option value="JP45">宮崎県</option>
+                                <option value="JP46">鹿児島県</option>
+                                <option value="JP47">沖縄県</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">放送局</label>
+                            <select id="editAtStation" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <option value="">まずエリアを選択</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">録音開始日時</label>
+                        <input type="datetime-local" id="editAtStartTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                        <small style="color: #6c757d; font-size: 0.85em;">実際に録音が開始される時刻</small>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">録音終了日時</label>
+                        <input type="datetime-local" id="editAtEndTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                        <small style="color: #6c757d; font-size: 0.85em;">日付を跨ぐ場合も指定可能</small>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">コマンド実行時刻（予約実行時間）</label>
+                        <div style="display: flex; gap: 8px; align-items: flex-start;">
+                            <input type="datetime-local" id="editAtExecuteTime" style="flex: 1; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                            <button onclick="setExecuteTimeToEndPlus5()" style="padding: 8px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-size: 0.9em;">
+                                終了+5分
+                            </button>
+                        </div>
+                        <small style="color: #6c757d; font-size: 0.85em;">atコマンドでこの時刻に実行されます</small>
+                    </div>
+                    <input type="hidden" id="editAtJobId">
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeAtEditModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">キャンセル</button>
+                    <button onclick="saveAtEdit()" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">保存</button>
                 </div>
             </div>
         </div>
@@ -1034,6 +1350,20 @@
             return age < CACHE_EXPIRE_MS;
         }
 
+        // 番組検索タブの初期化（本日の現在時刻の番組を表示）
+        function initializeSearchTab() {
+            // 本日の日付を設定
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+            document.getElementById('targetDate').value = dateStr;
+
+            // デフォルトエリアが選択されていれば番組を取得
+            const areaId = document.getElementById('areaId').value;
+            if (areaId) {
+                fetchPrograms();
+            }
+        }
+
         // タブ切り替え
         function switchTab(tabName) {
             // 全てのタブとコンテンツを非アクティブに
@@ -1047,6 +1377,8 @@
             if (tabName === 'search') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('searchTab').classList.add('active');
+                // 番組検索タブを開いた時に本日の番組を自動表示
+                initializeSearchTab();
             } else if (tabName === 'files') {
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('filesTab').classList.add('active');
@@ -1062,6 +1394,9 @@
                 document.getElementById('cronTab').classList.add('active');
                 // cronタブを開いた時に自動読み込み
                 loadCronJobs();
+            } else if (tabName === 'admin') {
+                document.querySelectorAll('.tab')[4].classList.add('active');
+                document.getElementById('adminTab').classList.add('active');
             }
         }
 
@@ -1184,10 +1519,32 @@
 
         // 検索キーワード入力時にリアルタイムフィルタリング
         document.getElementById('searchKeyword').addEventListener('input', function() {
+            // クリアボタンの表示/非表示を切り替え
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                clearBtn.style.display = this.value ? 'block' : 'none';
+            }
+
             if (allProgramsData.length > 0) {
                 displayPrograms(allProgramsData);
             }
         });
+
+        // 検索キーワードをクリア
+        function clearSearchKeyword() {
+            const searchInput = document.getElementById('searchKeyword');
+            const clearBtn = document.getElementById('clearSearchBtn');
+
+            searchInput.value = '';
+            if (clearBtn) {
+                clearBtn.style.display = 'none';
+            }
+
+            // フィルタリングを更新
+            if (allProgramsData.length > 0) {
+                displayPrograms(allProgramsData);
+            }
+        }
 
         async function fetchPrograms(forceRefresh = false) {
             const areaId = document.getElementById('areaId').value;
@@ -1428,8 +1785,8 @@
                         buttonsHtml += `<button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>`;
                     }
 
-                    // 未来の番組：予約ボタン
-                    if (isFutureProgram) {
+                    // 未来の番組または放送中の番組：予約ボタン
+                    if (!isPastProgram) {
                         buttonsHtml += `<button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>予約</button>`;
                     }
 
@@ -1710,7 +2067,55 @@
                     </div>
                 `;
             } else {
-                commandBoxContent = `<div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.9em;">${command}</div>`;
+                // 番組情報を見やすく表示
+                const startTime = new Date(prog.ft);
+                const endTime = new Date(prog.to);
+
+                const startDateStr = `${startTime.getFullYear()}/${String(startTime.getMonth() + 1).padStart(2, '0')}/${String(startTime.getDate()).padStart(2, '0')}`;
+                const startTimeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+                const endTimeStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+
+                const durationMinutes = Math.floor((endTime - startTime) / 60000);
+                const durationHours = Math.floor(durationMinutes / 60);
+                const durationMins = durationMinutes % 60;
+                const durationStr = durationHours > 0 ? `${durationHours}時間${durationMins}分` : `${durationMins}分`;
+
+                commandBoxContent = `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
+                        <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📻 ${prog.title}
+                        </div>
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
+                            <div style="opacity: 0.9;">放送局:</div>
+                            <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
+
+                            <div style="opacity: 0.9;">放送日:</div>
+                            <div style="font-weight: 600;">${startDateStr}</div>
+
+                            <div style="opacity: 0.9;">時間:</div>
+                            <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
+                        <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 録音コマンド</div>
+                        <details>
+                            <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
+                                クリックして表示
+                            </summary>
+                            <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                                ${command}
+                            </div>
+                        </details>
+                    </div>
+
+                    <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; margin-top: 15px; border-radius: 4px;">
+                        <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                            <span>💡</span>
+                            <span>「実行」ボタンを押すと、この番組の録音をすぐに開始します</span>
+                        </div>
+                    </div>
+                `;
             }
 
             document.getElementById('commandBox').innerHTML = commandBoxContent;
@@ -1825,8 +2230,10 @@
             const prog = currentProgramData;
 
             // 録音は番組開始から終了まで
-            const startStr = formatRadikoTime(new Date(prog.ft));
-            const endStr = formatRadikoTime(new Date(prog.to));
+            const startTime = new Date(prog.ft);
+            const endTime = new Date(prog.to);
+            const startStr = formatRadikoTime(startTime);
+            const endStr = formatRadikoTime(endTime);
 
             // at実行時刻は番組終了の5分後
             const atExecTime = new Date(prog.to);
@@ -1884,13 +2291,35 @@
             // 即時実行（DL）の場合
             const commandBox = document.getElementById('commandBox');
             commandBox.innerHTML = `
-                <div style="background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 13px; max-height: 400px; overflow-y: auto;" id="logArea">
-                    <div style="color: #4ec9b0;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-                    <div style="color: #ce9178;">実行ログ</div>
-                    <div style="color: #4ec9b0;">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-                    <div id="logContent"></div>
+                <div style="background: #ffffff; border: 2px solid #e9ecef; border-radius: 8px; padding: 20px; margin-top: 15px;">
+                    <!-- ステータス表示 -->
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                        <div id="statusIcon" style="font-size: 2em;">⏳</div>
+                        <div style="flex: 1;">
+                            <div id="statusTitle" style="font-weight: 600; font-size: 1.1em; color: #212529; margin-bottom: 5px;">録音を準備中...</div>
+                            <div id="statusMessage" style="color: #6c757d; font-size: 0.9em;">myradikoコマンドを実行しています</div>
+                        </div>
+                    </div>
+
+                    <!-- プログレスバー -->
+                    <div style="background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="progressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s;"></div>
+                    </div>
+
+                    <!-- 詳細ログ（折りたたみ可能） -->
+                    <details style="margin-top: 15px;">
+                        <summary style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 4px; font-weight: 600; user-select: none; color: #495057;">
+                            📋 詳細ログを表示
+                        </summary>
+                        <div style="background: #212529; color: #e9ecef; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; margin-top: 10px; line-height: 1.6;" id="logContent"></div>
+                    </details>
                 </div>
             `;
+
+            // 録音時間を計算（秒単位）
+            const totalDurationSeconds = Math.floor((endTime - startTime) / 1000);
+            // グローバル変数として保存
+            window.recordingTotalDuration = totalDurationSeconds;
 
             // POSTリクエストで実行
             const response = await fetch(`${baseUrl}/execute`, {
@@ -1945,63 +2374,114 @@
 
         function addLog(type, message, file) {
             const logContent = document.getElementById('logContent');
-            const logLine = document.createElement('div');
-            logLine.style.marginBottom = '4px';
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusMessage = document.getElementById('statusMessage');
+            const progressBar = document.getElementById('progressBar');
 
-            if (type === 'error') {
-                logLine.style.color = '#f48771';
-            } else if (type === 'success') {
-                logLine.style.color = '#4ec9b0';
-            } else {
-                logLine.style.color = '#d4d4d4';
+            // ffmpegのtime=を解析して進捗を計算
+            const timeMatch = message.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d+)/);
+            if (timeMatch && window.recordingTotalDuration) {
+                const hours = parseInt(timeMatch[1]);
+                const minutes = parseInt(timeMatch[2]);
+                const seconds = parseFloat(timeMatch[3]);
+                const currentSeconds = hours * 3600 + minutes * 60 + seconds;
+
+                // 進捗率を計算（0-100%）
+                const progressPercent = Math.min(100, Math.round((currentSeconds / window.recordingTotalDuration) * 100));
+
+                // プログレスバーを更新
+                if (progressBar) {
+                    progressBar.style.width = `${progressPercent}%`;
+                }
+
+                // ステータスメッセージを更新
+                if (statusTitle) statusTitle.textContent = '録音中...';
+                if (statusMessage) {
+                    const remainingSeconds = Math.max(0, window.recordingTotalDuration - currentSeconds);
+                    const remainingMinutes = Math.floor(remainingSeconds / 60);
+                    const remainingSecondsOnly = Math.floor(remainingSeconds % 60);
+                    statusMessage.textContent = `進捗: ${progressPercent}% (残り約${remainingMinutes}分${remainingSecondsOnly}秒)`;
+                }
             }
 
-            logLine.textContent = message;
-            logContent.appendChild(logLine);
+            // 詳細ログに追加
+            if (logContent) {
+                const logLine = document.createElement('div');
+                logLine.style.marginBottom = '4px';
 
-            // ダウンロードリンクを追加
+                if (type === 'error') {
+                    logLine.style.color = '#f48771';
+                } else if (type === 'success') {
+                    logLine.style.color = '#4ec9b0';
+                } else {
+                    logLine.style.color = '#d4d4d4';
+                }
+
+                logLine.textContent = message;
+                logContent.appendChild(logLine);
+
+                // 自動スクロール
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+
+            // ステータス表示を更新
+            if (type === 'info') {
+                if (statusIcon) statusIcon.textContent = '⏳';
+                // time=がある場合は上で既に更新されているのでスキップ
+                if (!timeMatch) {
+                    if (statusTitle) statusTitle.textContent = '録音中...';
+                    if (statusMessage) statusMessage.textContent = message;
+                    if (progressBar) progressBar.style.width = '10%';
+                }
+            } else if (type === 'success') {
+                if (statusIcon) statusIcon.textContent = '✅';
+                if (statusTitle) statusTitle.textContent = '録音完了！';
+                if (statusMessage) statusMessage.textContent = 'ファイルが保存されました';
+                if (progressBar) {
+                    progressBar.style.width = '100%';
+                    progressBar.style.background = 'linear-gradient(90deg, #4caf50, #45a049)';
+                }
+            } else if (type === 'error') {
+                if (statusIcon) statusIcon.textContent = '❌';
+                if (statusTitle) statusTitle.textContent = 'エラーが発生しました';
+                if (statusMessage) statusMessage.textContent = message;
+                if (progressBar) {
+                    progressBar.style.background = 'linear-gradient(90deg, #e57373, #ef5350)';
+                }
+            }
+
+            // ダウンロードボタンを追加（成功時）
             if (file && type === 'success') {
                 const proxyUrl = document.getElementById('proxyUrl').value;
                 const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${file}`;
+                const filename = file.split('/').pop();
 
-                const downloadLine = document.createElement('div');
-                downloadLine.style.marginTop = '12px';
-                downloadLine.style.padding = '12px';
-                downloadLine.style.background = '#2d2d2d';
-                downloadLine.style.borderRadius = '4px';
-                downloadLine.style.border = '1px solid #4ec9b0';
-
-                const downloadBtn = document.createElement('a');
-                downloadBtn.href = downloadUrl;
-                downloadBtn.download = file.split('/').pop();
-                downloadBtn.textContent = '📥 ファイルをダウンロード';
-                downloadBtn.style.color = '#4ec9b0';
-                downloadBtn.style.textDecoration = 'none';
-                downloadBtn.style.fontWeight = 'bold';
-                downloadBtn.style.display = 'inline-block';
-                downloadBtn.style.padding = '8px 16px';
-                downloadBtn.style.background = '#1e1e1e';
-                downloadBtn.style.border = '1px solid #4ec9b0';
-                downloadBtn.style.borderRadius = '4px';
-                downloadBtn.style.cursor = 'pointer';
-
-                downloadBtn.onmouseover = function() {
-                    this.style.background = '#4ec9b0';
-                    this.style.color = '#1e1e1e';
-                };
-                downloadBtn.onmouseout = function() {
-                    this.style.background = '#1e1e1e';
-                    this.style.color = '#4ec9b0';
-                };
-
-                downloadLine.appendChild(downloadBtn);
-                logContent.appendChild(downloadLine);
+                // commandBoxの中に大きなダウンロードボタンを追加
+                const commandBox = document.getElementById('commandBox');
+                const downloadSection = document.createElement('div');
+                downloadSection.style.marginTop = '15px';
+                downloadSection.style.padding = '20px';
+                downloadSection.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                downloadSection.style.borderRadius = '8px';
+                downloadSection.style.textAlign = 'center';
+                downloadSection.innerHTML = `
+                    <div style="color: white; font-size: 1.1em; font-weight: 600; margin-bottom: 10px;">
+                        🎉 録音が完了しました！
+                    </div>
+                    <div style="color: rgba(255,255,255,0.9); font-size: 0.9em; margin-bottom: 15px;">
+                        ファイル: ${filename.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
+                    </div>
+                    <a href="${downloadUrl}" download="${filename}"
+                       style="display: inline-block; padding: 12px 24px; background: white; color: #667eea; text-decoration: none; font-weight: 600; border-radius: 6px; font-size: 1em; cursor: pointer; transition: all 0.2s;"
+                       onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';"
+                       onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                        📥 ダウンロード
+                    </a>
+                `;
+                commandBox.querySelector('div').appendChild(downloadSection);
             }
-
-            // 自動スクロール
-            const logArea = document.getElementById('logArea');
-            logArea.scrollTop = logArea.scrollHeight;
         }
 
         async function copyCommand(event) {
@@ -2331,8 +2811,8 @@
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
                         <td style="padding: 10px 12px;">
-                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;" title="${file.name}">
-                                ${file.name}
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px;" title="${file.name}">
+                                ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
                             </div>
                             ${hasBookmark ? `<div style="font-size: 0.75em; color: #f57c00; margin-top: 3px;">再生位置: ${progressText}</div>` : ''}
                         </td>
@@ -3201,6 +3681,42 @@
                 let html = '<div style="display: grid; gap: 15px;">';
 
                 jobsWithDetails.forEach(job => {
+                    // 実行時刻を整形（例: "2025/Oct/27 Mon 23:05:00" → "2025/10/27 (月) 23:05"）
+                    let formattedDatetime = job.datetime;
+                    try {
+                        // atコマンドの日時フォーマット: "2025/Oct/27 Mon 23:05:00"
+                        const match = job.datetime.match(/(\d{4})\/(\w+)\/(\d+)\s+(\w+)\s+(\d+):(\d+):\d+/);
+
+                        if (match) {
+                            const year = match[1];
+                            const monthName = match[2];
+                            const day = match[3].padStart(2, '0');
+                            const weekdayEng = match[4];
+                            const hour = match[5].padStart(2, '0');
+                            const minute = match[6].padStart(2, '0');
+
+                            // 月名を数字に変換
+                            const months = {
+                                'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+                                'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+                                'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+                            };
+                            const month = months[monthName] || monthName;
+
+                            // 曜日を日本語に変換
+                            const weekdays = {
+                                'Sun': '日', 'Mon': '月', 'Tue': '火', 'Wed': '水',
+                                'Thu': '木', 'Fri': '金', 'Sat': '土'
+                            };
+                            const weekday = weekdays[weekdayEng] || weekdayEng;
+
+                            formattedDatetime = `${year}/${month}/${day} (${weekday}) ${hour}:${minute}`;
+                        }
+                    } catch (e) {
+                        // パースに失敗した場合は元の文字列を使用
+                        console.error('日時のパースに失敗:', job.datetime, e);
+                    }
+
                     html += `
                         <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: white;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -3214,7 +3730,7 @@
                                         ⏱️ Job #${job.id}
                                     </div>
                                     <div style="color: #6c757d; font-size: 0.85em;">
-                                        録音開始予定: ${job.datetime}
+                                        実行予定: ${formattedDatetime}
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 8px;">
@@ -3224,6 +3740,13 @@
                                             onmouseout="this.style.background='#667eea'"
                                             title="詳細">
                                         詳細
+                                    </button>
+                                    <button onclick='editAtJob("${job.id}")'
+                                            style="padding: 8px 14px; background: #4caf50; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                            onmouseover="this.style.background='#45a049'"
+                                            onmouseout="this.style.background='#4caf50'"
+                                            title="編集">
+                                        編集
                                     </button>
                                     <button onclick='cancelAtJob("${job.id}")'
                                             style="padding: 8px 14px; background: #e57373; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s;"
@@ -3292,6 +3815,247 @@
                 }
             } catch (err) {
                 console.error('Error cancelling at job:', err);
+                alert(`❌ エラー: ${err.message}`);
+            }
+        }
+
+        // at予約を編集
+        async function editAtJob(jobId) {
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() || '';
+
+                // at予約の詳細を取得
+                const response = await fetch(`${baseUrl}/at/detail/${jobId}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert(`エラー: ${data.error || 'Unknown error'}`);
+                    return;
+                }
+
+                const command = data.command || '';
+                const executeTime = data.time || ''; // at実行時刻
+
+                console.log('取得したコマンド:', command);
+                console.log('実行時刻:', executeTime);
+
+                // コマンドから情報を抽出
+                // フォーマット: myradiko "番組名" "局ID" "局ID" "開始時刻" "終了時刻" "" "" "" >> /tmp/...
+                const match = command.match(/myradiko\s+"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"\s+"(\d+)"\s+"(\d+)"/);
+
+                if (!match) {
+                    console.error('パースに失敗したコマンド:', command);
+                    alert('❌ コマンドのパースに失敗しました\n\nコマンド形式を確認してください。\nコンソールに詳細を出力しました。');
+                    return;
+                }
+
+                const title = match[1];
+                const stationId = match[2];
+                const startTimeStr = match[4]; // YYYYMMDDHHmm
+                const endTimeStr = match[5];   // YYYYMMDDHHmm
+
+                // 録音開始時刻をフォーマット
+                const startYear = startTimeStr.substring(0, 4);
+                const startMonth = startTimeStr.substring(4, 6);
+                const startDay = startTimeStr.substring(6, 8);
+                const startHour = startTimeStr.substring(8, 10);
+                const startMinute = startTimeStr.substring(10, 12);
+                const startDatetime = `${startYear}-${startMonth}-${startDay}T${startHour}:${startMinute}`;
+
+                // 録音終了時刻をフォーマット
+                const endYear = endTimeStr.substring(0, 4);
+                const endMonth = endTimeStr.substring(4, 6);
+                const endDay = endTimeStr.substring(6, 8);
+                const endHour = endTimeStr.substring(8, 10);
+                const endMinute = endTimeStr.substring(10, 12);
+                const endDatetime = `${endYear}-${endMonth}-${endDay}T${endHour}:${endMinute}`;
+
+                // コマンド実行時刻をパース（例: "Fri Oct 27 23:50:00 2025"）
+                let executeDatetime = '';
+                if (executeTime) {
+                    try {
+                        const execDate = new Date(executeTime);
+                        const execYear = execDate.getFullYear();
+                        const execMonth = String(execDate.getMonth() + 1).padStart(2, '0');
+                        const execDay = String(execDate.getDate()).padStart(2, '0');
+                        const execHour = String(execDate.getHours()).padStart(2, '0');
+                        const execMinute = String(execDate.getMinutes()).padStart(2, '0');
+                        executeDatetime = `${execYear}-${execMonth}-${execDay}T${execHour}:${execMinute}`;
+                    } catch (e) {
+                        console.error('実行時刻のパースに失敗:', e);
+                    }
+                }
+
+                // フォームに値を設定
+                document.getElementById('editAtJobId').value = jobId;
+                document.getElementById('editAtTitle').value = title;
+                document.getElementById('editAtExecuteTime').value = executeDatetime;
+                document.getElementById('editAtStartTime').value = startDatetime;
+                document.getElementById('editAtEndTime').value = endDatetime;
+
+                // 放送局IDから適切なエリアを設定（東京都をデフォルト）
+                document.getElementById('editAtArea').value = 'JP13';
+
+                // 放送局一覧を読み込んでから放送局を設定
+                await updateEditAtStations();
+                document.getElementById('editAtStation').value = stationId;
+
+                // モーダルを表示
+                document.getElementById('atEditModal').style.display = 'flex';
+
+            } catch (err) {
+                console.error('Error loading at job for edit:', err);
+                alert(`❌ エラー: ${err.message}`);
+            }
+        }
+
+        // at予約編集モーダルを閉じる
+        function closeAtEditModal() {
+            document.getElementById('atEditModal').style.display = 'none';
+        }
+
+        // at予約編集：エリア変更時に放送局一覧を更新
+        async function updateEditAtStations() {
+            const areaId = document.getElementById('editAtArea').value;
+            const stationSelect = document.getElementById('editAtStation');
+
+            if (!areaId) {
+                stationSelect.innerHTML = '<option value="">まずエリアを選択してください</option>';
+                return;
+            }
+
+            stationSelect.innerHTML = '<option value="">読み込み中...</option>';
+
+            try {
+                const proxyUrl = document.getElementById('proxyUrl').value;
+                const baseUrl = proxyUrl.trim() || '';
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+                const response = await fetch(`${baseUrl}/api/programs/area/${areaId}/date/${today}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.programs) {
+                    stationSelect.innerHTML = '<option value="">エラー: 放送局を取得できません</option>';
+                    return;
+                }
+
+                // ユニークな放送局を抽出
+                const stations = {};
+                data.programs.forEach(prog => {
+                    if (prog.stationId && prog.stationName) {
+                        stations[prog.stationId] = prog.stationName;
+                    }
+                });
+
+                stationSelect.innerHTML = '<option value="">放送局を選択</option>';
+                Object.keys(stations).sort().forEach(stationId => {
+                    const option = document.createElement('option');
+                    option.value = stationId;
+                    option.textContent = `${stationId} - ${stations[stationId]}`;
+                    stationSelect.appendChild(option);
+                });
+
+            } catch (err) {
+                console.error('Error loading stations:', err);
+                stationSelect.innerHTML = '<option value="">エラー: 放送局を取得できません</option>';
+            }
+        }
+
+        // コマンド実行時刻を「録音終了+5分」に設定
+        function setExecuteTimeToEndPlus5() {
+            const endDatetime = document.getElementById('editAtEndTime').value;
+
+            if (!endDatetime) {
+                alert('先に録音終了日時を入力してください');
+                return;
+            }
+
+            const endDate = new Date(endDatetime);
+            endDate.setMinutes(endDate.getMinutes() + 5);
+
+            const year = endDate.getFullYear();
+            const month = String(endDate.getMonth() + 1).padStart(2, '0');
+            const day = String(endDate.getDate()).padStart(2, '0');
+            const hour = String(endDate.getHours()).padStart(2, '0');
+            const minute = String(endDate.getMinutes()).padStart(2, '0');
+
+            document.getElementById('editAtExecuteTime').value = `${year}-${month}-${day}T${hour}:${minute}`;
+        }
+
+        // at予約の編集を保存
+        async function saveAtEdit() {
+            const jobId = document.getElementById('editAtJobId').value;
+            const title = document.getElementById('editAtTitle').value.trim();
+            const stationId = document.getElementById('editAtStation').value;
+            const executeTime = document.getElementById('editAtExecuteTime').value;
+            const startDatetime = document.getElementById('editAtStartTime').value;
+            const endDatetime = document.getElementById('editAtEndTime').value;
+
+            if (!title || !stationId || !executeTime || !startDatetime || !endDatetime) {
+                alert('すべての項目を入力してください');
+                return;
+            }
+
+            if (!confirm('既存のat予約をキャンセルして、新しい内容で再登録します。\nよろしいですか？')) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                // 1. 既存のat予約をキャンセル
+                const cancelResponse = await fetch(`${baseUrl}/at/cancel/${jobId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!cancelResponse.ok) {
+                    const cancelData = await cancelResponse.json();
+                    throw new Error(`キャンセル失敗: ${cancelData.error || 'Unknown error'}`);
+                }
+
+                // 2. 新しい内容で再登録
+                // 各時刻をYYYYMMDDHHmm形式に変換
+                const execDate = new Date(executeTime);
+                const executeStr = `${execDate.getFullYear()}${String(execDate.getMonth() + 1).padStart(2, '0')}${String(execDate.getDate()).padStart(2, '0')}${String(execDate.getHours()).padStart(2, '0')}${String(execDate.getMinutes()).padStart(2, '0')}`;
+
+                const startDate = new Date(startDatetime);
+                const startStr = `${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}${String(startDate.getHours()).padStart(2, '0')}${String(startDate.getMinutes()).padStart(2, '0')}`;
+
+                const endDate = new Date(endDatetime);
+                const endStr = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, '0')}${String(endDate.getDate()).padStart(2, '0')}${String(endDate.getHours()).padStart(2, '0')}${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+                // スクリプトパスを取得
+                const scriptPath = document.getElementById('scriptPath').value;
+
+                const scheduleResponse = await fetch(`${baseUrl}/schedule-at`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        script_path: scriptPath,
+                        title: title,
+                        station_id: stationId,
+                        execute_time: executeStr,
+                        start_time: startStr,
+                        end_time: endStr
+                    })
+                });
+
+                const scheduleData = await scheduleResponse.json();
+
+                if (scheduleResponse.ok) {
+                    alert(`✅ at予約を更新しました\n\n実行時刻: ${executeTime.replace('T', ' ')}\n録音開始: ${startDatetime.replace('T', ' ')}\n録音終了: ${endDatetime.replace('T', ' ')}`);
+                    closeAtEditModal();
+                    loadAtJobs(); // 一覧を再読み込み
+                } else {
+                    alert(`❌ 再登録に失敗しました\n\n${scheduleData.error || 'Unknown error'}\n\n※既存の予約はキャンセルされています`);
+                }
+
+            } catch (err) {
+                console.error('Error saving at job edit:', err);
                 alert(`❌ エラー: ${err.message}`);
             }
         }
@@ -3474,6 +4238,461 @@
                 advancedSettings.style.display = 'none';
                 toggleText.textContent = '詳細設定を表示';
                 localStorage.setItem('advancedSettingsOpen', 'false');
+            }
+        }
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 本日の日付を設定
+            const today = new Date();
+            const dateStr = today.toISOString().slice(0, 10);
+            document.getElementById('targetDate').value = dateStr;
+        });
+
+        // ==================== 管理メニュー機能 ====================
+
+        const ADMIN_PASSWORD = 'Pal_s1008467';
+        let isAdminAuthenticated = false;
+
+        // 管理者認証
+        function authenticateAdmin() {
+            const password = document.getElementById('adminPassword').value;
+
+            if (password === ADMIN_PASSWORD) {
+                isAdminAuthenticated = true;
+                document.getElementById('adminAuth').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+
+                // 日時入力フィールドの制限を設定
+                initManualDateTimeLimits();
+            } else {
+                alert('❌ パスワードが正しくありません');
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+
+        // 管理者ログアウト
+        function logoutAdmin() {
+            isAdminAuthenticated = false;
+            document.getElementById('adminAuth').style.display = 'block';
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+
+        // DB番組表一括更新
+        function updateAllPrograms() {
+            if (!confirm('全エリアの番組表を更新します。\n処理には数分〜十数分かかります。\n実行しますか?')) {
+                return;
+            }
+
+            const days = document.getElementById('updateDays').value;
+            const updateLog = document.getElementById('updateLog');
+            const updateProgress = document.getElementById('updateProgress');
+
+            updateProgress.style.display = 'block';
+            updateLog.innerHTML = '<span style="color: #17a2b8;">🔄 更新処理を開始しています...</span>\n';
+
+            // プログレスバー要素
+            const progressBar = document.getElementById('updateProgressBar');
+            const progressText = document.getElementById('updateProgressText');
+            const progressPercent = document.getElementById('updateProgressPercent');
+            const progressDetail = document.getElementById('updateProgressDetail');
+            const progressBarText = document.getElementById('updateProgressBarText');
+
+            // 統計カウンター要素
+            const successCount = document.getElementById('updateSuccessCount');
+            const errorCount = document.getElementById('updateErrorCount');
+            const warningCount = document.getElementById('updateWarningCount');
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            // Server-Sent Events (SSE) で進捗をリアルタイム受信
+            const eventSource = new EventSource(`${baseUrl}/admin/update-programs-stream?days=${days}`);
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch(data.type) {
+                        case 'start':
+                            updateLog.innerHTML += `<span style="color: #17a2b8;">📡 ${data.message}</span>\n`;
+                            progressText.textContent = '更新開始';
+                            progressDetail.textContent = data.message;
+                            break;
+
+                        case 'info':
+                            updateLog.innerHTML += `<span style="color: #17a2b8;">ℹ️ ${data.message}</span>\n`;
+                            progressDetail.textContent = data.message;
+                            break;
+
+                        case 'progress':
+                            updateLog.innerHTML += `\n<span style="color: #6c757d; font-weight: bold;">[${data.current}/${data.total}] ${data.area} を処理中...</span>\n`;
+                            progressText.textContent = `${data.area} を処理中...`;
+                            progressDetail.textContent = `エリア ${data.current}/${data.total} を処理中`;
+                            break;
+
+                        case 'success':
+                            updateLog.innerHTML += `  <span style="color: #28a745;">✅ ${data.area} ${data.date}: ${data.programs}件</span>\n`;
+                            updateLog.scrollTop = updateLog.scrollHeight;
+                            break;
+
+                        case 'warning':
+                            updateLog.innerHTML += `  <span style="color: #ffc107;">⚠️ ${data.area} ${data.date}: ${data.message}</span>\n`;
+                            break;
+
+                        case 'error':
+                            updateLog.innerHTML += `  <span style="color: #dc3545;">❌ ${data.area} ${data.date}: ${data.message}</span>\n`;
+                            break;
+
+                        case 'percent':
+                            // プログレスバーを更新
+                            progressBar.style.width = `${data.percent}%`;
+                            progressPercent.textContent = `${data.percent}%`;
+                            progressBarText.textContent = `${data.completed}/${data.total}`;
+                            progressDetail.textContent = `${data.completed}/${data.total} 件完了`;
+
+                            // 統計カウンターを更新
+                            successCount.textContent = data.success || 0;
+                            errorCount.textContent = data.error || 0;
+                            warningCount.textContent = data.warning || 0;
+
+                            updateLog.scrollTop = updateLog.scrollHeight;
+                            break;
+
+                        case 'complete':
+                            // 完了時は100%
+                            progressBar.style.width = '100%';
+                            progressBar.style.background = 'linear-gradient(90deg, #28a745, #1e7e34)';
+                            progressPercent.textContent = '100%';
+                            progressText.textContent = '✅ 完了';
+                            progressBarText.textContent = '完了';
+                            progressDetail.textContent = `総番組数: ${data.total_programs}件`;
+
+                            // 最終統計を更新
+                            successCount.textContent = data.success || 0;
+                            errorCount.textContent = data.error || 0;
+                            warningCount.textContent = data.warning || 0;
+
+                            updateLog.innerHTML += `\n<span style="color: #28a745; font-weight: bold;">✅ ${data.message}</span>\n`;
+                            updateLog.innerHTML += `<span style="color: #17a2b8;">📊 総番組数: ${data.total_programs}件</span>\n`;
+                            updateLog.innerHTML += `<span style="color: #28a745;">✅ 成功: ${data.success}件</span> / `;
+                            updateLog.innerHTML += `<span style="color: #dc3545;">❌ エラー: ${data.error}件</span> / `;
+                            updateLog.innerHTML += `<span style="color: #ffc107;">⚠️ 警告: ${data.warning}件</span>\n`;
+                            eventSource.close();
+                            break;
+                    }
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            eventSource.onerror = function(err) {
+                console.error('EventSource error:', err);
+                updateLog.innerHTML += `\n❌ 接続エラーが発生しました\n`;
+                eventSource.close();
+            };
+        }
+
+        // エリア選択時に放送局リストを更新
+        async function updateManualStations() {
+            const areaId = document.getElementById('manualArea').value;
+            const stationSelect = document.getElementById('manualStation');
+
+            if (!areaId) {
+                stationSelect.innerHTML = '<option value="">まずエリアを選択してください</option>';
+                return;
+            }
+
+            stationSelect.innerHTML = '<option value="">読み込み中...</option>';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                // 今日の日付で番組表を取得
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const response = await fetch(`${baseUrl}/api/programs/area/${areaId}/date/${today}`);
+                const data = await response.json();
+
+                if (response.ok && data.programs) {
+                    // 局IDをユニークに抽出
+                    const stations = {};
+                    data.programs.forEach(prog => {
+                        if (prog.stationId && prog.stationName) {
+                            stations[prog.stationId] = prog.stationName;
+                        }
+                    });
+
+                    // セレクトボックスを更新
+                    stationSelect.innerHTML = '<option value="">放送局を選択</option>';
+                    Object.keys(stations).sort().forEach(stationId => {
+                        const option = document.createElement('option');
+                        option.value = stationId;
+                        option.textContent = `${stationId} - ${stations[stationId]}`;
+                        stationSelect.appendChild(option);
+                    });
+                } else {
+                    stationSelect.innerHTML = '<option value="">放送局が見つかりません</option>';
+                }
+            } catch (err) {
+                console.error('Station list error:', err);
+                stationSelect.innerHTML = '<option value="">エラーが発生しました</option>';
+            }
+        }
+
+        // 日時入力フィールドの制限を設定（1週間前まで）
+        function initManualDateTimeLimits() {
+            const now = new Date();
+            const oneWeekAgo = new Date(now);
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+            // ISO形式に変換（YYYY-MM-DDTHH:mm）
+            const minDateTime = oneWeekAgo.toISOString().slice(0, 16);
+
+            document.getElementById('manualStart').min = minDateTime;
+            document.getElementById('manualEnd').min = minDateTime;
+        }
+
+        // 手動コマンドのコピー
+        function copyManualCommand() {
+            const title = document.getElementById('manualTitle').value.trim();
+            const station = document.getElementById('manualStation').value;
+            const startDatetime = document.getElementById('manualStart').value;
+            const endDatetime = document.getElementById('manualEnd').value;
+
+            if (!title || !station || !startDatetime || !endDatetime) {
+                alert('番組名、放送局、録音開始日時、録音終了日時を入力してください');
+                return;
+            }
+
+            // datetime-local形式をYYYYMMDDHHmm形式に変換
+            const startDate = new Date(startDatetime);
+            const endDate = new Date(endDatetime);
+
+            const startStr = `${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}${String(startDate.getHours()).padStart(2, '0')}${String(startDate.getMinutes()).padStart(2, '0')}`;
+            const endStr = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, '0')}${String(endDate.getDate()).padStart(2, '0')}${String(endDate.getHours()).padStart(2, '0')}${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+            const scriptPath = document.getElementById('scriptPath').value;
+            const command = `${scriptPath} "${title}" "${station}" "${station}" "${startStr}" "${endStr}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
+
+            // クリップボードにコピー
+            navigator.clipboard.writeText(command).then(() => {
+                // コマンドプレビューを表示
+                const preview = document.getElementById('manualCommandPreview');
+                preview.textContent = command;
+                preview.style.display = 'block';
+
+                alert('✅ コマンドをクリップボードにコピーしました');
+            }).catch(err => {
+                alert('❌ コピーに失敗しました: ' + err.message);
+            });
+        }
+
+        // 手動コマンド実行（即座に実行）
+        async function executeManualCommand() {
+            const title = document.getElementById('manualTitle').value.trim();
+            const station = document.getElementById('manualStation').value;
+            const startDatetime = document.getElementById('manualStart').value;
+            const endDatetime = document.getElementById('manualEnd').value;
+
+            if (!title || !station || !startDatetime || !endDatetime) {
+                alert('番組名、放送局、録音開始日時、録音終了日時を入力してください');
+                return;
+            }
+
+            // datetime-local形式をYYYYMMDDHHmm形式に変換
+            const startDate = new Date(startDatetime);
+            const endDate = new Date(endDatetime);
+
+            const startStr = `${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}${String(startDate.getHours()).padStart(2, '0')}${String(startDate.getMinutes()).padStart(2, '0')}`;
+            const endStr = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, '0')}${String(endDate.getDate()).padStart(2, '0')}${String(endDate.getHours()).padStart(2, '0')}${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+            if (!confirm(`以下の録音を即座に実行します:\n\n番組名: ${title}\n局ID: ${station}\n開始: ${startDatetime.replace('T', ' ')}\n終了: ${endDatetime.replace('T', ' ')}\n\nよろしいですか?`)) {
+                return;
+            }
+
+            const manualOutput = document.getElementById('manualOutput');
+            const manualLog = document.getElementById('manualLog');
+
+            manualOutput.style.display = 'block';
+            manualLog.textContent = '▶️ コマンドを実行中...\n';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+            const scriptPath = document.getElementById('scriptPath').value;
+
+            try {
+                const response = await fetch(`${baseUrl}/admin/execute-manual`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        script_path: scriptPath,
+                        title: title,
+                        station_id: station,
+                        start_time: startStr,
+                        end_time: endStr
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    manualLog.textContent += `✅ 実行完了\n\n${data.output || ''}`;
+                } else {
+                    manualLog.textContent += `❌ エラー: ${data.error}\n`;
+                }
+            } catch (err) {
+                manualLog.textContent += `❌ エラー: ${err.message}\n`;
+            }
+        }
+
+        // 手動コマンドのat予約実行
+        async function scheduleManualCommand() {
+            const title = document.getElementById('manualTitle').value.trim();
+            const station = document.getElementById('manualStation').value;
+            const executeTime = document.getElementById('manualExecuteTime').value;
+            const startDatetime = document.getElementById('manualStart').value;
+            const endDatetime = document.getElementById('manualEnd').value;
+
+            if (!title || !station || !executeTime || !startDatetime || !endDatetime) {
+                alert('すべての項目を入力してください');
+                return;
+            }
+
+            // datetime-local形式をYYYYMMDDHHmm形式に変換
+            const executeDate = new Date(executeTime);
+            const startDate = new Date(startDatetime);
+            const endDate = new Date(endDatetime);
+
+            const executeStr = `${executeDate.getFullYear()}${String(executeDate.getMonth() + 1).padStart(2, '0')}${String(executeDate.getDate()).padStart(2, '0')}${String(executeDate.getHours()).padStart(2, '0')}${String(executeDate.getMinutes()).padStart(2, '0')}`;
+            const startStr = `${startDate.getFullYear()}${String(startDate.getMonth() + 1).padStart(2, '0')}${String(startDate.getDate()).padStart(2, '0')}${String(startDate.getHours()).padStart(2, '0')}${String(startDate.getMinutes()).padStart(2, '0')}`;
+            const endStr = `${endDate.getFullYear()}${String(endDate.getMonth() + 1).padStart(2, '0')}${String(endDate.getDate()).padStart(2, '0')}${String(endDate.getHours()).padStart(2, '0')}${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+            if (!confirm(`以下の録音をat予約します:\n\n実行時刻: ${executeTime.replace('T', ' ')}\n番組名: ${title}\n局ID: ${station}\n録音開始: ${startDatetime.replace('T', ' ')}\n録音終了: ${endDatetime.replace('T', ' ')}\n\nよろしいですか?`)) {
+                return;
+            }
+
+            const manualOutput = document.getElementById('manualOutput');
+            const manualLog = document.getElementById('manualLog');
+
+            manualOutput.style.display = 'block';
+            manualLog.textContent = '⏰ at予約を登録中...\n';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+            const scriptPath = document.getElementById('scriptPath').value;
+
+            try {
+                const response = await fetch(`${baseUrl}/schedule-at`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        script_path: scriptPath,
+                        title: title,
+                        station_id: station,
+                        execute_time: executeStr,
+                        start_time: startStr,
+                        end_time: endStr
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    manualLog.textContent += `✅ at予約完了\n\n${data.at_command || ''}\n\nJob ID: ${data.job_id || 'N/A'}`;
+                } else {
+                    manualLog.textContent += `❌ エラー: ${data.error}\n`;
+                }
+            } catch (err) {
+                manualLog.textContent += `❌ エラー: ${err.message}\n`;
+            }
+        }
+
+        // 古いDBデータ削除
+        async function cleanupOldData() {
+            if (!confirm('15日以前の番組データを削除します。\nよろしいですか?')) {
+                return;
+            }
+
+            const maintenanceOutput = document.getElementById('maintenanceOutput');
+            const maintenanceLog = document.getElementById('maintenanceLog');
+
+            maintenanceOutput.style.display = 'block';
+            maintenanceLog.textContent = '🗑️ 古いデータを削除中...\n';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/admin/cleanup`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    maintenanceLog.textContent += `✅ ${data.message}\n`;
+                    maintenanceLog.textContent += `削除件数: ${data.deleted || 0}件\n`;
+                } else {
+                    maintenanceLog.textContent += `❌ エラー: ${data.error}\n`;
+                }
+            } catch (err) {
+                maintenanceLog.textContent += `❌ エラー: ${err.message}\n`;
+            }
+        }
+
+        // ディスク容量確認
+        async function checkDiskSpace() {
+            const maintenanceOutput = document.getElementById('maintenanceOutput');
+            const maintenanceLog = document.getElementById('maintenanceLog');
+
+            maintenanceOutput.style.display = 'block';
+            maintenanceLog.textContent = '💾 ディスク容量を確認中...\n';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/admin/disk-space`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    maintenanceLog.textContent += `✅ ディスク容量情報\n\n`;
+                    maintenanceLog.textContent += data.info || '';
+                } else {
+                    maintenanceLog.textContent += `❌ エラー: ${data.error}\n`;
+                }
+            } catch (err) {
+                maintenanceLog.textContent += `❌ エラー: ${err.message}\n`;
+            }
+        }
+
+        // DB統計情報
+        async function viewDbStatus() {
+            const maintenanceOutput = document.getElementById('maintenanceOutput');
+            const maintenanceLog = document.getElementById('maintenanceLog');
+
+            maintenanceOutput.style.display = 'block';
+            maintenanceLog.textContent = '📈 DB統計情報を取得中...\n';
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/admin/db-status`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    maintenanceLog.textContent += `✅ DB統計情報\n\n`;
+                    maintenanceLog.textContent += `総番組数: ${data.total_programs || 0}件\n`;
+                    maintenanceLog.textContent += `更新履歴: ${data.total_updates || 0}件\n`;
+                    maintenanceLog.textContent += `DB容量: ${data.db_size || '-'}\n`;
+                } else {
+                    maintenanceLog.textContent += `❌ エラー: ${data.error}\n`;
+                }
+            } catch (err) {
+                maintenanceLog.textContent += `❌ エラー: ${err.message}\n`;
             }
         }
     </script>

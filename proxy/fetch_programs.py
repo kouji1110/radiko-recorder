@@ -108,12 +108,16 @@ def fetch_area_programs(area_id: str, date: str) -> list:
     return programs
 
 
-def update_all_areas():
+def update_all_areas(days=7):
     """
-    全エリアの番組表を更新（過去7日間 + 今日 + 未来7日間）
+    全エリアの番組表を更新
+
+    Args:
+        days: 取得する日数（デフォルト: 7）
+              過去days日間 + 今日 + 未来days日間を取得
     """
     logger.info('=' * 60)
-    logger.info('Starting program data update for all areas')
+    logger.info(f'Starting program data update for all areas ({days} days range)')
     logger.info('=' * 60)
 
     start_time = time.time()
@@ -127,7 +131,7 @@ def update_all_areas():
         today = today - timedelta(days=1)
 
     dates = []
-    for i in range(-7, 8):  # -7日〜+7日
+    for i in range(-days, days + 1):  # -days日〜+days日
         date = today + timedelta(days=i)
         date_str = date.strftime('%Y%m%d')
         dates.append(date_str)
@@ -172,10 +176,12 @@ def update_all_areas():
     # 古いデータを削除
     db.cleanup_old_data(days_to_keep=15)
 
+    # 結果を返す
     return {
-        'total_programs': total_programs,
-        'success_count': success_count,
-        'error_count': error_count,
+        'areas': len(ALL_AREA_IDS),
+        'programs': total_programs,
+        'success': success_count,
+        'errors': error_count,
         'elapsed_time': elapsed_time
     }
 
