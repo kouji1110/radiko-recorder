@@ -751,8 +751,119 @@
             }
 
             /* 録音済みファイル一覧のスマホ対応 */
+            #filesTab .content > div {
+                padding: 10px !important;
+            }
+
+            #filesTab h2 {
+                font-size: 1.1em !important;
+            }
+
             #fileFilter {
                 font-size: 0.9em !important;
+                min-width: 100% !important;
+            }
+
+            /* ファイル一覧のボタン群を縦並びに */
+            #filesList > div:first-child > div:first-child {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            #filesList > div:first-child > div:first-child > * {
+                width: 100% !important;
+                margin: 4px 0 !important;
+            }
+
+            #filesList > div:first-child > div:nth-child(2) {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            #filesList > div:first-child > div:nth-child(2) > button,
+            #filesList > div:first-child > div:nth-child(2) > label {
+                width: 100% !important;
+                margin: 4px 0 !important;
+                justify-content: center;
+            }
+
+            /* テーブルをカード形式に */
+            #filesList table {
+                display: block;
+            }
+
+            #filesList thead {
+                display: none;
+            }
+
+            #filesList tbody {
+                display: block;
+            }
+
+            #filesList tr {
+                display: block;
+                margin-bottom: 12px;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 12px;
+                background: white;
+            }
+
+            #filesList td {
+                display: block;
+                padding: 4px 0 !important;
+                border: none !important;
+                text-align: left !important;
+            }
+
+            #filesList td:first-child {
+                text-align: center;
+                margin-bottom: 8px;
+            }
+
+            /* ファイル名を目立たせる */
+            #filesList td:nth-child(2) {
+                font-weight: 600;
+                font-size: 0.95em;
+                margin-bottom: 8px;
+                word-break: break-all;
+            }
+
+            /* 放送日、サイズ、更新日時をまとめて表示 */
+            #filesList td:nth-child(3)::before {
+                content: "📅 放送日: ";
+                font-weight: 600;
+                color: #6c757d;
+            }
+
+            #filesList td:nth-child(4)::before {
+                content: "💾 サイズ: ";
+                font-weight: 600;
+                color: #6c757d;
+            }
+
+            #filesList td:nth-child(5)::before {
+                content: "🕐 更新: ";
+                font-weight: 600;
+                color: #6c757d;
+            }
+
+            /* アクションボタン */
+            #filesList td:last-child {
+                margin-top: 8px;
+            }
+
+            #filesList td:last-child > div {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            #filesList td:last-child button,
+            #filesList td:last-child a {
+                width: 100% !important;
+                text-align: center;
+                padding: 8px !important;
             }
 
             /* 詳細設定のスマホ対応 */
