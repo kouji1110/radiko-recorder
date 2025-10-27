@@ -594,6 +594,16 @@
                 padding: 10px;
             }
 
+            /* 日付選択のスマホ対応: ボタンを非表示、pickerを表示 */
+            #dateButtons {
+                display: none !important;
+            }
+
+            #datePicker {
+                display: block !important;
+                width: 100%;
+            }
+
             .settings-grid {
                 grid-template-columns: 1fr;
                 gap: 10px;
@@ -802,6 +812,8 @@
                     <div id="dateButtons" style="display: flex; gap: 4px; flex-wrap: wrap;">
                         <!-- 日付ボタンはJavaScriptで動的に生成 -->
                     </div>
+                    <!-- スマホ用の日付ピッカー -->
+                    <input type="date" id="datePicker" style="display: none; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
                     <input type="hidden" id="targetDate" value="">
                 </div>
 
@@ -1721,6 +1733,30 @@
 
             // エリアのデフォルトを大阪に設定
             document.getElementById('areaId').value = 'JP27';
+
+            // スマホ用date pickerの初期値と範囲を設定
+            const datePicker = document.getElementById('datePicker');
+            datePicker.value = dateStr;
+
+            // 選択可能な日付範囲を設定（過去7日～未来7日）
+            const minDate = new Date(today);
+            minDate.setDate(minDate.getDate() - 7);
+            const maxDate = new Date(today);
+            maxDate.setDate(maxDate.getDate() + 7);
+
+            const minDateStr = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-${String(minDate.getDate()).padStart(2, '0')}`;
+            const maxDateStr = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
+
+            datePicker.min = minDateStr;
+            datePicker.max = maxDateStr;
+
+            datePicker.addEventListener('change', async function() {
+                // 選択された日付を隠しフィールドに設定
+                document.getElementById('targetDate').value = this.value;
+
+                // 番組表を自動取得
+                await fetchPrograms();
+            });
         });
 
         // 「番組表を取得」ボタンは強制更新
