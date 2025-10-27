@@ -184,25 +184,52 @@ def execute_recording():
         yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {cmd_str}"})}\n\n'
 
         try:
-            # プロセスを起動
+            # プロセスを起動（バッファなしで即座に出力）
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 encoding='utf-8',
                 errors='replace',  # エンコードエラーを置き換え文字で処理
-                bufsize=1
+                bufsize=0,  # バッファなし
+                universal_newlines=True
             )
 
             # 出力を逐次送信
-            for line in process.stdout:
-                line = line.rstrip()
-                if line:
-                    timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                    yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+            import select
+            import time
+            last_output_time = time.time()
 
-            # プロセスの終了を待つ
-            process.wait()
+            while True:
+                # プロセスが終了したかチェック
+                if process.poll() is not None:
+                    # 残りの出力を読み取る
+                    remaining = process.stdout.read()
+                    if remaining:
+                        for line in remaining.splitlines():
+                            line = line.rstrip()
+                            if line:
+                                timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                                yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                    break
+
+                # 出力を読み取る（ノンブロッキング）
+                line = process.stdout.readline()
+                if line:
+                    last_output_time = time.time()
+                    line = line.rstrip()
+                    if line:
+                        timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                else:
+                    # 出力がない場合は少し待つ
+                    time.sleep(0.1)
+
+                    # 30秒間出力がない場合、ハートビートを送信
+                    if time.time() - last_output_time > 30:
+                        timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 処理中..."})}\n\n'
+                        last_output_time = time.time()
 
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
             if process.returncode == 0:
