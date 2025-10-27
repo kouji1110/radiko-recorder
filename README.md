@@ -519,3 +519,96 @@ docker run --rm httpd:2.4-alpine htpasswd -nbB radiko "新しいパスワード"
 ```
 
 生成されたハッシュを `web/.htpasswd` ファイルに貼り付けてコンテナを再ビルドしてください。
+
+## 🚀 本番環境デプロイ手順
+
+### 初回デプロイ
+
+```bash
+# 1. プロジェクトディレクトリに移動
+cd /home/sites/radiko-recorder
+
+# 2. 最新コードを取得
+git pull origin master
+
+# 3. 実行権限を付与（重要！）
+chmod +x script/myradiko
+chmod +x rec_radiko_ts-master/*.sh
+
+# 4. 必要なディレクトリを作成
+mkdir -p output/radio data work backup
+
+# 5. ディレクトリの権限を設定
+chmod -R 755 output data work backup script rec_radiko_ts-master
+
+# 6. コンテナをビルド＆起動
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# 7. 動作確認
+docker-compose ps
+docker-compose logs proxy | tail -30
+
+# 8. コンテナ内の権限確認
+docker exec radiko-proxy ls -la /app/script/myradiko
+docker exec radiko-proxy ls -la /app/rec_radiko_ts-master/rec_radiko_ts.sh
+```
+
+### 更新時のデプロイ
+
+```bash
+# 1. 最新コードを取得
+cd /home/sites/radiko-recorder
+git pull origin master
+
+# 2. コンテナを再起動（コードのみの変更の場合）
+docker-compose restart
+
+# または、Dockerfileやdocker-compose.ymlが変更された場合
+docker-compose down
+docker-compose up -d --build
+
+# 3. ログで問題がないか確認
+docker-compose logs -f
+```
+
+### トラブルシューティング
+
+#### 録音時に「Permission denied」エラーが出る場合
+
+```bash
+# ホスト側で実行権限を付与
+chmod +x script/myradiko
+chmod +x rec_radiko_ts-master/*.sh
+
+# コンテナ内でも確認
+docker exec radiko-proxy chmod +x /app/script/myradiko
+docker exec radiko-proxy chmod +x /app/rec_radiko_ts-master/*.sh
+
+# コンテナを再起動
+docker-compose restart
+```
+
+#### ファイル名のエンコーディングエラーが出る場合
+
+全角文字が半角に変換されるようになっています。それでもエラーが出る場合：
+
+```bash
+# コンテナ内のロケール設定を確認
+docker exec radiko-proxy locale
+
+# 必要に応じてDockerfileにロケール設定を追加
+```
+
+#### パスが見つからないエラーが出る場合
+
+```bash
+# 環境変数を確認
+docker exec radiko-proxy printenv | grep BASE_DIR
+
+# マウントポイントを確認
+docker exec radiko-proxy ls -la /app/
+docker exec radiko-proxy ls -la /app/script/
+docker exec radiko-proxy ls -la /app/output/
+```
