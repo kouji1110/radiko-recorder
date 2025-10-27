@@ -1499,6 +1499,8 @@
         let allProgramsData = [];
         let eventSource = null;
         let currentEditingCron = { original: '', commandPart: '' };
+        let currentStationMap = null; // スマホ用: 現在の放送局マップを保持
+        let currentProgramList = null; // スマホ用: 現在のプログラムリスト要素を保持
         // 番組表キャッシュ（エリアID + 日付をキーにする）
         // 各エントリは { data: [...], timestamp: Date } の形式
         const programCache = new Map();
@@ -2066,6 +2068,10 @@
             const mobileStationSelect = document.getElementById('mobileStationSelect');
 
             if (isMobile && mobileStationSelect) {
+                // グローバル変数に保存
+                currentStationMap = stationMap;
+                currentProgramList = programList;
+
                 // オプションをクリア（最初のデフォルトオプション以外）
                 while (mobileStationSelect.options.length > 1) {
                     mobileStationSelect.remove(1);
@@ -2089,9 +2095,9 @@
                     if (!mobileStationSelect.dataset.initialized) {
                         mobileStationSelect.addEventListener('change', function() {
                             const selectedStationId = this.value;
-                            if (selectedStationId) {
+                            if (selectedStationId && currentStationMap && currentProgramList) {
                                 // 選択された放送局のみを表示
-                                displaySelectedStation(stationMap, programList, selectedStationId);
+                                displaySelectedStation(currentStationMap, currentProgramList, selectedStationId);
                             }
                         });
                         mobileStationSelect.dataset.initialized = 'true';
