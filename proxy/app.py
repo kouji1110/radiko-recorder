@@ -1104,7 +1104,7 @@ def get_at_job_detail(job_id):
 # 番組表DB関連API
 # ========================================
 
-@app.route('/api/programs/search', methods=['GET'])
+@app.route('/programs/search', methods=['GET'])
 def search_programs_api():
     """番組を検索"""
     try:
@@ -1132,7 +1132,7 @@ def search_programs_api():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/programs/area/<area_id>/date/<date>', methods=['GET'])
+@app.route('/programs/area/<area_id>/date/<date>', methods=['GET'])
 def get_area_programs_api(area_id, date):
     """特定エリア・日付の番組を取得（DBになければradiko APIから取得）"""
     try:
@@ -1174,7 +1174,7 @@ def get_area_programs_api(area_id, date):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/programs/update/status', methods=['GET'])
+@app.route('/programs/update/status', methods=['GET'])
 def get_update_status_api():
     """番組表の更新ステータスを取得"""
     try:
@@ -1186,7 +1186,7 @@ def get_update_status_api():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/programs/update/trigger', methods=['POST'])
+@app.route('/programs/update/trigger', methods=['POST'])
 def trigger_update_api():
     """番組表の即時更新をトリガー"""
     try:
