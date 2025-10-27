@@ -802,68 +802,73 @@
 
             #filesList tr {
                 display: block;
-                margin-bottom: 12px;
+                margin-bottom: 8px;
                 border: 1px solid #dee2e6;
-                border-radius: 8px;
-                padding: 12px;
+                border-radius: 6px;
+                padding: 8px;
                 background: white;
             }
 
             #filesList td {
                 display: block;
-                padding: 4px 0 !important;
+                padding: 2px 0 !important;
                 border: none !important;
                 text-align: left !important;
             }
 
             #filesList td:first-child {
-                text-align: center;
-                margin-bottom: 8px;
+                display: none;
             }
 
             /* ファイル名を目立たせる */
             #filesList td:nth-child(2) {
                 font-weight: 600;
-                font-size: 0.95em;
-                margin-bottom: 8px;
+                font-size: 0.9em;
+                margin-bottom: 4px;
                 word-break: break-all;
             }
 
-            /* 放送日、サイズ、更新日時をまとめて表示 */
-            #filesList td:nth-child(3)::before {
-                content: "📅 放送日: ";
-                font-weight: 600;
+            /* 放送日、サイズ、更新日時を1行にまとめて表示 */
+            #filesList td:nth-child(3),
+            #filesList td:nth-child(4),
+            #filesList td:nth-child(5) {
+                display: inline-block;
+                font-size: 0.75em;
                 color: #6c757d;
+                margin-right: 8px;
+            }
+
+            #filesList td:nth-child(3)::before {
+                content: "📅 ";
             }
 
             #filesList td:nth-child(4)::before {
-                content: "💾 サイズ: ";
-                font-weight: 600;
-                color: #6c757d;
+                content: "💾 ";
             }
 
             #filesList td:nth-child(5)::before {
-                content: "🕐 更新: ";
-                font-weight: 600;
-                color: #6c757d;
+                content: "🕐 ";
             }
 
-            /* アクションボタン */
+            /* アクションボタンを横並びに */
             #filesList td:last-child {
-                margin-top: 8px;
+                margin-top: 6px;
             }
 
             #filesList td:last-child > div {
                 display: flex;
-                flex-direction: column;
-                gap: 6px;
+                flex-direction: row;
+                gap: 4px;
+                flex-wrap: wrap;
             }
 
             #filesList td:last-child button,
             #filesList td:last-child a {
-                width: 100% !important;
+                flex: 1;
+                min-width: calc(50% - 2px);
                 text-align: center;
-                padding: 8px !important;
+                padding: 6px 4px !important;
+                font-size: 0.85em !important;
             }
 
             /* 詳細設定のスマホ対応 */
