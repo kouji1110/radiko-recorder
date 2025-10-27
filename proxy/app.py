@@ -33,8 +33,8 @@ def sanitize_filename(title):
     """番組名をファイル名として安全な形式に変換
 
     - 半角スペース・全角スペースをアンダーバーに
-    - 全角括弧を半角に
-    - その他の特殊な全角記号を半角に
+    - 全角文字を半角に変換
+    - 全角数字・英字を半角に
     """
     if not title:
         return title
@@ -42,6 +42,13 @@ def sanitize_filename(title):
     # スペースをアンダーバーに
     title = title.replace(' ', '_')
     title = title.replace('　', '_')
+
+    # 全角英数字を半角に
+    full_to_half = str.maketrans(
+        'ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ０１２３４５６７８９',
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    )
+    title = title.translate(full_to_half)
 
     # 全角括弧・記号を半角に
     replacements = {
@@ -53,7 +60,9 @@ def sanitize_filename(title):
         '！': '!',
         '？': '?',
         '［': '[',
-        '］': ']'
+        '］': ']',
+        '【': '[',
+        '】': ']'
     }
 
     for old, new in replacements.items():
