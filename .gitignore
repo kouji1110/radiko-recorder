@@ -29,3 +29,7 @@ backup/
 
 # 環境変数
 .env
+check_db.py
+check_status.py
+test_search.py
+data/

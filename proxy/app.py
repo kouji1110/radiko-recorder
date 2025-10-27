@@ -14,6 +14,7 @@ import db
 import fetch_programs
 
 app = Flask(__name__)
+app.config['JSON_AS_ASCII'] = False  # 日本語などの非ASCII文字をそのまま出力
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # ログ設定
@@ -23,14 +24,15 @@ logger = logging.getLogger(__name__)
 # DB初期化
 db.init_database()
 
-# スケジューラー設定
-scheduler = BackgroundScheduler(daemon=True)
+# スケジューラー設定（深夜3時に実行）
+scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Tokyo')
 scheduler.add_job(
     func=fetch_programs.update_all_areas,
-    trigger='interval',
-    minutes=30,  # 30分ごとに更新
+    trigger='cron',
+    hour=3,  # 毎日3:00AMに実行
+    minute=0,
     id='update_programs',
-    name='Update radiko programs',
+    name='Update radiko programs daily at 3:00 AM',
     replace_existing=True
 )
 scheduler.start()
@@ -38,7 +40,7 @@ scheduler.start()
 # アプリ終了時にスケジューラーをシャットダウン
 atexit.register(lambda: scheduler.shutdown())
 
-logger.info('✅ Scheduler started: updating programs every 30 minutes')
+logger.info('✅ Scheduler started: updating programs daily at 3:00 AM JST')
 
 @app.route('/health')
 def health():
@@ -713,10 +715,13 @@ def search_programs_api():
         date_from = request.args.get('date_from')
         date_to = request.args.get('date_to')
 
+        logger.info(f'🔍 Search API called with keyword="{keyword}", area_id={area_id}, date_from={date_from}, date_to={date_to}')
+
         if not keyword:
             return jsonify({'error': 'keyword parameter is required'}), 400
 
         results = db.search_programs(keyword, area_id, date_from, date_to)
+        logger.info(f'🔍 Search API returning {len(results)} results')
 
         return jsonify({
             'success': True,
@@ -731,9 +736,26 @@ def search_programs_api():
 
 @app.route('/api/programs/area/<area_id>/date/<date>', methods=['GET'])
 def get_area_programs_api(area_id, date):
-    """特定エリア・日付の番組を取得"""
+    """特定エリア・日付の番組を取得（DBになければradiko APIから取得）"""
     try:
         programs = db.get_programs_by_area_date(area_id, date)
+
+        # DBにデータがない場合、radiko APIから取得してDBに保存
+        if len(programs) == 0:
+            logger.info(f'📥 No data in DB for {area_id}/{date}, fetching from radiko API...')
+
+            # radiko APIから取得
+            fetched_programs = fetch_programs.fetch_area_programs(area_id, date)
+
+            if fetched_programs:
+                # DBに保存
+                db.save_programs(fetched_programs, area_id, date)
+                logger.info(f'✅ Fetched and saved {len(fetched_programs)} programs for {area_id}/{date}')
+
+                # 保存したデータを再取得してフォーマット
+                programs = db.get_programs_by_area_date(area_id, date)
+            else:
+                logger.warning(f'⚠️ No programs found from radiko API for {area_id}/{date}')
 
         return jsonify({
             'success': True,

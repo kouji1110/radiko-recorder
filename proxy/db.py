@@ -116,7 +116,7 @@ def save_programs(programs: List[Dict], area_id: str, date: str):
             ))
 
         cursor.executemany('''
-            INSERT INTO programs (
+            INSERT OR IGNORE INTO programs (
                 area_id, station_id, station_name, title,
                 start_time, end_time, description, performer,
                 info, url, date, updated_at

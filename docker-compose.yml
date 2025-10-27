@@ -12,6 +12,7 @@ services:
       - ./work:/home/sites/radiko-recorder/work
       - ./output:/home/sites/radiko-recorder/output
       - ./backup:/home/sites/radiko-recorder/backup
+      - ./data:/home/sites/radiko-recorder/data
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     restart: unless-stopped

@@ -14,6 +14,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
+COPY db.py .
+COPY fetch_programs.py .
 
 # cronとatdサービスを起動するスクリプトを作成
 RUN echo '#!/bin/bash\n\

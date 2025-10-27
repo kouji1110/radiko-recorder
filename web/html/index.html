@@ -1204,159 +1204,47 @@
             const programList = document.getElementById('programList');
             const fetchBtn = document.getElementById('fetchBtn');
 
-            // キャッシュキーを生成（エリアID + 日付）
-            const cacheKey = `${areaId}_${targetDate || 'now'}`;
-
-            // キャッシュにデータがあり、強制更新でない場合は有効期限をチェック
-            if (!forceRefresh && programCache.has(cacheKey)) {
-                const cacheEntry = programCache.get(cacheKey);
-                if (isCacheValid(cacheEntry)) {
-                    const age = Math.floor((Date.now() - cacheEntry.timestamp) / 1000);
-                    console.log(`キャッシュから番組表を読み込み: ${cacheKey} (${age}秒前に取得)`);
-                    displayPrograms(cacheEntry.data);
-                    return;
-                } else {
-                    console.log('キャッシュ期限切れ、再取得します:', cacheKey);
-                    programCache.delete(cacheKey);
-                }
-            }
-
             loading.style.display = 'block';
             error.style.display = 'none';
             programList.innerHTML = '';
             fetchBtn.disabled = true;
 
             try {
-                // プロキシURLが空欄の場合は直接radikoにアクセス
-                const baseUrl = proxyUrl.trim() ? `${proxyUrl}/radiko` : 'https://radiko.jp';
-                let allPrograms = [];
+                // DB APIから番組表を取得
+                const baseApiUrl = proxyUrl.trim() || '';
+                const dateStr = targetDate ? targetDate.replace(/-/g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const apiUrl = `${baseApiUrl}/api/programs/area/${areaId}/date/${dateStr}`;
 
-                if (targetDate) {
-                    // 日付指定の場合: まず放送局一覧を取得
-                    const dateStr = targetDate.replace(/-/g, ''); // YYYYMMDD形式に変換
-                    const nowUrl = `${baseUrl}/v3/program/now/${areaId}.xml`;
+                console.log('📡 Fetching from DB API:', apiUrl);
+                const response = await fetch(apiUrl);
 
-                    console.log('Fetching station list:', nowUrl);
-                    const nowResponse = await fetch(nowUrl);
-                    if (!nowResponse.ok) {
-                        throw new Error(`放送局一覧の取得に失敗: ${nowResponse.status}`);
-                    }
-
-                    const nowXmlText = await nowResponse.text();
-                    const parser = new DOMParser();
-                    const nowXmlDoc = parser.parseFromString(nowXmlText, 'text/xml');
-                    const stations = nowXmlDoc.querySelectorAll('station');
-
-                    // 各放送局ごとに日付指定のデータを取得
-                    const stationPromises = Array.from(stations).map(async (station) => {
-                        const stationId = station.getAttribute('id');
-                        const stationName = station.querySelector('name')?.textContent || 'Unknown';
-
-                        try {
-                            const stationUrl = `${baseUrl}/v3/program/station/date/${dateStr}/${stationId}.xml`;
-                            console.log('Fetching:', stationUrl);
-                            const response = await fetch(stationUrl);
-
-                            if (!response.ok) {
-                                console.warn(`${stationId} のデータ取得失敗: ${response.status}`);
-                                return [];
-                            }
-
-                            const xmlText = await response.text();
-                            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                            const progs = xmlDoc.querySelectorAll('prog');
-
-                            const programs = [];
-                            progs.forEach(prog => {
-                                const title = prog.querySelector('title')?.textContent || '';
-                                const ftString = prog.getAttribute('ft');
-                                const toString = prog.getAttribute('to');
-                                const desc = prog.querySelector('desc')?.textContent || '説明なし';
-                                const pfm = prog.querySelector('pfm')?.textContent || '';
-                                const info = prog.querySelector('info')?.textContent || '';
-                                const url = prog.querySelector('url')?.textContent || '';
-
-                                if (ftString && toString) {
-                                    programs.push({
-                                        stationId,
-                                        stationName,
-                                        title,
-                                        ft: parseRadikoTime(ftString),
-                                        to: parseRadikoTime(toString),
-                                        desc,
-                                        pfm,
-                                        info,
-                                        url
-                                    });
-                                }
-                            });
-                            return programs;
-                        } catch (err) {
-                            console.warn(`${stationId} の取得エラー:`, err);
-                            return [];
-                        }
-                    });
-
-                    const results = await Promise.all(stationPromises);
-                    allPrograms = results.flat();
-
-                } else {
-                    // 日付指定なし: 現在の番組表を取得
-                    const url = `${baseUrl}/v3/program/now/${areaId}.xml`;
-                    console.log('Fetching URL:', url);
-                    const response = await fetch(url);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const xmlText = await response.text();
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-                    const stations = xmlDoc.querySelectorAll('station');
-
-                    stations.forEach(station => {
-                        const stationId = station.getAttribute('id');
-                        const stationName = station.querySelector('name')?.textContent || 'Unknown';
-
-                        const progs = station.querySelectorAll('prog');
-                        progs.forEach(prog => {
-                            const title = prog.querySelector('title')?.textContent || '';
-                            const ftString = prog.getAttribute('ft');
-                            const toString = prog.getAttribute('to');
-                            const desc = prog.querySelector('desc')?.textContent || '説明なし';
-                            const pfm = prog.querySelector('pfm')?.textContent || '';
-                            const info = prog.querySelector('info')?.textContent || '';
-                            const url = prog.querySelector('url')?.textContent || '';
-
-                            if (ftString && toString) {
-                                allPrograms.push({
-                                    stationId,
-                                    stationName,
-                                    title,
-                                    ft: parseRadikoTime(ftString),
-                                    to: parseRadikoTime(toString),
-                                    desc,
-                                    pfm,
-                                    info,
-                                    url
-                                });
-                            }
-                        });
-                    });
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
                 }
 
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '番組表の取得に失敗しました');
+                }
+
+                console.log(`✅ Loaded ${data.count} programs from DB`);
+
+                // DB APIのレスポンスをフロントエンド形式に変換
+                const allPrograms = data.programs.map(prog => ({
+                    stationId: prog.stationId,
+                    stationName: prog.stationName,
+                    title: prog.title,
+                    ft: new Date(prog.ft),
+                    to: new Date(prog.to),
+                    desc: prog.desc || '説明なし',
+                    pfm: prog.pfm || '',
+                    info: prog.info || '',
+                    url: prog.url || ''
+                }));
+
+                // 時刻順にソート
                 allPrograms.sort((a, b) => a.ft - b.ft);
-
-                // キャッシュに保存（タイムスタンプ付き）
-                programCache.set(cacheKey, {
-                    data: allPrograms,
-                    timestamp: Date.now()
-                });
-                console.log('番組表をキャッシュに保存:', cacheKey, `(${allPrograms.length}件)`);
-
-                // localStorageにも保存
-                saveCacheToStorage();
 
                 displayPrograms(allPrograms);
 
@@ -1801,7 +1689,7 @@
 
             if (fileCheck && fileCheck.exists) {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
 
                 commandBoxContent = `
@@ -1859,7 +1747,7 @@
 
             if (fileCheck && fileCheck.exists) {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
 
                 commandBoxContent = `
@@ -1951,7 +1839,7 @@
             executeBtn.textContent = '実行中...';
 
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? `${proxyUrl}` : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             // at予約の場合
             if (isAtCommand) {
@@ -2073,7 +1961,7 @@
             // ダウンロードリンクを追加
             if (file && type === 'success') {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${file}`;
 
                 const downloadLine = document.createElement('div');
@@ -2234,7 +2122,7 @@
 
         async function loadRecordedFiles() {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             const filesLoading = document.getElementById('filesLoading');
             const filesList = document.getElementById('filesList');
@@ -2280,7 +2168,7 @@
         function renderFilesList() {
             const filesList = document.getElementById('filesList');
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             // フィルタリング
             let filteredFiles = allRecordedFiles.filter(file => {
@@ -2459,7 +2347,7 @@
         // ファイルの存在確認
         async function checkFileExists(prog) {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             const startStr = formatRadikoTime(new Date(prog.ft));
 
@@ -2534,7 +2422,7 @@
         // cron一覧を読み込む
         async function loadCronJobs() {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             const cronLoading = document.getElementById('cronLoading');
             const cronList = document.getElementById('cronList');
@@ -2637,7 +2525,7 @@
         // cronジョブを追加
         async function addCronJob(command) {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             try {
                 const response = await fetch(`${baseUrl}/cron/add`, {
@@ -2687,7 +2575,7 @@
         // cronジョブを削除
         async function removeCronJob(command) {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             try {
                 const response = await fetch(`${baseUrl}/cron/remove`, {
@@ -2719,7 +2607,7 @@
             }
 
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             try {
                 const response = await fetch(`${baseUrl}/file/delete`, {
@@ -2866,7 +2754,7 @@
 
             // 古いcronを削除して新しいcronを追加
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             try {
                 // 削除
@@ -2910,7 +2798,7 @@
         // cronログを読み込む
         async function loadCronLogs() {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
             const logContent = document.getElementById('cronLogContent');
 
             // モーダルを開く
@@ -3015,7 +2903,7 @@
 
             try {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
 
                 const response = await fetch(`${baseUrl}/at/list`);
                 const data = await response.json();
@@ -3126,7 +3014,7 @@
         async function showAtJobDetail(jobId) {
             try {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
 
                 const response = await fetch(`${baseUrl}/at/detail/${jobId}`);
                 const data = await response.json();
@@ -3150,7 +3038,7 @@
 
             try {
                 const proxyUrl = document.getElementById('proxyUrl').value;
-                const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+                const baseUrl = proxyUrl.trim() || '';
 
                 const response = await fetch(`${baseUrl}/at/cancel/${jobId}`, {
                     method: 'DELETE'
@@ -3176,7 +3064,7 @@
 
         function playAudio(filepath, filename) {
             const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() ? proxyUrl : 'http://localhost:8080';
+            const baseUrl = proxyUrl.trim() || '';
 
             // 現在のファイルパスを保存
             currentAudioFilePath = filepath;
