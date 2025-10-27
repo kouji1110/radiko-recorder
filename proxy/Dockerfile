@@ -21,7 +21,7 @@ COPY fetch_programs.py .
 RUN echo '#!/bin/bash\n\
 service cron start\n\
 service atd start\n\
-python app.py' > /start.sh && chmod +x /start.sh
+gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 600 --worker-class gthread --access-logfile - --error-logfile - app:app' > /start.sh && chmod +x /start.sh
 
 EXPOSE 8080
 

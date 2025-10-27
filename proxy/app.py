@@ -10,6 +10,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import zipfile
 import tempfile
+import time
+import select
 
 # DBモジュールをインポート
 import db
@@ -196,8 +198,6 @@ def execute_recording():
             )
 
             # 出力を逐次送信
-            import select
-            import time
             last_output_time = time.time()
 
             while True:
@@ -1286,4 +1286,5 @@ def admin_db_status():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    # 開発環境用（本番ではgunicornを使用）
+    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
