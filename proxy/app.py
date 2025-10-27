@@ -412,6 +412,61 @@ def edit_audio():
         logger.error(f'Edit audio error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@app.route('/rename-file', methods=['POST', 'OPTIONS'])
+def rename_file():
+    """ファイルをリネーム"""
+    # OPTIONSリクエスト（CORS preflight）への対応
+    if request.method == 'OPTIONS':
+        response = Response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    try:
+        data = request.json
+        file_path = data.get('file_path', '')
+        new_name = data.get('new_name', '')
+
+        if not file_path or not new_name:
+            return jsonify({'error': 'File path and new name are required'}), 400
+
+        # セキュリティ: パストラバーサル対策
+        base_dir = OUTPUT_DIR
+        safe_path = os.path.normpath(os.path.join(base_dir, file_path))
+
+        if not safe_path.startswith(base_dir):
+            return jsonify({'error': 'Invalid file path'}), 400
+
+        if not os.path.exists(safe_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        # 新しいファイル名のパスを構築
+        file_dir = os.path.dirname(safe_path)
+        new_path = os.path.join(file_dir, new_name)
+
+        # 既に同じ名前のファイルが存在するかチェック
+        if os.path.exists(new_path):
+            return jsonify({'error': 'A file with that name already exists'}), 400
+
+        # リネーム実行
+        os.rename(safe_path, new_path)
+
+        # 相対パスを返す
+        relative_path = os.path.relpath(new_path, base_dir)
+
+        logger.info(f'File renamed: {file_path} -> {new_name}')
+
+        return jsonify({
+            'success': True,
+            'new_name': new_name,
+            'new_path': relative_path
+        })
+
+    except Exception as e:
+        logger.error(f'Rename file error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/files', methods=['GET'])
 def list_files():
     """録音済みファイル一覧を取得"""

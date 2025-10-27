@@ -1669,6 +1669,33 @@
         </div>
     </div>
 
+    <!-- リネームモーダル -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>✏️ ファイル名を変更</h2>
+                <button class="modal-close" onclick="closeRenameModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">現在のファイル名</label>
+                    <div id="renameCurrentName" style="padding: 10px; background: #f8f9fa; border-radius: 4px; color: #6c757d; font-size: 0.9em; word-break: break-all;"></div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="renameNewName" style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">新しいファイル名</label>
+                    <input type="text" id="renameNewName" style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
+                    <div style="margin-top: 6px; font-size: 0.8em; color: #6c757d;">
+                        💡 拡張子（.mp3など）は自動的に追加されます
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action" onclick="executeRename()" style="background: #667eea;">✏️ 変更</button>
+                <button class="btn btn-action btn-close" onclick="closeRenameModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentCommand = '';
         let currentProgramData = null;
@@ -3592,6 +3619,12 @@
                                    onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
                                     <img src="img/download.png" alt="ダウンロード" style="width: 24px; height: 24px; display: block;">
                                 </a>
+                                <button onclick='showRenameModal("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
+                                        title="リネーム"
+                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
+                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
+                                    ✏️
+                                </button>
                                 <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="削除"
                                         style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
@@ -3903,6 +3936,88 @@
             } catch (err) {
                 console.error('Error removing cron job:', err);
                 alert('❌ 予約の削除に失敗しました');
+            }
+        }
+
+        // リネーム用の変数
+        let renameFilePath = '';
+        let renameFileName = '';
+
+        // リネームモーダルを表示
+        function showRenameModal(filepath, filename) {
+            renameFilePath = filepath;
+            renameFileName = filename;
+
+            // 拡張子を除いたファイル名を表示
+            const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+            document.getElementById('renameCurrentName').textContent = filename;
+            document.getElementById('renameNewName').value = nameWithoutExt;
+            document.getElementById('renameModal').classList.add('active');
+
+            // 入力欄にフォーカス
+            setTimeout(() => {
+                const input = document.getElementById('renameNewName');
+                input.focus();
+                input.select();
+            }, 100);
+        }
+
+        // リネームモーダルを閉じる
+        function closeRenameModal() {
+            document.getElementById('renameModal').classList.remove('active');
+            renameFilePath = '';
+            renameFileName = '';
+        }
+
+        // リネームを実行
+        async function executeRename() {
+            const newNameInput = document.getElementById('renameNewName').value.trim();
+
+            if (!newNameInput) {
+                alert('⚠️ 新しいファイル名を入力してください');
+                return;
+            }
+
+            // 拡張子を取得
+            const ext = renameFileName.match(/\.[^/.]+$/);
+            const newName = ext ? newNameInput + ext[0] : newNameInput;
+
+            if (newName === renameFileName) {
+                alert('⚠️ ファイル名が変更されていません');
+                return;
+            }
+
+            if (!confirm(`ファイル名を変更しますか？\n\n${renameFileName}\n↓\n${newName}`)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/api/rename-file`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_path: renameFilePath,
+                        new_name: newName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ファイル名を変更しました\n\n${newName}`);
+                    closeRenameModal();
+                    loadRecordedFiles(); // ファイル一覧を更新
+                } else {
+                    alert(`❌ エラー: ${data.error || 'リネームに失敗しました'}`);
+                }
+            } catch (err) {
+                console.error('Rename error:', err);
+                alert('❌ リネームに失敗しました');
             }
         }
 
