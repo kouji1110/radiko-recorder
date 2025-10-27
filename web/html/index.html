@@ -689,10 +689,20 @@
                 margin-top: 12px !important;
             }
 
+            /* スマホ用放送局選択を表示 */
+            #stationSelector {
+                display: block !important;
+            }
+
             /* 番組カードのスマホ対応 */
             .program-list {
                 grid-template-columns: 1fr !important;
                 gap: 10px;
+            }
+
+            /* スマホでは放送局ヘッダーを非表示（選択済みのため） */
+            .station-header {
+                display: none;
             }
 
             .program-card {
@@ -921,6 +931,15 @@
                 </div>
                 <div id="error" class="error" style="display: none;"></div>
                 <div id="searchInfo" style="padding: 8px; font-size: 0.85em; color: #6c757d; display: none;"></div>
+
+                <!-- スマホ用の放送局選択 -->
+                <div id="stationSelector" style="display: none; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                    <label for="mobileStationSelect" style="font-size: 0.85em; font-weight: 600; color: #495057; display: block; margin-bottom: 6px;">📻 放送局を選択:</label>
+                    <select id="mobileStationSelect" style="width: 100%; padding: 10px; font-size: 0.9em; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <option value="">-- 放送局を選択してください --</option>
+                    </select>
+                </div>
+
                 <div id="programList" class="program-list"></div>
             </div>
         </div>
@@ -2042,8 +2061,49 @@
         }
 
         function displayStations(stationMap, programList) {
+            // スマホ用: 放送局選択のオプションを生成
+            const isMobile = window.innerWidth <= 768;
+            const mobileStationSelect = document.getElementById('mobileStationSelect');
 
-            // 各放送局の列を作成
+            if (isMobile && mobileStationSelect) {
+                // オプションをクリア（最初のデフォルトオプション以外）
+                while (mobileStationSelect.options.length > 1) {
+                    mobileStationSelect.remove(1);
+                }
+
+                // 放送局のオプションを追加
+                stationMap.forEach(station => {
+                    const option = document.createElement('option');
+                    option.value = station.id;
+                    option.textContent = `${station.name} (${station.id})`;
+                    mobileStationSelect.appendChild(option);
+                });
+
+                // 最初の放送局を自動選択
+                if (stationMap.length > 0) {
+                    mobileStationSelect.value = stationMap[0].id;
+                }
+
+                // 変更イベントを追加（初回のみ）
+                if (!mobileStationSelect.dataset.initialized) {
+                    mobileStationSelect.addEventListener('change', function() {
+                        const selectedStationId = this.value;
+                        if (selectedStationId) {
+                            // 選択された放送局のみを表示
+                            displaySelectedStation(stationMap, programList, selectedStationId);
+                        }
+                    });
+                    mobileStationSelect.dataset.initialized = 'true';
+                }
+
+                // 初回表示: 最初の放送局を表示
+                if (stationMap.length > 0) {
+                    displaySelectedStation(stationMap, programList, stationMap[0].id);
+                    return; // スマホの場合はここで終了
+                }
+            }
+
+            // PC用: 各放送局の列を作成
             stationMap.forEach(station => {
                 const column = document.createElement('div');
                 column.className = 'station-column';
@@ -2129,6 +2189,90 @@
                     }, 100);
                 }
             });
+        }
+
+        // スマホ用: 選択された放送局のみを表示
+        function displaySelectedStation(stationMap, programList, selectedStationId) {
+            // 既存の内容をクリア
+            programList.innerHTML = '';
+
+            // 選択された放送局を探す
+            const selectedStation = stationMap.find(s => s.id === selectedStationId);
+            if (!selectedStation) return;
+
+            const column = document.createElement('div');
+            column.className = 'station-column';
+
+            const programsContainer = document.createElement('div');
+            programsContainer.className = 'station-programs';
+
+            const now = new Date();
+            let nowPlayingCard = null;
+
+            // 時刻順にソート
+            selectedStation.programs.sort((a, b) => a.ft - b.ft);
+
+            selectedStation.programs.forEach(prog => {
+                const card = document.createElement('div');
+                card.className = 'program-card';
+
+                // 放送中の番組をハイライト
+                if (prog.ft <= now && prog.to > now) {
+                    card.classList.add('now-playing');
+                    nowPlayingCard = card;
+                }
+
+                const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
+                const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
+
+                // 番組が終了しているかチェック
+                const isPastProgram = prog.to < now;
+                const isFutureProgram = prog.ft > now;
+
+                // radikoのURL
+                const radikoTime = formatRadikoUrl(prog.ft);
+                const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
+
+                // ボタンを生成
+                let buttonsHtml = '';
+
+                // 終了済み番組：ダウンロードボタン
+                if (isPastProgram) {
+                    buttonsHtml += `<button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>`;
+                }
+
+                // 未来の番組または放送中の番組：予約ボタン
+                if (!isPastProgram) {
+                    buttonsHtml += `<button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>予約</button>`;
+                }
+
+                // 定期録音ボタン（常に表示）
+                buttonsHtml += `<button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>定期</button>`;
+
+                // radikoボタン（常に表示）
+                buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
+
+                card.innerHTML = `
+                    <div class="program-time">${startTime} - ${endTime}</div>
+                    <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
+                    ${prog.pfm ? `<div class="program-detail">${prog.pfm}</div>` : ''}
+                    <div class="program-actions">
+                        ${buttonsHtml}
+                    </div>
+                `;
+
+                programsContainer.appendChild(card);
+            });
+
+            column.appendChild(programsContainer);
+            programList.appendChild(column);
+
+            // 放送中の番組にスクロール
+            if (nowPlayingCard) {
+                setTimeout(() => {
+                    nowPlayingCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
         }
 
         function showCronCommandByIndex(index) {
