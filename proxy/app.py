@@ -284,9 +284,17 @@ def download_file(filepath):
         logger.error(f'Download error: {str(e)}')
         return Response(f'Error: {str(e)}', status=500)
 
-@app.route('/edit-audio', methods=['POST'])
+@app.route('/edit-audio', methods=['POST', 'OPTIONS'])
 def edit_audio():
     """音声ファイルのカット編集"""
+    # OPTIONSリクエスト（CORS preflight）への対応
+    if request.method == 'OPTIONS':
+        response = Response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
     try:
         data = request.json
         file_path = data.get('file_path', '')
