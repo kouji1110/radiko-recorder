@@ -1123,10 +1123,22 @@
             <div style="padding: 20px;">
                 <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 15px;"
                        ontimeupdate="updatePlaybackPosition()"
-                       onloadedmetadata="loadBookmark()">
+                       onloadedmetadata="loadBookmark()"
+                       onvolumechange="saveVolume()">
                     <source id="audioSource" src="" type="audio/mpeg">
                     お使いのブラウザは音声再生をサポートしていません。
                 </audio>
+
+                <!-- 早送り・巻き戻しコントロール -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 6px; margin-bottom: 10px;">
+                    <button onclick="skipAudio(-10)" style="padding: 5px 10px; background: rgba(102, 126, 234, 0.1); border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; color: #667eea; transition: all 0.15s;" onmouseover="this.style.background='#667eea'; this.style.color='white'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'; this.style.color='#667eea'; this.style.transform='scale(1)'">
+                        ← 10s
+                    </button>
+                    <span style="font-size: 0.7em; color: #6c757d; letter-spacing: 0.5px;">⌨️ ←→</span>
+                    <button onclick="skipAudio(10)" style="padding: 5px 10px; background: rgba(118, 75, 162, 0.1); border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; color: #764ba2; transition: all 0.15s;" onmouseover="this.style.background='#764ba2'; this.style.color='white'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(118, 75, 162, 0.1)'; this.style.color='#764ba2'; this.style.transform='scale(1)'">
+                        10s →
+                    </button>
+                </div>
 
                 <!-- 再生速度コントロール -->
                 <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px;">
@@ -1159,8 +1171,6 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-action" onclick="saveBookmark()" style="background: #667eea; color: white;">📍 位置を記憶</button>
-                <button class="btn btn-action" onclick="clearBookmark()" style="background: #6c757d; color: white;">🗑️ 記憶を削除</button>
                 <button class="btn btn-action btn-close" onclick="closeAudioPlayer()">閉じる</button>
             </div>
         </div>
@@ -1964,14 +1974,14 @@
 
             // 録音開始日とcron実行日の日付を比較
             // 録音開始日がcron実行日と異なる場合、開始日はcron実行日の前日
-            const startDateStr = `${startTime.getFullYear()}-${String(startTime.getMonth()+1).padStart(2,'0')}-${String(startTime.getDate()).padStart(2,'0')}`;
+            const startDateForCron = `${startTime.getFullYear()}-${String(startTime.getMonth()+1).padStart(2,'0')}-${String(startTime.getDate()).padStart(2,'0')}`;
             const cronExecDateStr = `${cronExecTime.getFullYear()}-${String(cronExecTime.getMonth()+1).padStart(2,'0')}-${String(cronExecTime.getDate()).padStart(2,'0')}`;
-            const endDateStr = `${endTime.getFullYear()}-${String(endTime.getMonth()+1).padStart(2,'0')}-${String(endTime.getDate()).padStart(2,'0')}`;
+            const endDateForCron = `${endTime.getFullYear()}-${String(endTime.getMonth()+1).padStart(2,'0')}-${String(endTime.getDate()).padStart(2,'0')}`;
 
             // 開始日がcron実行日と異なる場合
-            const startNeedsYesterday = startDateStr !== cronExecDateStr;
+            const startNeedsYesterday = startDateForCron !== cronExecDateStr;
             // 終了日がcron実行日と異なる場合
-            const endNeedsYesterday = endDateStr !== cronExecDateStr;
+            const endNeedsYesterday = endDateForCron !== cronExecDateStr;
 
             // 日付計算の部分
             let startDateCalc = '';
@@ -2000,17 +2010,70 @@
             currentProgramData = prog; // プログラム情報を保存
             document.getElementById('modalTitle').textContent = `定期録音 - ${prog.title}`;
 
-            // 実行時刻の説明を追加
+            // 番組情報を見やすく表示
+            const startDateStr = `${startTime.getFullYear()}/${String(startTime.getMonth() + 1).padStart(2, '0')}/${String(startTime.getDate()).padStart(2, '0')}`;
+            const startTimeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+            const endTimeStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+
+            const durationMinutes = Math.floor((endTime - startTime) / 60000);
+            const durationHours = Math.floor(durationMinutes / 60);
+            const durationMins = durationMinutes % 60;
+            const durationStr = durationHours > 0 ? `${durationHours}時間${durationMins}分` : `${durationMins}分`;
+
+            // 実行時刻の説明
             const execTimeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
             const daysOfWeekJp = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+            const daysOfWeekShort = ['日', '月', '火', '水', '木', '金', '土'];
             const dayLabel = daysOfWeekJp[dayOfWeek];
+            const dayShort = daysOfWeekShort[dayOfWeek];
 
             const commandBoxContent = `
-                <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
-                    <div style="font-weight: 600; color: #1976d2; margin-bottom: 4px;">⏰ 実行タイミング</div>
-                    <div style="color: #555; font-size: 0.95em;">毎週${dayLabel} ${execTimeStr} に実行（番組終了の5分後）</div>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
+                    <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                        📻 ${prog.title}
+                    </div>
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
+                        <div style="opacity: 0.9;">放送局:</div>
+                        <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
+
+                        <div style="opacity: 0.9;">放送日:</div>
+                        <div style="font-weight: 600;">毎週${dayLabel}</div>
+
+                        <div style="opacity: 0.9;">時間:</div>
+                        <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
+                    </div>
                 </div>
-                <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">${command}</div>
+
+                <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 12px; padding: 20px; margin-bottom: 15px;">
+                    <div style="font-size: 1.2em; font-weight: 700; color: #2e7d32; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        🔁 定期実行スケジュール
+                    </div>
+                    <div style="font-size: 1.4em; font-weight: 700; color: #388e3c; margin-bottom: 8px;">
+                        毎週${dayLabel} ${execTimeStr}
+                    </div>
+                    <div style="color: #2e7d32; font-size: 0.9em;">
+                        📝 番組終了の5分後に毎週自動で録音します
+                    </div>
+                </div>
+
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
+                    <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 cronコマンド</div>
+                    <details>
+                        <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
+                            クリックして表示
+                        </summary>
+                        <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                            ${command}
+                        </div>
+                    </details>
+                </div>
+
+                <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px; margin-top: 15px; border-radius: 4px;">
+                    <div style="color: #e65100; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                        <span>💡</span>
+                        <span>「cron登録」ボタンを押すと、毎週自動で録音が実行されます</span>
+                    </div>
+                </div>
             `;
 
             document.getElementById('commandBox').innerHTML = commandBoxContent;
@@ -2173,16 +2236,71 @@
                     </div>
                 `;
             } else {
-                // 実行予定時刻を表示
+                // 番組情報を見やすく表示
+                const startDateStr = `${startTime.getFullYear()}/${String(startTime.getMonth() + 1).padStart(2, '0')}/${String(startTime.getDate()).padStart(2, '0')}`;
+                const startTimeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+                const endTimeStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+
+                const durationMinutes = Math.floor((endTime - startTime) / 60000);
+                const durationHours = Math.floor(durationMinutes / 60);
+                const durationMins = durationMinutes % 60;
+                const durationStr = durationHours > 0 ? `${durationHours}時間${durationMins}分` : `${durationMins}分`;
+
+                // 実行予定時刻
                 const execTimeStr = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')}`;
-                const execDateStr = `${atExecTime.getFullYear()}/${atExecTime.getMonth() + 1}/${atExecTime.getDate()}`;
+                const execDateStr = `${atExecTime.getFullYear()}/${String(atExecTime.getMonth() + 1).padStart(2, '0')}/${String(atExecTime.getDate()).padStart(2, '0')}`;
+
+                // 曜日を取得
+                const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                const weekday = weekdays[atExecTime.getDay()];
 
                 commandBoxContent = `
-                    <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin-bottom: 15px; border-radius: 4px;">
-                        <div style="font-weight: 600; color: #1976d2; margin-bottom: 4px;">⏰ 実行予定時刻</div>
-                        <div style="color: #555; font-size: 0.95em;">${execDateStr} ${execTimeStr}（番組終了の5分後）</div>
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
+                        <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                            📻 ${prog.title}
+                        </div>
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
+                            <div style="opacity: 0.9;">放送局:</div>
+                            <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
+
+                            <div style="opacity: 0.9;">放送日:</div>
+                            <div style="font-weight: 600;">${startDateStr}</div>
+
+                            <div style="opacity: 0.9;">時間:</div>
+                            <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
+                        </div>
                     </div>
-                    <div style="font-family: 'Courier New', monospace; background: #f8f9fa; padding: 12px; border-radius: 4px; font-size: 0.9em; white-space: pre-wrap; word-break: break-all;">${command}</div>
+
+                    <div style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 12px; padding: 20px; margin-bottom: 15px;">
+                        <div style="font-size: 1.2em; font-weight: 700; color: #e65100; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            ⏰ 予約実行時刻
+                        </div>
+                        <div style="font-size: 1.4em; font-weight: 700; color: #f57c00; margin-bottom: 8px;">
+                            ${execDateStr} (${weekday}) ${execTimeStr}
+                        </div>
+                        <div style="color: #e65100; font-size: 0.9em;">
+                            📝 番組終了の5分後に録音を開始します
+                        </div>
+                    </div>
+
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
+                        <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 予約コマンド</div>
+                        <details>
+                            <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
+                                クリックして表示
+                            </summary>
+                            <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                                ${command}
+                            </div>
+                        </details>
+                    </div>
+
+                    <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; margin-top: 15px; border-radius: 4px;">
+                        <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                            <span>💡</span>
+                            <span>「実行」ボタンを押すと、指定時刻に自動で録音が開始されます</span>
+                        </div>
+                    </div>
                 `;
             }
 
@@ -2273,14 +2391,25 @@
                     const data = await response.json();
 
                     if (response.ok) {
-                        alert(`✅ at予約を登録しました\n\n実行予定: ${atTime}\n\n${data.output || ''}`);
+                        // 曜日を取得
+                        const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                        const weekday = weekdays[atExecTime.getDay()];
+                        const execDateStr = `${atExecTime.getFullYear()}/${String(atExecTime.getMonth() + 1).padStart(2, '0')}/${String(atExecTime.getDate()).padStart(2, '0')}`;
+                        const execTimeStr = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')}`;
+
+                        alert(`🎉 予約が完了しました！\n\n📻 番組: ${prog.title}\n📡 放送局: ${prog.stationName || prog.stationId}\n⏰ 録音開始予定: ${execDateStr} (${weekday}) ${execTimeStr}\n\n指定した時刻に自動で録音が開始されます。\n予約の確認は「予約管理」タブから行えます。`);
                         closeModal();
+
+                        // 予約管理タブを自動的に開く
+                        setTimeout(() => {
+                            document.querySelector('[onclick*="showAtJobsTab"]')?.click();
+                        }, 300);
                     } else {
-                        alert(`❌ at予約の登録に失敗しました\n\n${data.error || 'Unknown error'}`);
+                        alert(`❌ 予約の登録に失敗しました\n\nエラー内容:\n${data.error || '不明なエラーが発生しました'}\n\n時刻設定を確認してもう一度お試しください。`);
                     }
                 } catch (err) {
                     console.error('at schedule error:', err);
-                    alert(`❌ at予約の登録に失敗しました\n\n${err.message}`);
+                    alert(`❌ 予約の登録に失敗しました\n\nエラー内容:\n${err.message}\n\nネットワーク接続を確認してもう一度お試しください。`);
                 } finally {
                     executeBtn.disabled = false;
                     executeBtn.textContent = '実行';
@@ -4063,6 +4192,8 @@
         // 音声ファイルを再生
         // 現在再生中のファイルパス（ブックマーク用）
         let currentAudioFilePath = '';
+        // キーボードイベントリスナーの参照（削除用）
+        let audioKeyboardListener = null;
 
         function playAudio(filepath, filename) {
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -4086,6 +4217,36 @@
             // ソースを設定して読み込み
             audioSource.src = streamUrl;
             audioPlayer.load();
+
+            // 音量を復元
+            loadVolume();
+
+            // キーボードショートカットを設定（左右矢印キー）
+            // 既存のリスナーがあれば削除
+            if (audioKeyboardListener) {
+                document.removeEventListener('keydown', audioKeyboardListener);
+            }
+
+            // 新しいリスナーを作成
+            audioKeyboardListener = function(event) {
+                // モーダルが開いている時のみ動作
+                const modal = document.getElementById('audioPlayerModal');
+                if (!modal || !modal.classList.contains('active')) return;
+
+                // 入力フィールドにフォーカスがある場合は動作しない
+                if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    skipAudio(-10);
+                } else if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    skipAudio(10);
+                }
+            };
+
+            // リスナーを追加
+            document.addEventListener('keydown', audioKeyboardListener);
 
             // loadが完了したら自動再生
             audioPlayer.addEventListener('canplay', function playWhenReady() {
@@ -4114,6 +4275,12 @@
                 }
             }
 
+            // キーボードイベントリスナーを削除
+            if (audioKeyboardListener) {
+                document.removeEventListener('keydown', audioKeyboardListener);
+                audioKeyboardListener = null;
+            }
+
             audioPlayer.pause();
             audioPlayer.currentTime = 0;
             document.getElementById('audioPlayerModal').classList.remove('active');
@@ -4132,6 +4299,23 @@
         // 再生速度をプリセット値に設定
         function setPlaybackRate(rate) {
             changePlaybackRate(rate);
+        }
+
+        // 早送り・巻き戻し機能
+        function skipAudio(seconds) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (!audioPlayer) return;
+
+            const newTime = audioPlayer.currentTime + seconds;
+
+            // 範囲チェック（0秒未満や動画の長さを超えないように）
+            if (newTime < 0) {
+                audioPlayer.currentTime = 0;
+            } else if (newTime > audioPlayer.duration) {
+                audioPlayer.currentTime = audioPlayer.duration;
+            } else {
+                audioPlayer.currentTime = newTime;
+            }
         }
 
         // 再生位置を更新（自動保存用）
@@ -4177,29 +4361,22 @@
             }
         }
 
-        // ブックマークを手動保存
-        function saveBookmark() {
-            if (!currentAudioFilePath) return;
-
+        // 音量を保存
+        function saveVolume() {
             const audioPlayer = document.getElementById('audioPlayer');
-            const currentTime = audioPlayer.currentTime;
-
-            localStorage.setItem(`bookmark_${currentAudioFilePath}`, currentTime.toString());
-
-            const minutes = Math.floor(currentTime / 60);
-            const seconds = Math.floor(currentTime % 60);
-
-            alert(`📍 再生位置を記憶しました (${minutes}:${seconds.toString().padStart(2, '0')})`);
+            if (audioPlayer) {
+                localStorage.setItem('audioPlayerVolume', audioPlayer.volume.toString());
+            }
         }
 
-        // ブックマークを削除
-        function clearBookmark() {
-            if (!currentAudioFilePath) return;
+        // 音量を読み込み
+        function loadVolume() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const savedVolume = localStorage.getItem('audioPlayerVolume');
 
-            localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
-            document.getElementById('bookmarkInfo').style.display = 'none';
-
-            alert('🗑️ 記憶した位置を削除しました');
+            if (savedVolume !== null && audioPlayer) {
+                audioPlayer.volume = parseFloat(savedVolume);
+            }
         }
 
         // すべての再生履歴をリセット
