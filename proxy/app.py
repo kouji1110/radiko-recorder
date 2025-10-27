@@ -150,12 +150,18 @@ def execute_recording():
     # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
     safe_title = sanitize_filename(title)
 
+    # デバッグ用ログ
+    logger.info(f'Original title: {title}')
+    logger.info(f'Sanitized title: {safe_title}')
+
     def generate_log():
         """ログをストリーミングで返す"""
         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
 
         # 開始ログ
         yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] コマンド実行開始..."})}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 元のタイトル: {title}"})}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] サニタイズ後: {safe_title}"})}\n\n'
 
         # myradikoスクリプトのパス
         script_path = SCRIPT_PATH
