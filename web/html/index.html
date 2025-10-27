@@ -883,6 +883,20 @@
                 font-size: 0.75em !important;
             }
 
+            /* カット編集パネルのスマホ対応 */
+            #audioPlayerModal .modal-content {
+                max-width: 95% !important;
+            }
+
+            #editPanel > div:first-child {
+                flex-direction: column !important;
+            }
+
+            #editPanel button {
+                font-size: 0.8em !important;
+                padding: 10px 8px !important;
+            }
+
             /* フッターのスマホ対応 */
             footer {
                 font-size: 0.65em;
@@ -1506,6 +1520,51 @@
                         <button onclick="setPlaybackRate(1.25)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">1.25x</button>
                         <button onclick="setPlaybackRate(1.5)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">1.5x</button>
                         <button onclick="setPlaybackRate(2.0)" class="speed-btn" style="padding: 4px 10px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.8em; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='white'">2.0x</button>
+                    </div>
+                </div>
+
+                <!-- カット編集パネル -->
+                <div style="padding: 12px; background: linear-gradient(135deg, #ffeaa715, #ff6b6b15); border-radius: 8px; margin-bottom: 10px; border: 2px solid #ffe8e8;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label style="font-size: 0.85em; color: #d63031; font-weight: 600;">✂️ カット編集</label>
+                        <button id="toggleEditPanel" onclick="toggleEditPanel()" style="padding: 3px 8px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.75em; color: #6c757d;">
+                            表示/非表示
+                        </button>
+                    </div>
+                    <div id="editPanel" style="display: none;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <button onclick="markStartTime()" style="flex: 1; padding: 8px; background: #00b894; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#00a383'" onmouseout="this.style.background='#00b894'">
+                                📍 開始位置
+                            </button>
+                            <button onclick="markEndTime()" style="flex: 1; padding: 8px; background: #0984e3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#0770c9'" onmouseout="this.style.background='#0984e3'">
+                                📍 終了位置
+                            </button>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.85em;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: #6c757d;">開始:</span>
+                                <span id="editStartTime" style="font-weight: 600; color: #00b894;">未設定</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span style="color: #6c757d;">終了:</span>
+                                <span id="editEndTime" style="font-weight: 600; color: #0984e3;">未設定</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #6c757d;">範囲:</span>
+                                <span id="editDuration" style="font-weight: 600; color: #d63031;">--</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="executeEdit('remove')" style="flex: 1; padding: 10px; background: #d63031; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#c0251f'" onmouseout="this.style.background='#d63031'">
+                                🗑️ 範囲を削除
+                            </button>
+                            <button onclick="executeEdit('extract')" style="flex: 1; padding: 10px; background: #fdcb6e; color: #2d3436; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#fcbb4b'" onmouseout="this.style.background='#fdcb6e'">
+                                📥 範囲を抽出
+                            </button>
+                        </div>
+                        <div style="margin-top: 8px; padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 0.75em; color: #856404;">
+                            💡 範囲削除: CMなど不要部分を除去 / 範囲抽出: 指定部分のみ保存
+                        </div>
                     </div>
                 </div>
 
@@ -4917,6 +4976,103 @@
             document.getElementById('audioPlayerModal').classList.remove('active');
             // 再生速度をリセット
             setPlaybackRate(1.0);
+        }
+
+        // カット編集用の変数
+        let editStartTime = null;
+        let editEndTime = null;
+
+        // 編集パネルの表示/非表示
+        function toggleEditPanel() {
+            const panel = document.getElementById('editPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 時間を mm:ss 形式にフォーマット
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // 開始位置をマーク
+        function markStartTime() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            editStartTime = audioPlayer.currentTime;
+            document.getElementById('editStartTime').textContent = formatTime(editStartTime);
+            updateEditDuration();
+        }
+
+        // 終了位置をマーク
+        function markEndTime() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            editEndTime = audioPlayer.currentTime;
+            document.getElementById('editEndTime').textContent = formatTime(editEndTime);
+            updateEditDuration();
+        }
+
+        // 編集範囲の長さを更新
+        function updateEditDuration() {
+            if (editStartTime !== null && editEndTime !== null) {
+                const duration = Math.abs(editEndTime - editStartTime);
+                document.getElementById('editDuration').textContent = formatTime(duration);
+            }
+        }
+
+        // 編集を実行
+        async function executeEdit(mode) {
+            if (editStartTime === null || editEndTime === null) {
+                alert('⚠️ 開始位置と終了位置の両方をマークしてください');
+                return;
+            }
+
+            // 開始と終了が逆の場合は入れ替え
+            let start = Math.min(editStartTime, editEndTime);
+            let end = Math.max(editStartTime, editEndTime);
+
+            const modeText = mode === 'remove' ? '削除' : '抽出';
+            const confirmMsg = mode === 'remove'
+                ? `${formatTime(start)} ～ ${formatTime(end)} の範囲を削除します。\n\n編集後のファイルは新しいファイルとして保存されます。\nよろしいですか？`
+                : `${formatTime(start)} ～ ${formatTime(end)} の範囲を抽出します。\n\n抽出した部分が新しいファイルとして保存されます。\nよろしいですか？`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/edit-audio`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_path: currentAudioFilePath,
+                        start_time: start,
+                        end_time: end,
+                        mode: mode
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ 編集完了！\n\n新しいファイル: ${data.output_file}\n\n録音済みファイル一覧を更新してください。`);
+                    // 編集位置をリセット
+                    editStartTime = null;
+                    editEndTime = null;
+                    document.getElementById('editStartTime').textContent = '未設定';
+                    document.getElementById('editEndTime').textContent = '未設定';
+                    document.getElementById('editDuration').textContent = '--';
+                } else {
+                    alert(`❌ エラー: ${data.error || '編集に失敗しました'}`);
+                }
+            } catch (err) {
+                console.error('Edit error:', err);
+                alert('❌ 編集に失敗しました');
+            }
         }
 
         // 再生速度を変更

@@ -284,6 +284,126 @@ def download_file(filepath):
         logger.error(f'Download error: {str(e)}')
         return Response(f'Error: {str(e)}', status=500)
 
+@app.route('/edit-audio', methods=['POST'])
+def edit_audio():
+    """音声ファイルのカット編集"""
+    try:
+        data = request.json
+        file_path = data.get('file_path', '')
+        start_time = data.get('start_time', 0)
+        end_time = data.get('end_time', 0)
+        mode = data.get('mode', 'remove')  # 'remove' or 'extract'
+
+        if not file_path:
+            return jsonify({'error': 'File path is required'}), 400
+
+        # セキュリティ: パストラバーサル対策
+        base_dir = OUTPUT_DIR
+        safe_path = os.path.normpath(os.path.join(base_dir, file_path))
+
+        if not safe_path.startswith(base_dir):
+            return jsonify({'error': 'Invalid file path'}), 400
+
+        if not os.path.exists(safe_path):
+            return jsonify({'error': 'File not found'}), 404
+
+        # ファイル名と拡張子を分離
+        file_dir = os.path.dirname(safe_path)
+        file_name = os.path.basename(safe_path)
+        name_without_ext, ext = os.path.splitext(file_name)
+
+        # 出力ファイル名を生成
+        if mode == 'remove':
+            output_filename = f'{name_without_ext}_cut{ext}'
+        else:  # extract
+            output_filename = f'{name_without_ext}_extract{ext}'
+
+        output_path = os.path.join(file_dir, output_filename)
+
+        # ffmpegコマンドを構築
+        if mode == 'remove':
+            # 範囲を削除: 開始前の部分と終了後の部分を結合
+            # 一時ファイルを作成
+            temp1 = os.path.join(file_dir, f'temp1_{name_without_ext}{ext}')
+            temp2 = os.path.join(file_dir, f'temp2_{name_without_ext}{ext}')
+            concat_file = os.path.join(file_dir, f'concat_{name_without_ext}.txt')
+
+            try:
+                # 開始前の部分を抽出
+                cmd1 = [
+                    'ffmpeg', '-y', '-i', safe_path,
+                    '-t', str(start_time),
+                    '-c', 'copy',
+                    temp1
+                ]
+
+                # 終了後の部分を抽出
+                cmd2 = [
+                    'ffmpeg', '-y', '-i', safe_path,
+                    '-ss', str(end_time),
+                    '-c', 'copy',
+                    temp2
+                ]
+
+                # 実行
+                subprocess.run(cmd1, check=True, capture_output=True)
+                subprocess.run(cmd2, check=True, capture_output=True)
+
+                # concatファイルを作成
+                with open(concat_file, 'w') as f:
+                    f.write(f"file '{temp1}'\n")
+                    f.write(f"file '{temp2}'\n")
+
+                # 結合
+                cmd3 = [
+                    'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
+                    '-i', concat_file,
+                    '-c', 'copy',
+                    output_path
+                ]
+                subprocess.run(cmd3, check=True, capture_output=True)
+
+                # 一時ファイルを削除
+                os.remove(temp1)
+                os.remove(temp2)
+                os.remove(concat_file)
+
+            except Exception as e:
+                # エラー時は一時ファイルをクリーンアップ
+                for temp_file in [temp1, temp2, concat_file]:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                raise e
+
+        else:  # extract
+            # 範囲を抽出
+            cmd = [
+                'ffmpeg', '-y', '-i', safe_path,
+                '-ss', str(start_time),
+                '-to', str(end_time),
+                '-c', 'copy',
+                output_path
+            ]
+            subprocess.run(cmd, check=True, capture_output=True)
+
+        # 相対パスを返す
+        relative_path = os.path.relpath(output_path, base_dir)
+
+        logger.info(f'Audio edit completed: {output_filename}')
+
+        return jsonify({
+            'success': True,
+            'output_file': output_filename,
+            'output_path': relative_path
+        })
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f'FFmpeg error: {e.stderr.decode() if e.stderr else str(e)}')
+        return jsonify({'error': 'Audio editing failed'}), 500
+    except Exception as e:
+        logger.error(f'Edit audio error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/files', methods=['GET'])
 def list_files():
     """録音済みファイル一覧を取得"""
