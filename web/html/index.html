@@ -2072,7 +2072,8 @@
                 }
 
                 // 放送局のオプションを追加
-                stationMap.forEach(station => {
+                const stationArray = Array.from(stationMap.values());
+                stationArray.forEach(station => {
                     const option = document.createElement('option');
                     option.value = station.id;
                     option.textContent = `${station.name} (${station.id})`;
@@ -2080,31 +2081,30 @@
                 });
 
                 // 最初の放送局を自動選択
-                if (stationMap.length > 0) {
-                    mobileStationSelect.value = stationMap[0].id;
-                }
+                if (stationArray.length > 0) {
+                    const firstStationId = stationArray[0].id;
+                    mobileStationSelect.value = firstStationId;
 
-                // 変更イベントを追加（初回のみ）
-                if (!mobileStationSelect.dataset.initialized) {
-                    mobileStationSelect.addEventListener('change', function() {
-                        const selectedStationId = this.value;
-                        if (selectedStationId) {
-                            // 選択された放送局のみを表示
-                            displaySelectedStation(stationMap, programList, selectedStationId);
-                        }
-                    });
-                    mobileStationSelect.dataset.initialized = 'true';
-                }
+                    // 変更イベントを追加（初回のみ）
+                    if (!mobileStationSelect.dataset.initialized) {
+                        mobileStationSelect.addEventListener('change', function() {
+                            const selectedStationId = this.value;
+                            if (selectedStationId) {
+                                // 選択された放送局のみを表示
+                                displaySelectedStation(stationMap, programList, selectedStationId);
+                            }
+                        });
+                        mobileStationSelect.dataset.initialized = 'true';
+                    }
 
-                // 初回表示: 最初の放送局を表示
-                if (stationMap.length > 0) {
-                    displaySelectedStation(stationMap, programList, stationMap[0].id);
+                    // 初回表示: 最初の放送局を表示
+                    displaySelectedStation(stationMap, programList, firstStationId);
                     return; // スマホの場合はここで終了
                 }
             }
 
             // PC用: 各放送局の列を作成
-            stationMap.forEach(station => {
+            stationMap.forEach((station, stationId) => {
                 const column = document.createElement('div');
                 column.className = 'station-column';
 
@@ -2196,8 +2196,8 @@
             // 既存の内容をクリア
             programList.innerHTML = '';
 
-            // 選択された放送局を探す
-            const selectedStation = stationMap.find(s => s.id === selectedStationId);
+            // 選択された放送局を取得
+            const selectedStation = stationMap.get(selectedStationId);
             if (!selectedStation) return;
 
             const column = document.createElement('div');
