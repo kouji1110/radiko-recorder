@@ -1,12 +1,22 @@
 #! /bin/bash
-# ロケール設定（存在する場合のみ）
-if locale -a | grep -q "ja_JP.utf8\|ja_JP.UTF-8"; then
+# ロケール設定（利用可能なUTF-8ロケールを使用）
+if locale -a 2>/dev/null | grep -q "ja_JP.utf8\|ja_JP.UTF-8"; then
     export LANG=ja_JP.UTF-8
     export LC_CTYPE=ja_JP.UTF-8
-else
-    # 日本語ロケールがない場合は英語UTF-8を使用
+elif locale -a 2>/dev/null | grep -q "en_US.utf8\|en_US.UTF-8"; then
     export LANG=en_US.UTF-8
     export LC_CTYPE=en_US.UTF-8
+else
+    # どのUTF-8ロケールも無い場合は、利用可能な最初のUTF-8ロケールを使用
+    AVAILABLE_LOCALE=$(locale -a 2>/dev/null | grep -i "utf" | head -1)
+    if [ -n "$AVAILABLE_LOCALE" ]; then
+        export LANG=$AVAILABLE_LOCALE
+        export LC_CTYPE=$AVAILABLE_LOCALE
+    else
+        # UTF-8ロケールが全く無い場合はCロケールを使用（警告なし）
+        export LANG=C
+        export LC_CTYPE=C
+    fi
 fi
 
 # 引数

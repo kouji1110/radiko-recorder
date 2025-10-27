@@ -133,7 +133,8 @@ def execute_recording():
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                universal_newlines=True,
+                encoding='utf-8',
+                errors='replace',  # エンコードエラーを置き換え文字で処理
                 bufsize=1
             )
 
@@ -1091,7 +1092,8 @@ def admin_execute_manual():
             command,
             shell=True,
             capture_output=True,
-            text=True,
+            encoding='utf-8',
+            errors='replace',  # エンコードエラーを置き換え文字で処理
             timeout=600  # 10分タイムアウト
         )
 
