@@ -23,6 +23,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# パス設定（Docker環境用）
+BASE_DIR = os.environ.get('BASE_DIR', '/app')
+SCRIPT_PATH = os.path.join(BASE_DIR, 'script/myradiko')
+OUTPUT_DIR = os.path.join(BASE_DIR, 'output/radio')
+
 # ファイル名サニタイズ関数
 def sanitize_filename(title):
     """番組名をファイル名として安全な形式に変換
@@ -144,7 +149,7 @@ def execute_recording():
         yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] コマンド実行開始..."})}\n\n'
 
         # myradikoスクリプトのパス
-        script_path = '/home/sites/radiko-recorder/script/myradiko'
+        script_path = SCRIPT_PATH
 
         # コマンド構築（サニタイズしたタイトルを使用）
         cmd = [
@@ -187,7 +192,7 @@ def execute_recording():
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
             if process.returncode == 0:
                 # ファイルパスを構築（サニタイズしたタイトルを使用）
-                output_dir = f'/home/sites/radiko-recorder/output/radio/{rss}'
+                output_dir = os.path.join(OUTPUT_DIR, rss)
                 filename = f'{safe_title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
                 file_path = os.path.join(output_dir, filename)
 
@@ -219,7 +224,7 @@ def download_file(filepath):
     """録音ファイルをダウンロード"""
     try:
         # セキュリティ: パストラバーサル対策
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
         safe_path = os.path.normpath(os.path.join(base_dir, filepath))
 
         if not safe_path.startswith(base_dir):
@@ -241,7 +246,7 @@ def download_file(filepath):
 def list_files():
     """録音済みファイル一覧を取得"""
     try:
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
         files = []
 
         if not os.path.exists(base_dir):
@@ -280,7 +285,7 @@ def check_file_exists():
         start_time = data.get('start_time', '')
 
         # ファイルパスを構築
-        output_dir = f'/home/sites/radiko-recorder/output/radio/{rss}'
+        output_dir = os.path.join(OUTPUT_DIR, rss)
         filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
         file_path = os.path.join(output_dir, filename)
 
@@ -543,7 +548,7 @@ def delete_file():
             return jsonify({'error': 'File path is required'}), 400
 
         # セキュリティ: パストラバーサル対策
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
         safe_path = os.path.normpath(os.path.join(base_dir, filepath))
 
         if not safe_path.startswith(base_dir):
@@ -572,7 +577,7 @@ def delete_multiple_files():
         if not filepaths or not isinstance(filepaths, list):
             return jsonify({'error': 'File paths array is required'}), 400
 
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
         deleted = []
         errors = []
 
@@ -619,7 +624,7 @@ def download_zip():
         if not filepaths or not isinstance(filepaths, list):
             return jsonify({'error': 'File paths array is required'}), 400
 
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
 
         # 一時ZIPファイルを作成
         temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
@@ -693,7 +698,7 @@ def stream_file(filepath):
     """音声ファイルをストリーミング配信"""
     try:
         # セキュリティ: パストラバーサル対策
-        base_dir = '/home/sites/radiko-recorder/output/radio'
+        base_dir = OUTPUT_DIR
         safe_path = os.path.normpath(os.path.join(base_dir, filepath))
 
         if not safe_path.startswith(base_dir):
@@ -732,7 +737,7 @@ def schedule_at():
     """at予約を登録"""
     try:
         data = request.json
-        script_path = data.get('script_path', '/home/sites/radiko-recorder/script/myradiko')
+        script_path = data.get('script_path', SCRIPT_PATH)
         title = data.get('title', '')        # 番組名
         start_time = data.get('start_time')  # YYYYMMDDHHmm形式
         end_time = data.get('end_time')      # YYYYMMDDHHmm形式
@@ -1112,7 +1117,7 @@ def admin_execute_manual():
     """手動でmyradikoコマンドを実行"""
     try:
         data = request.json
-        script_path = data.get('script_path', '/home/sites/radiko-recorder/script/myradiko')
+        script_path = data.get('script_path', SCRIPT_PATH)
         title = data.get('title', '')
         station_id = data.get('station_id')
         start_time = data.get('start_time')
@@ -1187,7 +1192,7 @@ def admin_disk_space():
     try:
         # dfコマンドでディスク容量を取得
         result = subprocess.run(
-            ['df', '-h', '/home/sites/radiko-recorder'],
+            ['df', '-h', BASE_DIR],
             capture_output=True,
             text=True,
             timeout=5

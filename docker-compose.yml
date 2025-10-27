@@ -7,18 +7,19 @@ services:
     ports:
       - "8089:8080"
     volumes:
-      - ./script:/home/sites/radiko-recorder/script
-      - ./rec_radiko_ts-master:/home/sites/radiko-recorder/rec_radiko_ts-master
-      - ./work:/home/sites/radiko-recorder/work
-      - ./output:/home/sites/radiko-recorder/output
-      - ./backup:/home/sites/radiko-recorder/backup
-      - ./data:/home/sites/radiko-recorder/data
+      - ./script:/app/script
+      - ./rec_radiko_ts-master:/app/rec_radiko_ts-master
+      - ./work:/app/work
+      - ./output:/app/output
+      - ./backup:/app/backup
+      - ./data:/app/data
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
       - TZ=Asia/Tokyo
+      - BASE_DIR=/app
     networks:
       - radiko-network
 
