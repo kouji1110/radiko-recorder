@@ -1213,9 +1213,10 @@
                 // DB APIから番組表を取得
                 const baseApiUrl = proxyUrl.trim() || '';
                 const dateStr = targetDate ? targetDate.replace(/-/g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                const apiUrl = `${baseApiUrl}/api/programs/area/${areaId}/date/${dateStr}`;
+                const forceParam = forceRefresh ? '?force=true' : '';
+                const apiUrl = `${baseApiUrl}/api/programs/area/${areaId}/date/${dateStr}${forceParam}`;
 
-                console.log('📡 Fetching from DB API:', apiUrl);
+                console.log('📡 Fetching from DB API:', apiUrl, forceRefresh ? '(強制更新)' : '');
                 const response = await fetch(apiUrl);
 
                 if (!response.ok) {
@@ -2099,10 +2100,12 @@
 
             } catch (err) {
                 showError(`エラーが発生しました: ${err.message}`);
+                fetchBtn.disabled = false;
+                searchAllBtn.disabled = false;
             } finally {
                 loading.style.display = 'none';
                 loading.querySelector('p').textContent = '番組表を読み込み中...';
-                fetchBtn.disabled = false;
+                // 検索結果表示中はfetchBtnを無効化したまま（通常の番組表取得時に有効化される）
                 searchAllBtn.disabled = false;
             }
         }
@@ -2119,6 +2122,29 @@
         let currentPage = 1;
         const itemsPerPage = 50;
         let filterText = '';
+
+        // ファイル名から放送日を抽出する関数
+        function extractBroadcastDate(filename) {
+            // パターン1: YYYY.MM.DD 形式（例: 2025.10.26）
+            let match = filename.match(/(\d{4})\.(\d{2})\.(\d{2})/);
+            if (match) {
+                return `${match[1]}-${match[2]}-${match[3]}`;
+            }
+
+            // パターン2: YYYYMMDD 形式（例: 20251026）
+            match = filename.match(/(\d{4})(\d{2})(\d{2})/);
+            if (match) {
+                return `${match[1]}-${match[2]}-${match[3]}`;
+            }
+
+            // パターン3: YYYY-MM-DD 形式（例: 2025-10-26）
+            match = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+            if (match) {
+                return `${match[1]}-${match[2]}-${match[3]}`;
+            }
+
+            return null; // 日付が見つからない場合
+        }
 
         async function loadRecordedFiles() {
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -2188,6 +2214,16 @@
                 } else if (currentSort.column === 'modified') {
                     valA = a.modified;
                     valB = b.modified;
+                } else if (currentSort.column === 'broadcast') {
+                    // 放送日でソート
+                    const dateA = extractBroadcastDate(a.name);
+                    const dateB = extractBroadcastDate(b.name);
+                    // 日付がない場合は最後にソート
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+                    valA = dateA;
+                    valB = dateB;
                 }
 
                 if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
@@ -2218,15 +2254,40 @@
                             <strong>${filteredFiles.length}</strong>件 / ${totalSize} GB
                         </div>
                     </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9em;">
+                            <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAll(this.checked)"
+                                   style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>すべて選択</span>
+                        </label>
+                        <button id="deleteSelectedBtn" onclick="deleteSelectedFiles()" disabled
+                                style="padding: 8px 16px; background: #e57373; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
+                                onmouseover="if(!this.disabled) this.style.background='#ef5350'" onmouseout="if(!this.disabled) this.style.background='#e57373'">
+                            🗑️ 選択したファイルを削除
+                        </button>
+                        <button id="downloadSelectedBtn" onclick="downloadSelectedFiles()" disabled
+                                style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
+                                onmouseover="if(!this.disabled) this.style.background='#5568d3'" onmouseout="if(!this.disabled) this.style.background='#667eea'">
+                            📦 選択したファイルをZIPダウンロード
+                        </button>
+                        <span id="selectedCount" style="padding: 8px 12px; background: #e3f2fd; border-radius: 6px; font-size: 0.85em; color: #1976d2; display: none;">
+                            <strong id="selectedCountNum">0</strong>件選択中
+                        </span>
+                    </div>
                 </div>
 
                 <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
                         <thead>
                             <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 12px; text-align: center; width: 40px;"></th>
                                 <th onclick="sortFiles('name')" style="padding: 12px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap;"
                                     onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
                                     ファイル名 ${currentSort.column === 'name' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
+                                </th>
+                                <th onclick="sortFiles('broadcast')" style="padding: 12px; text-align: center; cursor: pointer; user-select: none; white-space: nowrap; width: 120px;"
+                                    onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                                    放送日 ${currentSort.column === 'broadcast' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
                                 </th>
                                 <th onclick="sortFiles('size')" style="padding: 12px; text-align: right; cursor: pointer; user-select: none; white-space: nowrap; width: 100px;"
                                     onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
@@ -2262,35 +2323,43 @@
                 }
 
                 html += `
-                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s; ${hasBookmark ? 'background: #fff8e1;' : ''}"
+                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s; cursor: pointer; ${hasBookmark ? 'background: #fff8e1;' : ''}"
+                        onclick="toggleFileSelection('${file.path.replace(/'/g, "\\'")}')"
                         onmouseover="this.style.background='${hasBookmark ? '#fff3cd' : '#f8f9fa'}'" onmouseout="this.style.background='${hasBookmark ? '#fff8e1' : 'white'}'">
+                        <td style="padding: 10px 12px; text-align: center;" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="file-checkbox" value="${file.path}" onchange="updateSelectedCount()"
+                                   style="width: 16px; height: 16px; cursor: pointer;">
+                        </td>
                         <td style="padding: 10px 12px;">
                             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px;" title="${file.name}">
                                 ${file.name}
                             </div>
                             ${hasBookmark ? `<div style="font-size: 0.75em; color: #f57c00; margin-top: 3px;">再生位置: ${progressText}</div>` : ''}
                         </td>
+                        <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.9em;">
+                            ${extractBroadcastDate(file.name) || '<span style="color: #999;">不明</span>'}
+                        </td>
                         <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.85em;">${dateStr}</td>
-                        <td style="padding: 10px 12px;">
-                            <div style="display: flex; gap: 6px; justify-content: center;">
+                        <td style="padding: 10px 12px;" onclick="event.stopPropagation()">
+                            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
                                 <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="${hasBookmark ? '続きから再生' : '再生'}"
-                                        style="padding: 6px 12px; background: ${hasBookmark ? '#f57c00' : '#4caf50'}; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
-                                        onmouseover="this.style.background='${hasBookmark ? '#ef6c00' : '#45a049'}'" onmouseout="this.style.background='${hasBookmark ? '#f57c00' : '#4caf50'}'">
-                                    ▶️
+                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
+                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
+                                    <img src="img/play.png" alt="再生" style="width: 24px; height: 24px; display: block;">
                                 </button>
                                 <a href="${baseUrl}/download/${file.path}" download="${file.name}"
                                    title="ダウンロード"
-                                   style="padding: 6px 12px; background: #667eea; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85em; transition: all 0.2s; display: inline-block;"
-                                   onmouseover="this.style.background='#5568d3'" onmouseout="this.style.background='#667eea'">
-                                    📥
+                                   style="padding: 4px; background: transparent; text-decoration: none; display: inline-block; transition: all 0.2s; opacity: 0.8;"
+                                   onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
+                                    <img src="img/download.png" alt="ダウンロード" style="width: 24px; height: 24px; display: block;">
                                 </a>
                                 <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="削除"
-                                        style="padding: 6px 12px; background: #e57373; color: white; border: none; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: all 0.2s;"
-                                        onmouseover="this.style.background='#ef5350'" onmouseout="this.style.background='#e57373'">
-                                    🗑️
+                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
+                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
+                                    <img src="img/trash.png" alt="削除" style="width: 24px; height: 24px; display: block;">
                                 </button>
                             </div>
                         </td>
@@ -2629,6 +2698,175 @@
             } catch (err) {
                 console.error('Error deleting file:', err);
                 alert('❌ ファイルの削除に失敗しました');
+            }
+        }
+
+        // すべて選択/解除
+        function toggleSelectAll(checked) {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(cb => cb.checked = checked);
+            updateSelectedCount();
+        }
+
+        // 行クリックでチェックボックスを切り替え
+        function toggleFileSelection(path) {
+            const checkbox = document.querySelector(`.file-checkbox[value="${path}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateSelectedCount();
+            }
+        }
+
+        // 選択数を更新
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            const count = checkboxes.length;
+
+            const selectAllCheckbox = document.getElementById('selectAllFiles');
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            const downloadBtn = document.getElementById('downloadSelectedBtn');
+            const countDisplay = document.getElementById('selectedCount');
+            const countNum = document.getElementById('selectedCountNum');
+
+            // ボタンの有効/無効化
+            deleteBtn.disabled = count === 0;
+            downloadBtn.disabled = count === 0;
+
+            // ボタンのスタイル更新
+            if (count === 0) {
+                deleteBtn.style.opacity = '0.5';
+                deleteBtn.style.cursor = 'not-allowed';
+                downloadBtn.style.opacity = '0.5';
+                downloadBtn.style.cursor = 'not-allowed';
+            } else {
+                deleteBtn.style.opacity = '1';
+                deleteBtn.style.cursor = 'pointer';
+                downloadBtn.style.opacity = '1';
+                downloadBtn.style.cursor = 'pointer';
+            }
+
+            // 選択数表示
+            if (count > 0) {
+                countDisplay.style.display = 'inline-block';
+                countNum.textContent = count;
+            } else {
+                countDisplay.style.display = 'none';
+            }
+
+            // すべて選択チェックボックスの状態更新
+            const allCheckboxes = document.querySelectorAll('.file-checkbox');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+            }
+        }
+
+        // 選択したファイルを一括削除
+        async function deleteSelectedFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            const paths = Array.from(checkboxes).map(cb => cb.value);
+
+            if (paths.length === 0) {
+                alert('削除するファイルを選択してください');
+                return;
+            }
+
+            if (!confirm(`選択した${paths.length}件のファイルを削除しますか？\n\nこの操作は元に戻せません。`)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/files/delete-multiple`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ paths: paths })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const deletedCount = data.deleted.length;
+                    const errorCount = data.errors.length;
+                    let message = `✅ ${deletedCount}件のファイルを削除しました`;
+
+                    if (errorCount > 0) {
+                        message += `\n\n⚠️ ${errorCount}件のファイルで削除に失敗しました`;
+                    }
+
+                    alert(message);
+
+                    // チェックボックスをリセット
+                    const selectAllCheckbox = document.getElementById('selectAllFiles');
+                    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+
+                    loadRecordedFiles();
+                } else {
+                    alert('❌ エラー: ' + (data.error || 'ファイルの削除に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error deleting files:', err);
+                alert('❌ ファイルの削除に失敗しました');
+            }
+        }
+
+        // 選択したファイルをZIPでダウンロード
+        async function downloadSelectedFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            const paths = Array.from(checkboxes).map(cb => cb.value);
+
+            if (paths.length === 0) {
+                alert('ダウンロードするファイルを選択してください');
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/files/download-zip`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ paths: paths })
+                });
+
+                if (response.ok) {
+                    // BlobとしてZIPファイルを取得
+                    const blob = await response.blob();
+
+                    // ダウンロード用のリンクを作成
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+
+                    // ファイル名を取得（Content-Dispositionヘッダーから）
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'radiko_recordings.zip';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="?(.+)"?/);
+                        if (match) filename = match[1];
+                    }
+
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // クリーンアップ
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    const data = await response.json();
+                    alert('❌ エラー: ' + (data.error || 'ZIPファイルの作成に失敗しました'));
+                }
+            } catch (err) {
+                console.error('Error downloading ZIP:', err);
+                alert('❌ ZIPダウンロードに失敗しました');
             }
         }
 

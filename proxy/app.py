@@ -8,6 +8,8 @@ import os
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+import zipfile
+import tempfile
 
 # DBモジュールをインポート
 import db
@@ -523,6 +525,132 @@ def delete_file():
         logger.error(f'Delete file error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@app.route('/files/delete-multiple', methods=['POST'])
+def delete_multiple_files():
+    """複数の録音ファイルを一括削除"""
+    try:
+        data = request.json
+        filepaths = data.get('paths', [])
+
+        if not filepaths or not isinstance(filepaths, list):
+            return jsonify({'error': 'File paths array is required'}), 400
+
+        base_dir = '/home/sites/radiko-recorder/output/radio'
+        deleted = []
+        errors = []
+
+        for filepath in filepaths:
+            try:
+                # セキュリティ: パストラバーサル対策
+                safe_path = os.path.normpath(os.path.join(base_dir, filepath))
+
+                if not safe_path.startswith(base_dir):
+                    errors.append({'path': filepath, 'error': 'Invalid file path'})
+                    continue
+
+                if not os.path.exists(safe_path):
+                    errors.append({'path': filepath, 'error': 'File not found'})
+                    continue
+
+                # ファイルを削除
+                os.remove(safe_path)
+                deleted.append(filepath)
+                logger.info(f'File deleted: {safe_path}')
+
+            except Exception as e:
+                errors.append({'path': filepath, 'error': str(e)})
+                logger.error(f'Failed to delete {filepath}: {str(e)}')
+
+        return jsonify({
+            'success': True,
+            'deleted': deleted,
+            'errors': errors,
+            'message': f'{len(deleted)} files deleted successfully'
+        })
+
+    except Exception as e:
+        logger.error(f'Delete multiple files error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/files/download-zip', methods=['POST'])
+def download_zip():
+    """複数のファイルをZIP形式でダウンロード"""
+    try:
+        data = request.json
+        filepaths = data.get('paths', [])
+
+        if not filepaths or not isinstance(filepaths, list):
+            return jsonify({'error': 'File paths array is required'}), 400
+
+        base_dir = '/home/sites/radiko-recorder/output/radio'
+
+        # 一時ZIPファイルを作成
+        temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        temp_zip_path = temp_zip.name
+        temp_zip.close()
+
+        try:
+            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                added_files = 0
+                for filepath in filepaths:
+                    try:
+                        # セキュリティ: パストラバーサル対策
+                        safe_path = os.path.normpath(os.path.join(base_dir, filepath))
+
+                        if not safe_path.startswith(base_dir):
+                            logger.warning(f'Invalid file path: {filepath}')
+                            continue
+
+                        if not os.path.exists(safe_path):
+                            logger.warning(f'File not found: {filepath}')
+                            continue
+
+                        # ZIPにファイルを追加（元のファイル名を保持）
+                        arcname = os.path.basename(safe_path)
+                        zipf.write(safe_path, arcname=arcname)
+                        added_files += 1
+                        logger.info(f'Added to ZIP: {arcname}')
+
+                    except Exception as e:
+                        logger.error(f'Failed to add {filepath} to ZIP: {str(e)}')
+
+            if added_files == 0:
+                os.unlink(temp_zip_path)
+                return jsonify({'error': 'No valid files found'}), 404
+
+            # ZIPファイルを送信
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            zip_filename = f'radiko_recordings_{timestamp}.zip'
+
+            response = send_file(
+                temp_zip_path,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=zip_filename
+            )
+
+            # 送信後にファイルを削除する
+            @response.call_on_close
+            def cleanup():
+                try:
+                    if os.path.exists(temp_zip_path):
+                        os.unlink(temp_zip_path)
+                        logger.info(f'Temp ZIP file deleted: {temp_zip_path}')
+                except Exception as e:
+                    logger.error(f'Failed to delete temp ZIP: {str(e)}')
+
+            return response
+
+        except Exception as e:
+            # エラー時もZIPファイルを削除
+            if os.path.exists(temp_zip_path):
+                os.unlink(temp_zip_path)
+            raise e
+
+    except Exception as e:
+        logger.error(f'Download ZIP error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/stream/<path:filepath>')
 def stream_file(filepath):
     """音声ファイルをストリーミング配信"""
@@ -738,17 +866,23 @@ def search_programs_api():
 def get_area_programs_api(area_id, date):
     """特定エリア・日付の番組を取得（DBになければradiko APIから取得）"""
     try:
+        # 強制更新フラグ
+        force_refresh = request.args.get('force', 'false').lower() == 'true'
+
         programs = db.get_programs_by_area_date(area_id, date)
 
-        # DBにデータがない場合、radiko APIから取得してDBに保存
-        if len(programs) == 0:
-            logger.info(f'📥 No data in DB for {area_id}/{date}, fetching from radiko API...')
+        # 強制更新 または DBにデータがない場合、radiko APIから取得してDBに保存
+        if force_refresh or len(programs) == 0:
+            if force_refresh:
+                logger.info(f'🔄 Force refresh for {area_id}/{date}, fetching from radiko API...')
+            else:
+                logger.info(f'📥 No data in DB for {area_id}/{date}, fetching from radiko API...')
 
             # radiko APIから取得
             fetched_programs = fetch_programs.fetch_area_programs(area_id, date)
 
             if fetched_programs:
-                # DBに保存
+                # DBに保存（既存データは削除される）
                 db.save_programs(fetched_programs, area_id, date)
                 logger.info(f'✅ Fetched and saved {len(fetched_programs)} programs for {area_id}/{date}')
 
