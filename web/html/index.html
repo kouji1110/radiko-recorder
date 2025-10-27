@@ -1271,6 +1271,33 @@
         const programCache = new Map();
         const CACHE_EXPIRE_MS = 30 * 60 * 1000; // 30分でキャッシュ期限切れ
 
+        // ファイル名サニタイズ関数（スペースをアンダーバーに、全角記号を半角に）
+        function sanitizeFilename(title) {
+            if (!title) return title;
+
+            // スペースをアンダーバーに
+            let sanitized = title.replace(/ /g, '_').replace(/　/g, '_');
+
+            // 全角括弧・記号を半角に
+            const replacements = {
+                '（': '(',
+                '）': ')',
+                '「': '[',
+                '」': ']',
+                '：': ':',
+                '！': '!',
+                '？': '?',
+                '［': '[',
+                '］': ']'
+            };
+
+            for (const [oldChar, newChar] of Object.entries(replacements)) {
+                sanitized = sanitized.replace(new RegExp(oldChar, 'g'), newChar);
+            }
+
+            return sanitized;
+        }
+
         // キャッシュ関連の関数（互換性のため空実装を残す）
         async function loadCacheFromStorage() {
             console.log('ℹ️ キャッシュはサーバー側DBで管理されています');
@@ -2003,8 +2030,11 @@
                 endDateCalc = '\`date +\\%Y\\%m\\%d\`';
             }
 
-            // cronコマンド（動的な日付を使用）
-            const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${prog.title}" "${prog.stationId}" "${prog.stationId}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
+            // タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
+            const safeTitle = sanitizeFilename(prog.title);
+
+            // cronコマンド（動的な日付を使用、サニタイズしたタイトルを使用）
+            const command = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${safeTitle}" "${prog.stationId}" "${prog.stationId}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
 
             currentCommand = command;
             currentProgramData = prog; // プログラム情報を保存
@@ -2202,8 +2232,11 @@
             // at実行時刻
             const atTime = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')} ${atExecTime.getFullYear()}-${String(atExecTime.getMonth() + 1).padStart(2, '0')}-${String(atExecTime.getDate()).padStart(2, '0')}`;
 
-            // cronと同じ形式のコマンド
-            const command = `echo '${scriptPath} "${prog.title}" "${prog.stationId}" "${prog.stationId}" "${startStr}" "${endStr}" "" "" "" >> /tmp/myradiko_output.log 2>&1' | at ${atTime}`;
+            // タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
+            const safeTitle = sanitizeFilename(prog.title);
+
+            // cronと同じ形式のコマンド（サニタイズしたタイトルを使用）
+            const command = `echo '${scriptPath} "${safeTitle}" "${prog.stationId}" "${prog.stationId}" "${startStr}" "${endStr}" "" "" "" >> /tmp/myradiko_output.log 2>&1' | at ${atTime}`;
 
             currentCommand = command;
             currentProgramData = prog; // 実行用にデータを保存

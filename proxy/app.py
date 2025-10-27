@@ -23,6 +23,39 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ファイル名サニタイズ関数
+def sanitize_filename(title):
+    """番組名をファイル名として安全な形式に変換
+
+    - 半角スペース・全角スペースをアンダーバーに
+    - 全角括弧を半角に
+    - その他の特殊な全角記号を半角に
+    """
+    if not title:
+        return title
+
+    # スペースをアンダーバーに
+    title = title.replace(' ', '_')
+    title = title.replace('　', '_')
+
+    # 全角括弧・記号を半角に
+    replacements = {
+        '（': '(',
+        '）': ')',
+        '「': '[',
+        '」': ']',
+        '：': ':',
+        '！': '!',
+        '？': '?',
+        '［': '[',
+        '］': ']'
+    }
+
+    for old, new in replacements.items():
+        title = title.replace(old, new)
+
+    return title
+
 # DB初期化
 db.init_database()
 
@@ -100,6 +133,9 @@ def execute_recording():
     start_time = data.get('start_time', '')
     end_time = data.get('end_time', '')
 
+    # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
+    safe_title = sanitize_filename(title)
+
     def generate_log():
         """ログをストリーミングで返す"""
         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
@@ -110,10 +146,10 @@ def execute_recording():
         # myradikoスクリプトのパス
         script_path = '/home/sites/radiko-recorder/script/myradiko'
 
-        # コマンド構築
+        # コマンド構築（サニタイズしたタイトルを使用）
         cmd = [
             script_path,
-            title,
+            safe_title,
             rss,
             station,
             start_time,
@@ -150,9 +186,9 @@ def execute_recording():
 
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
             if process.returncode == 0:
-                # ファイルパスを構築
+                # ファイルパスを構築（サニタイズしたタイトルを使用）
                 output_dir = f'/home/sites/radiko-recorder/output/radio/{rss}'
-                filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
+                filename = f'{safe_title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
                 file_path = os.path.join(output_dir, filename)
 
                 # ファイルが存在するか確認
@@ -706,8 +742,11 @@ def schedule_at():
         if not all([start_time, end_time, station_id, at_time]):
             return jsonify({'error': 'Missing required parameters'}), 400
 
-        # cronと同じ形式のコマンドを生成
-        command = f'{script_path} "{title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
+        # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
+        safe_title = sanitize_filename(title)
+
+        # cronと同じ形式のコマンドを生成（サニタイズしたタイトルを使用）
+        command = f'{script_path} "{safe_title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
         at_command = f"echo '{command}' | at {at_time}"
 
         logger.info(f'Scheduling at job: {at_command}')
@@ -1082,8 +1121,11 @@ def admin_execute_manual():
         if not all([station_id, start_time, end_time]):
             return jsonify({'error': 'Missing required parameters'}), 400
 
-        # コマンドを構築
-        command = f'{script_path} "{title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
+        # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
+        safe_title = sanitize_filename(title)
+
+        # コマンドを構築（サニタイズしたタイトルを使用）
+        command = f'{script_path} "{safe_title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
 
         logger.info(f'Admin: executing manual command: {command}')
 

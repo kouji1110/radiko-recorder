@@ -1,23 +1,6 @@
 #! /bin/bash
-# ロケール設定（利用可能なUTF-8ロケールを使用）
-if locale -a 2>/dev/null | grep -q "ja_JP.utf8\|ja_JP.UTF-8"; then
-    export LANG=ja_JP.UTF-8
-    export LC_CTYPE=ja_JP.UTF-8
-elif locale -a 2>/dev/null | grep -q "en_US.utf8\|en_US.UTF-8"; then
-    export LANG=en_US.UTF-8
-    export LC_CTYPE=en_US.UTF-8
-else
-    # どのUTF-8ロケールも無い場合は、利用可能な最初のUTF-8ロケールを使用
-    AVAILABLE_LOCALE=$(locale -a 2>/dev/null | grep -i "utf" | head -1)
-    if [ -n "$AVAILABLE_LOCALE" ]; then
-        export LANG=$AVAILABLE_LOCALE
-        export LC_CTYPE=$AVAILABLE_LOCALE
-    else
-        # UTF-8ロケールが全く無い場合はCロケールを使用（警告なし）
-        export LANG=C
-        export LC_CTYPE=C
-    fi
-fi
+export LANG=ja_JP.UTF-8
+export LC_CTYPE=ja_JP.UTF-8
 
 # 引数
 # 1:タイトル 2:RSS 3:放送局
@@ -45,17 +28,6 @@ SKIP=$6
 DIR=$7
 MAIL=$8
 FNAME_DATE=${START:0:4}.${START:4:2}.${START:6:2}
-
-# ファイル名のサニタイゼーション（スペースをアンダーバーに、特殊文字を削除）
-# 日本語は残し、スペース・括弧などを置き換え
-SAFE_TITLE="$TITLE"
-# 半角スペースをアンダーバーに
-SAFE_TITLE=$(echo "$SAFE_TITLE" | tr ' ' '_')
-# 全角スペースをアンダーバーに
-SAFE_TITLE=$(echo "$SAFE_TITLE" | tr '　' '_')
-# 全角括弧を半角に（trとiconvを使用）
-SAFE_TITLE=$(echo "$SAFE_TITLE" | sed -e 's/（/(/g' -e 's/）/)/g' -e 's/「/[/g' -e 's/」/]/g' -e 's/：/:/g' -e 's/！/!/g' -e 's/？/?/g' -e 's/［/[/g' -e 's/］/]/g')
-
 TITLE_HOME="${WORK_DIR}/${RSS}"
 TITLE_DIR="${DOC_ROUTE}/${RSS}"
 TODAY=$(date +%Y%m%d)
@@ -73,21 +45,21 @@ fi
 
 # rec
 cd $TITLE_HOME
-"${REC_RADIKO_SCRIPT}" -s $STATION -f ${START} -t ${END} -o "${SAFE_TITLE}(${FNAME_DATE})" -m "${RADIKO_EMAIL}" -p "${RADIKO_PASSWORD}"
+"${REC_RADIKO_SCRIPT}" -s $STATION -f ${START} -t ${END} -o "${TITLE}(${FNAME_DATE})" -m "${RADIKO_EMAIL}" -p "${RADIKO_PASSWORD}"
 
 # convert
-ffmpeg -i "${SAFE_TITLE}(${FNAME_DATE}).m4a" -ab 48k "${SAFE_TITLE}(${FNAME_DATE}).mp3"
-rm -rf "${SAFE_TITLE}(${FNAME_DATE}).m4a"
-cp "${SAFE_TITLE}(${FNAME_DATE}).mp3" "$COPY_DIR"
+ffmpeg -i "${TITLE}(${FNAME_DATE}).m4a" -ab 48k "${TITLE}(${FNAME_DATE}).mp3"
+rm -rf "${TITLE}(${FNAME_DATE}).m4a"
+cp "${TITLE}(${FNAME_DATE}).mp3" "$COPY_DIR"
 
 # $SKIP
 if [ -z "$SKIP" ]; then
-  mv "${SAFE_TITLE}(${FNAME_DATE}).mp3" $TITLE_DIR
+  mv "${TITLE}(${FNAME_DATE}).mp3" $TITLE_DIR
 
   # make rss file
-  #   ruby $SCRIPT_DIR/ruby/makepodcast.rb "${SAFE_TITLE}" http://100.76.149.58:8080/radio/$RSS/ $TITLE_DIR > $TITLE_DIR/$RSS.rss
+  #   ruby $SCRIPT_DIR/ruby/makepodcast.rb "${TITLE}" http://100.76.149.58:8080/radio/$RSS/ $TITLE_DIR > $TITLE_DIR/$RSS.rss
 else
-  rm "${SAFE_TITLE}(${FNAME_DATE}).mp3"
+  rm "${TITLE}(${FNAME_DATE}).mp3"
 fi
 
 # $MAIL
