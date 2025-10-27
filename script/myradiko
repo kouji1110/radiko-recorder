@@ -1,6 +1,13 @@
 #! /bin/bash
-export LANG=ja_JP.UTF-8
-export LC_CTYPE=ja_JP.UTF-8
+# ロケール設定（存在する場合のみ）
+if locale -a | grep -q "ja_JP.utf8\|ja_JP.UTF-8"; then
+    export LANG=ja_JP.UTF-8
+    export LC_CTYPE=ja_JP.UTF-8
+else
+    # 日本語ロケールがない場合は英語UTF-8を使用
+    export LANG=en_US.UTF-8
+    export LC_CTYPE=en_US.UTF-8
+fi
 
 # 引数
 # 1:タイトル 2:RSS 3:放送局
