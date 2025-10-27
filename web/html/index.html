@@ -1041,7 +1041,7 @@
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                     <div class="setting-group" style="margin: 0;">
                         <label for="proxyUrl">プロキシURL:</label>
-                        <input type="text" id="proxyUrl" value="/api" placeholder="/api" style="width: 80px;">
+                        <input type="text" id="proxyUrl" value="" placeholder="/api" style="width: 80px;">
                     </div>
 
                     <div class="setting-group" style="margin: 0;">
@@ -5043,7 +5043,7 @@
             const baseUrl = proxyUrl.trim() || '';
 
             try {
-                const response = await fetch(`${baseUrl}/edit-audio`, {
+                const response = await fetch(`${baseUrl}/api/edit-audio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
