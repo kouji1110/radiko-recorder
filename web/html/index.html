@@ -3386,7 +3386,6 @@
         let currentPage = 1;
         const itemsPerPage = 50;
         let filterText = '';
-        let filterTimeout = null;
 
         // ファイル名から放送日を抽出する関数
         function extractBroadcastDate(filename) {
@@ -3456,23 +3455,6 @@
             }
         }
 
-        // 検索入力ハンドラー（遅延処理付き）
-        function handleFileFilterInput(value) {
-            // 既存のタイマーをクリア
-            if (filterTimeout) {
-                clearTimeout(filterTimeout);
-            }
-
-            // filterTextを即座に更新（入力フィールドの値を保持）
-            filterText = value;
-
-            // 300ms後にフィルタリングを実行
-            filterTimeout = setTimeout(() => {
-                currentPage = 1;
-                renderFilesList();
-            }, 300);
-        }
-
         function renderFilesList() {
             const filesList = document.getElementById('filesList');
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -3525,7 +3507,6 @@
                 <div style="margin-bottom: 15px;">
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
                         <input type="text" id="fileFilter" placeholder="🔍 ファイル名で検索..." value="${filterText}"
-                               oninput="handleFileFilterInput(this.value);"
                                style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
                         <button onclick="clearAllBookmarks()"
                                 style="padding: 8px 12px; background: #f57c00; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
@@ -3689,6 +3670,27 @@
             }
 
             filesList.innerHTML = html;
+
+            // 検索入力フィールドのフォーカスとカーソル位置を復元
+            const fileFilterInput = document.getElementById('fileFilter');
+            if (fileFilterInput && document.activeElement && document.activeElement.id === 'fileFilter') {
+                const selectionStart = document.activeElement.selectionStart;
+                const selectionEnd = document.activeElement.selectionEnd;
+                setTimeout(() => {
+                    fileFilterInput.focus();
+                    fileFilterInput.setSelectionRange(selectionStart, selectionEnd);
+                }, 0);
+            }
+
+            // 検索入力フィールドにリアルタイムフィルタリングを設定（1回のみ）
+            if (fileFilterInput && !fileFilterInput.dataset.listenerAdded) {
+                fileFilterInput.dataset.listenerAdded = 'true';
+                fileFilterInput.addEventListener('input', function(e) {
+                    filterText = e.target.value;
+                    currentPage = 1;
+                    renderFilesList();
+                });
+            }
         }
 
         function sortFiles(column) {
