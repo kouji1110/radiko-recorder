@@ -3460,6 +3460,17 @@
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
+            // 検索入力フィールドのフォーカス状態を保存
+            const oldFilterInput = document.getElementById('fileFilter');
+            let shouldRestoreFocus = false;
+            let savedSelectionStart = 0;
+            let savedSelectionEnd = 0;
+            if (oldFilterInput && document.activeElement === oldFilterInput) {
+                shouldRestoreFocus = true;
+                savedSelectionStart = oldFilterInput.selectionStart;
+                savedSelectionEnd = oldFilterInput.selectionEnd;
+            }
+
             // フィルタリング
             let filteredFiles = allRecordedFiles.filter(file => {
                 if (!filterText) return true;
@@ -3673,19 +3684,36 @@
 
             // 検索入力フィールドのフォーカスとカーソル位置を復元
             const fileFilterInput = document.getElementById('fileFilter');
-            if (fileFilterInput && document.activeElement && document.activeElement.id === 'fileFilter') {
-                const selectionStart = document.activeElement.selectionStart;
-                const selectionEnd = document.activeElement.selectionEnd;
+            if (fileFilterInput && shouldRestoreFocus) {
                 setTimeout(() => {
                     fileFilterInput.focus();
-                    fileFilterInput.setSelectionRange(selectionStart, selectionEnd);
+                    fileFilterInput.setSelectionRange(savedSelectionStart, savedSelectionEnd);
                 }, 0);
             }
 
             // 検索入力フィールドにリアルタイムフィルタリングを設定（1回のみ）
             if (fileFilterInput && !fileFilterInput.dataset.listenerAdded) {
                 fileFilterInput.dataset.listenerAdded = 'true';
+
+                let isComposing = false;
+
+                // IME変換中フラグを管理
+                fileFilterInput.addEventListener('compositionstart', function() {
+                    isComposing = true;
+                });
+
+                fileFilterInput.addEventListener('compositionend', function(e) {
+                    isComposing = false;
+                    // IME確定時にフィルタリング実行
+                    filterText = e.target.value;
+                    currentPage = 1;
+                    renderFilesList();
+                });
+
                 fileFilterInput.addEventListener('input', function(e) {
+                    // IME変換中は処理をスキップ
+                    if (isComposing) return;
+
                     filterText = e.target.value;
                     currentPage = 1;
                     renderFilesList();
