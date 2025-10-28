@@ -30,6 +30,147 @@ BASE_DIR = os.environ.get('BASE_DIR', '/app')
 SCRIPT_PATH = os.path.join(BASE_DIR, 'script/myradiko')
 OUTPUT_DIR = os.path.join(BASE_DIR, 'output/radio')
 
+# APSchedulerの初期化
+scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Tokyo')
+scheduler.start()
+
+# アプリ終了時にスケジューラーを停止
+atexit.register(lambda: scheduler.shutdown())
+
+logger.info('✅ APScheduler initialized')
+
+
+# ========================================
+# 録音実行関数
+# ========================================
+
+def convert_cron_dow_to_apscheduler(cron_dow):
+    """
+    cron形式の曜日（0=日曜, 1=月曜, ..., 6=土曜）を
+    APScheduler形式（mon,tue,wed,thu,fri,sat,sun）に変換
+    """
+    # cronの数値表記をAPSchedulerの文字列表記に変換
+    dow_map = {
+        '0': 'sun',
+        '1': 'mon',
+        '2': 'tue',
+        '3': 'wed',
+        '4': 'thu',
+        '5': 'fri',
+        '6': 'sat',
+        '*': '*'
+    }
+
+    # カンマ区切りの場合も対応
+    if ',' in cron_dow:
+        parts = cron_dow.split(',')
+        return ','.join([dow_map.get(p.strip(), p.strip()) for p in parts])
+
+    return dow_map.get(cron_dow, cron_dow)
+
+
+def execute_recording(command: str, job_id=None, job_type='cron'):
+    """録音を実行する関数"""
+    try:
+        logger.info(f'🎙️ Recording started (type={job_type}, job_id={job_id})')
+        logger.info(f'📝 Command: {command}')
+
+        # コマンドを実行
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=7200  # 2時間タイムアウト
+        )
+
+        if result.returncode == 0:
+            logger.info(f'✅ Recording completed successfully')
+            if result.stdout:
+                logger.info(f'📤 Output: {result.stdout[:500]}')
+        else:
+            logger.error(f'❌ Recording failed with return code: {result.returncode}')
+            if result.stderr:
+                logger.error(f'📤 Error output: {result.stderr[:500]}')
+
+        # at予約の場合はDBから削除
+        if job_id and job_type == 'at':
+            db.delete_at_job(job_id)
+            logger.info(f'🗑️ At job removed from DB: {job_id}')
+
+    except subprocess.TimeoutExpired:
+        logger.error(f'❌ Recording timeout (2 hours exceeded)')
+    except Exception as e:
+        logger.error(f'❌ Recording error: {str(e)}')
+
+
+def restore_jobs_from_db():
+    """DBから予約を復元してスケジューラーに登録"""
+    try:
+        logger.info('🔄 Restoring jobs from database...')
+
+        # cron予約を復元
+        cron_jobs = db.get_all_cron_jobs()
+        logger.info(f"📋 Found {len(cron_jobs)} cron jobs in database")
+
+        for job in cron_jobs:
+            try:
+                # cron形式の曜日をAPScheduler形式に変換
+                apscheduler_dow = convert_cron_dow_to_apscheduler(job['day_of_week'])
+
+                scheduler.add_job(
+                    func=execute_recording,
+                    trigger='cron',
+                    minute=job['minute'],
+                    hour=job['hour'],
+                    day=job['day_of_month'],
+                    month=job['month'],
+                    day_of_week=apscheduler_dow,
+                    args=[job['command'], job['id'], 'cron'],
+                    id=f"cron_{job['id']}",
+                    replace_existing=True
+                )
+                logger.info(f"✅ Cron job restored: {job['title']} (ID: {job['id']}) - Schedule: {job['minute']}:{job['hour']} on {job['day_of_week']} -> {apscheduler_dow}")
+            except Exception as e:
+                logger.error(f"❌ Failed to restore cron job {job['id']}: {str(e)}")
+
+        # at予約を復元
+        at_jobs = db.get_all_at_jobs()
+        logger.info(f"📋 Found {len(at_jobs)} at jobs in database")
+
+        for job in at_jobs:
+            try:
+                # schedule_timeをdatetimeに変換
+                run_date = datetime.fromisoformat(job['schedule_time'])
+
+                # 過去の予約はスキップ
+                if run_date < datetime.now():
+                    logger.warning(f"⚠️ Skipping past at job: {job['title']} (scheduled: {job['schedule_time']})")
+                    db.delete_at_job(job['id'])
+                    continue
+
+                scheduler.add_job(
+                    func=execute_recording,
+                    trigger='date',
+                    run_date=run_date,
+                    args=[job['command'], job['id'], 'at'],
+                    id=f"at_{job['id']}",
+                    replace_existing=True
+                )
+                logger.info(f"✅ At job restored: {job['title']} (ID: {job['id']}, scheduled: {job['schedule_time']})")
+            except Exception as e:
+                logger.error(f"❌ Failed to restore at job {job['id']}: {str(e)}")
+
+        logger.info(f'✅ Job restoration completed: {len(cron_jobs)} cron, {len(at_jobs)} at')
+
+    except Exception as e:
+        logger.error(f'❌ Job restoration error: {str(e)}')
+
+
+# DBから予約を復元
+restore_jobs_from_db()
+
+
 # ファイル名サニタイズ関数
 def sanitize_filename(title):
     """番組名をファイル名として安全な形式に変換
@@ -132,8 +273,8 @@ def proxy(path):
         )
 
 @app.route('/execute', methods=['POST', 'OPTIONS'])
-def execute_recording():
-    """録音コマンドを実行してログをストリーミング"""
+def execute_recording_http():
+    """録音コマンドを実行してログをストリーミング（HTTPエンドポイント）"""
     # OPTIONSリクエスト（CORS preflight）への対応
     if request.method == 'OPTIONS':
         response = Response()
@@ -528,24 +669,27 @@ def check_file_exists():
 
 @app.route('/cron/list', methods=['GET'])
 def list_cron():
-    """現在のcrontabを取得してパース"""
+    """DBからcron予約を取得"""
     try:
-        result = subprocess.run(['crontab', '-l'],
-                              capture_output=True,
-                              text=True)
+        jobs = db.get_all_cron_jobs()
 
-        if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')
-            cron_jobs = []
+        # フロントエンド用にフォーマット
+        cron_jobs = []
+        for job in jobs:
+            cron_jobs.append({
+                'id': job['id'],
+                'raw': f"{job['minute']} {job['hour']} {job['day_of_month']} {job['month']} {job['day_of_week']} {job['command']}",
+                'minute': job['minute'],
+                'hour': job['hour'],
+                'dayOfWeek': job['day_of_week'],
+                'command': job['command'],
+                'title': job['title'],
+                'station': job['station'],
+                'startTime': job['start_time'],
+                'endTime': job['end_time']
+            })
 
-            for line in lines:
-                if line and not line.startswith('#'):
-                    parsed = parse_cron_command(line)
-                    cron_jobs.append(parsed)
-
-            return jsonify({'cron_jobs': cron_jobs})
-        else:
-            return jsonify({'cron_jobs': []})
+        return jsonify({'cron_jobs': cron_jobs})
 
     except Exception as e:
         logger.error(f'List cron error: {str(e)}')
@@ -609,7 +753,7 @@ def parse_cron_command(cron_line):
 
 @app.route('/cron/add', methods=['POST'])
 def add_cron():
-    """crontabに新しいジョブを追加"""
+    """DBに新しいcron予約を追加してスケジューラーに登録"""
     try:
         data = request.json
         cron_command = data.get('command', '')
@@ -617,33 +761,61 @@ def add_cron():
         if not cron_command:
             return jsonify({'error': 'Command is required'}), 400
 
-        # 現在のcrontabを取得
-        result = subprocess.run(['crontab', '-l'],
-                              capture_output=True,
-                              text=True)
+        # cronコマンドをパース
+        parsed = parse_cron_command(cron_command)
 
-        current_crontab = result.stdout if result.returncode == 0 else ''
+        # DBに保存
+        job_id = db.save_cron_job(
+            minute=parsed['minute'],
+            hour=parsed['hour'],
+            day_of_month='*',
+            month='*',
+            day_of_week=parsed['dayOfWeek'],
+            command=parsed['command'],
+            title=parsed['title'],
+            station=parsed['station'],
+            start_time=parsed['startTime'],
+            end_time=parsed['endTime']
+        )
 
-        # 重複チェック
-        if cron_command in current_crontab:
-            return jsonify({'error': 'This cron job already exists'}), 400
+        if not job_id:
+            return jsonify({'error': 'Failed to save cron job'}), 500
 
-        # 新しいcronジョブを追加
-        new_crontab = current_crontab.rstrip('\n') + '\n' + cron_command + '\n'
+        # スケジューラーに登録
+        try:
+            # cron形式の曜日をAPScheduler形式に変換
+            apscheduler_dow = convert_cron_dow_to_apscheduler(parsed['dayOfWeek'])
 
-        # crontabを更新
-        process = subprocess.Popen(['crontab', '-'],
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 text=True)
+            logger.info(f"📝 Adding cron job to scheduler - ID: {job_id}")
+            logger.info(f"📝 Schedule: minute={parsed['minute']}, hour={parsed['hour']}, dow={parsed['dayOfWeek']} -> {apscheduler_dow}")
+            logger.info(f"📝 Command: {parsed['command'][:100]}")
 
-        stdout, stderr = process.communicate(input=new_crontab)
+            scheduler.add_job(
+                func=execute_recording,
+                trigger='cron',
+                minute=parsed['minute'],
+                hour=parsed['hour'],
+                day='*',
+                month='*',
+                day_of_week=apscheduler_dow,
+                args=[parsed['command'], job_id, 'cron'],
+                id=f"cron_{job_id}",
+                replace_existing=True
+            )
+            logger.info(f"✅ Cron job added to scheduler successfully: cron_{job_id}")
 
-        if process.returncode == 0:
-            return jsonify({'success': True, 'message': 'Cron job added successfully'})
-        else:
-            return jsonify({'error': stderr}), 500
+            # スケジューラーの状態をログ
+            all_jobs = scheduler.get_jobs()
+            logger.info(f"📊 Total scheduled jobs: {len(all_jobs)}")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to add job to scheduler: {str(e)}")
+            logger.error(f"❌ Job details - minute:{parsed['minute']}, hour:{parsed['hour']}, dow:{parsed['dayOfWeek']}, cmd:{parsed['command'][:50]}")
+            # DBからも削除
+            db.delete_cron_job(job_id)
+            return jsonify({'error': f'Failed to schedule job: {str(e)}'}), 500
+
+        return jsonify({'success': True, 'message': 'Cron job added successfully', 'job_id': job_id})
 
     except Exception as e:
         logger.error(f'Add cron error: {str(e)}')
@@ -651,42 +823,38 @@ def add_cron():
 
 @app.route('/cron/remove', methods=['POST'])
 def remove_cron():
-    """crontabからジョブを削除"""
+    """DBからcron予約を削除してスケジューラーからも削除"""
     try:
         data = request.json
-        cron_command = data.get('command', '')
+        job_id = data.get('id')
 
-        if not cron_command:
-            return jsonify({'error': 'Command is required'}), 400
+        if not job_id:
+            return jsonify({'error': 'Job ID is required'}), 400
 
-        # 現在のcrontabを取得
-        result = subprocess.run(['crontab', '-l'],
-                              capture_output=True,
-                              text=True)
+        # DBから該当するジョブを検索
+        jobs = db.get_all_cron_jobs()
+        job_to_delete = None
 
-        if result.returncode != 0:
-            return jsonify({'error': 'No crontab found'}), 404
+        for job in jobs:
+            if job['id'] == job_id:
+                job_to_delete = job
+                break
 
-        current_crontab = result.stdout
-        lines = current_crontab.split('\n')
+        if not job_to_delete:
+            return jsonify({'error': 'Cron job not found'}), 404
 
-        # 指定されたコマンドを除外
-        new_lines = [line for line in lines if line.strip() != cron_command.strip()]
-        new_crontab = '\n'.join(new_lines)
+        # スケジューラーから削除
+        try:
+            scheduler.remove_job(f"cron_{job_id}")
+            logger.info(f"✅ Cron job removed from scheduler: {job_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Job not found in scheduler (may be already removed): {str(e)}")
 
-        # crontabを更新
-        process = subprocess.Popen(['crontab', '-'],
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 text=True)
-
-        stdout, stderr = process.communicate(input=new_crontab)
-
-        if process.returncode == 0:
+        # DBから削除
+        if db.delete_cron_job(job_id):
             return jsonify({'success': True, 'message': 'Cron job removed successfully'})
         else:
-            return jsonify({'error': stderr}), 500
+            return jsonify({'error': 'Failed to delete cron job from database'}), 500
 
     except Exception as e:
         logger.error(f'Remove cron error: {str(e)}')
@@ -959,7 +1127,7 @@ def stream_file(filepath):
 
 @app.route('/schedule-at', methods=['POST'])
 def schedule_at():
-    """at予約を登録"""
+    """DBにat予約を保存してスケジューラーに登録"""
     try:
         data = request.json
         script_path = data.get('script_path', SCRIPT_PATH)
@@ -977,27 +1145,47 @@ def schedule_at():
 
         # cronと同じ形式のコマンドを生成（サニタイズしたタイトルを使用）
         command = f'{script_path} "{safe_title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
-        at_command = f"echo '{command}' | at {at_time}"
 
-        logger.info(f'Scheduling at job: {at_command}')
+        # at_timeをdatetimeに変換 (HH:MM YYYY-MM-DD -> datetime)
+        schedule_time_str = f"{at_time.split()[1]} {at_time.split()[0]}"  # YYYY-MM-DD HH:MM
+        schedule_time = datetime.strptime(schedule_time_str, '%Y-%m-%d %H:%M')
 
-        result = subprocess.run(
-            at_command,
-            shell=True,
-            capture_output=True,
-            text=True
+        # 過去の時刻チェック
+        now = datetime.now()
+        if schedule_time < now:
+            return jsonify({'error': 'Cannot schedule in the past'}), 400
+
+        # DBに保存（job_idは自動生成）
+        job_id = db.save_at_job(
+            job_id=None,  # Auto-generate
+            schedule_time=schedule_time.strftime('%Y-%m-%d %H:%M:%S'),
+            command=command,
+            title=title,
+            station=station_id,
+            start_time=start_time,
+            end_time=end_time
         )
 
-        if result.returncode != 0:
-            logger.error(f'at command failed: {result.stderr}')
-            return jsonify({'error': result.stderr}), 500
+        if not job_id:
+            return jsonify({'error': 'Failed to save at job to database'}), 500
 
-        logger.info(f'at job scheduled successfully: {result.stdout}')
+        # スケジューラーに登録
+        scheduler.add_job(
+            func=execute_recording,
+            trigger='date',
+            run_date=schedule_time,
+            args=[command, job_id],
+            id=f"at_{job_id}",
+            replace_existing=True
+        )
+
+        logger.info(f'✅ At job scheduled: {job_id} at {schedule_time}')
 
         return jsonify({
             'success': True,
             'message': 'at予約を登録しました',
-            'output': result.stdout
+            'job_id': job_id,
+            'schedule_time': schedule_time.strftime('%Y-%m-%d %H:%M:%S')
         })
 
     except Exception as e:
@@ -1006,37 +1194,26 @@ def schedule_at():
 
 @app.route('/at/list', methods=['GET'])
 def list_at_jobs():
-    """at予約一覧を取得"""
+    """DBからat予約一覧を取得"""
     try:
-        result = subprocess.run(
-            ['atq'],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode != 0:
-            logger.error(f'atq command failed: {result.stderr}')
-            return jsonify({'jobs': []})
+        jobs_data = db.get_all_at_jobs()
 
         jobs = []
-        for line in result.stdout.strip().split('\n'):
-            if line:
-                # atqの出力形式: job_id date time queue user
-                # 例: 1	Thu Oct 24 00:00:00 2025 a root
-                parts = line.split()
-                if len(parts) >= 6:
-                    job_id = parts[0]
-                    weekday = parts[1]
-                    month = parts[2]
-                    day = parts[3]
-                    time = parts[4]
-                    year = parts[5]
+        for job in jobs_data:
+            # schedule_timeをフォーマット (YYYY-MM-DD HH:MM:SS -> より読みやすい形式)
+            try:
+                schedule_dt = datetime.strptime(job['schedule_time'], '%Y-%m-%d %H:%M:%S')
+                formatted_datetime = schedule_dt.strftime('%Y/%m/%d %a %H:%M')
+            except:
+                formatted_datetime = job['schedule_time']
 
-                    jobs.append({
-                        'id': job_id,
-                        'datetime': f'{year}/{month}/{day} {weekday} {time}',
-                        'raw': line
-                    })
+            jobs.append({
+                'id': str(job['id']),
+                'datetime': formatted_datetime,
+                'title': job.get('title', ''),
+                'station': job.get('station', ''),
+                'schedule_time': job['schedule_time']
+            })
 
         return jsonify({'jobs': jobs})
 
@@ -1046,24 +1223,23 @@ def list_at_jobs():
 
 @app.route('/at/cancel/<job_id>', methods=['DELETE'])
 def cancel_at_job(job_id):
-    """at予約をキャンセル"""
+    """DBからat予約を削除してスケジューラーからも削除"""
     try:
-        result = subprocess.run(
-            ['atrm', job_id],
-            capture_output=True,
-            text=True
-        )
+        # スケジューラーから削除
+        try:
+            scheduler.remove_job(f"at_{job_id}")
+            logger.info(f"✅ At job removed from scheduler: {job_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Job not found in scheduler (may be already executed or removed): {str(e)}")
 
-        if result.returncode != 0:
-            logger.error(f'atrm command failed: {result.stderr}')
-            return jsonify({'error': result.stderr}), 500
-
-        logger.info(f'at job {job_id} cancelled successfully')
-
-        return jsonify({
-            'success': True,
-            'message': f'at予約 #{job_id} をキャンセルしました'
-        })
+        # DBから削除
+        if db.delete_at_job(int(job_id)):
+            return jsonify({
+                'success': True,
+                'message': f'at予約 #{job_id} をキャンセルしました'
+            })
+        else:
+            return jsonify({'error': 'Failed to delete at job from database'}), 500
 
     except Exception as e:
         logger.error(f'Cancel at job error: {str(e)}')
@@ -1071,29 +1247,26 @@ def cancel_at_job(job_id):
 
 @app.route('/at/detail/<job_id>', methods=['GET'])
 def get_at_job_detail(job_id):
-    """at予約の詳細を取得"""
+    """DBからat予約の詳細を取得"""
     try:
-        result = subprocess.run(
-            ['at', '-c', job_id],
-            capture_output=True,
-            text=True
-        )
+        jobs = db.get_all_at_jobs()
 
-        if result.returncode != 0:
-            logger.error(f'at -c command failed: {result.stderr}')
-            return jsonify({'error': result.stderr}), 500
-
-        # コマンド部分を抽出（最後の行がコマンド）
-        lines = result.stdout.strip().split('\n')
-        command = ''
-        for line in reversed(lines):
-            if line and not line.startswith('#') and 'myradiko' in line:
-                command = line
+        job_detail = None
+        for job in jobs:
+            if str(job['id']) == str(job_id):
+                job_detail = job
                 break
 
+        if not job_detail:
+            return jsonify({'error': 'Job not found'}), 404
+
         return jsonify({
-            'command': command,
-            'full_output': result.stdout
+            'command': job_detail['command'],
+            'title': job_detail.get('title', ''),
+            'station': job_detail.get('station', ''),
+            'start_time': job_detail.get('start_time', ''),
+            'end_time': job_detail.get('end_time', ''),
+            'schedule_time': job_detail['schedule_time']
         })
 
     except Exception as e:
@@ -1465,6 +1638,105 @@ def admin_db_status():
 
     except Exception as e:
         logger.error(f'Admin DB status error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+# ========================================
+# アートワーク管理API
+# ========================================
+
+@app.route('/artwork/upload', methods=['POST'])
+def upload_artwork():
+    """アートワークをアップロード"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        if 'title' not in request.form:
+            return jsonify({'error': 'No title provided'}), 400
+
+        file = request.files['file']
+        title = request.form['title']
+
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        # ファイルタイプチェック
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        mime_type = file.content_type
+
+        if mime_type not in allowed_types:
+            return jsonify({'error': f'Invalid file type: {mime_type}'}), 400
+
+        # ファイルデータを読み込み
+        image_data = file.read()
+
+        # DBに保存
+        success = db.save_artwork(title, image_data, mime_type)
+
+        if success:
+            return jsonify({'success': True, 'message': f'Artwork uploaded for: {title}'})
+        else:
+            return jsonify({'error': 'Failed to save artwork'}), 500
+
+    except Exception as e:
+        logger.error(f'Upload artwork error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/artwork/<path:title>', methods=['GET'])
+def get_artwork(title):
+    """タイトルに対応するアートワークを取得"""
+    try:
+        artwork = db.get_artwork(title)
+
+        if artwork:
+            from io import BytesIO
+            return send_file(
+                BytesIO(artwork['image_data']),
+                mimetype=artwork['mime_type'],
+                as_attachment=False
+            )
+        else:
+            # アートワークが登録されていない場合はデフォルト画像を返す
+            return send_file('img/jacket.png', mimetype='image/png')
+
+    except Exception as e:
+        logger.error(f'Get artwork error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/artwork/list', methods=['GET'])
+def list_artworks():
+    """登録されているアートワーク一覧を取得"""
+    try:
+        artworks = db.list_artworks()
+        return jsonify({'success': True, 'artworks': artworks})
+
+    except Exception as e:
+        logger.error(f'List artworks error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/artwork/delete', methods=['POST'])
+def delete_artwork():
+    """アートワークを削除"""
+    try:
+        data = request.json
+        title = data.get('title')
+
+        if not title:
+            return jsonify({'error': 'No title provided'}), 400
+
+        success = db.delete_artwork(title)
+
+        if success:
+            return jsonify({'success': True, 'message': f'Artwork deleted for: {title}'})
+        else:
+            return jsonify({'error': 'Artwork not found'}), 404
+
+    except Exception as e:
+        logger.error(f'Delete artwork error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 

@@ -124,6 +124,18 @@ def init_database():
             )
         ''')
 
+        # アートワークテーブル（番組タイトルごとのアートワーク）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS artworks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL UNIQUE,
+                image_data BLOB NOT NULL,
+                mime_type TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -519,25 +531,35 @@ def delete_cron_job(job_id: int):
 
 def save_at_job(job_id: str, schedule_time: str, command: str, title: str = '',
                 station: str = '', start_time: str = '', end_time: str = ''):
-    """at予約をDBに保存"""
+    """at予約をDBに保存（job_idがNoneの場合は自動生成されたIDを返す）"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO at_jobs (job_id, schedule_time, command, title, station, start_time, end_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (job_id, schedule_time, command, title, station, start_time, end_time))
+        if job_id is None:
+            # job_idを指定しない場合は自動生成
+            cursor.execute('''
+                INSERT INTO at_jobs (schedule_time, command, title, station, start_time, end_time)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (schedule_time, command, title, station, start_time, end_time))
+            generated_id = cursor.lastrowid
+        else:
+            # job_idを指定する場合
+            cursor.execute('''
+                INSERT INTO at_jobs (job_id, schedule_time, command, title, station, start_time, end_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (job_id, schedule_time, command, title, station, start_time, end_time))
+            generated_id = job_id
 
         conn.commit()
         conn.close()
 
-        logger.info(f'✅ At job saved: {job_id}')
-        return True
+        logger.info(f'✅ At job saved: {generated_id}')
+        return generated_id
 
     except Exception as e:
         logger.error(f'❌ Save at job error: {str(e)}')
-        return False
+        return None
 
 
 def get_all_at_jobs():
@@ -572,21 +594,141 @@ def get_all_at_jobs():
         return []
 
 
-def delete_at_job(job_id: str):
-    """at予約を削除"""
+def delete_at_job(job_id):
+    """at予約を削除（idまたはjob_idで削除）"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        cursor.execute('DELETE FROM at_jobs WHERE job_id = ?', (job_id,))
+        # idカラムで削除（主キー）
+        cursor.execute('DELETE FROM at_jobs WHERE id = ?', (job_id,))
+
+        if cursor.rowcount == 0:
+            # idで見つからない場合はjob_idで試行
+            cursor.execute('DELETE FROM at_jobs WHERE job_id = ?', (job_id,))
+
         conn.commit()
+        affected_rows = cursor.rowcount
         conn.close()
 
-        logger.info(f'✅ At job deleted: {job_id}')
-        return True
+        if affected_rows > 0:
+            logger.info(f'✅ At job deleted: {job_id}')
+            return True
+        else:
+            logger.warning(f'⚠️ At job not found: {job_id}')
+            return False
 
     except Exception as e:
         logger.error(f'❌ Delete at job error: {str(e)}')
+        return False
+
+
+def save_artwork(title: str, image_data: bytes, mime_type: str):
+    """アートワークを保存（同じタイトルの場合は更新）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO artworks (title, image_data, mime_type, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(title) DO UPDATE SET
+                image_data = excluded.image_data,
+                mime_type = excluded.mime_type,
+                updated_at = CURRENT_TIMESTAMP
+        ''', (title, image_data, mime_type))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ Artwork saved: {title}')
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Save artwork error: {str(e)}')
+        return False
+
+
+def get_artwork(title: str):
+    """タイトルに対応するアートワークを取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            'SELECT image_data, mime_type FROM artworks WHERE title = ?',
+            (title,)
+        )
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            return {
+                'image_data': result[0],
+                'mime_type': result[1]
+            }
+        else:
+            return None
+
+    except Exception as e:
+        logger.error(f'❌ Get artwork error: {str(e)}')
+        return None
+
+
+def list_artworks():
+    """登録されているアートワーク一覧を取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id, title, mime_type, created_at, updated_at
+            FROM artworks
+            ORDER BY updated_at DESC
+        ''')
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        artworks = []
+        for row in rows:
+            artworks.append({
+                'id': row[0],
+                'title': row[1],
+                'mime_type': row[2],
+                'created_at': row[3],
+                'updated_at': row[4]
+            })
+
+        return artworks
+
+    except Exception as e:
+        logger.error(f'❌ List artworks error: {str(e)}')
+        return []
+
+
+def delete_artwork(title: str):
+    """アートワークを削除"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM artworks WHERE title = ?', (title,))
+
+        conn.commit()
+        affected_rows = cursor.rowcount
+        conn.close()
+
+        if affected_rows > 0:
+            logger.info(f'✅ Artwork deleted: {title}')
+            return True
+        else:
+            logger.warning(f'⚠️ Artwork not found: {title}')
+            return False
+
+    except Exception as e:
+        logger.error(f'❌ Delete artwork error: {str(e)}')
         return False
 
 

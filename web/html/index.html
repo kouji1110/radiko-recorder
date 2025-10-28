@@ -790,6 +790,11 @@
                 align-items: stretch !important;
             }
 
+            /* 選択関連のコントロールを非表示 */
+            .file-selection-controls {
+                display: none !important;
+            }
+
             #filesList > div:first-child > div:nth-child(2) > button,
             #filesList > div:first-child > div:nth-child(2) > label {
                 width: 100% !important;
@@ -826,20 +831,25 @@
                 text-align: left !important;
             }
 
+            /* チェックボックス（選択）を非表示 */
             #filesList td:first-child {
-                display: none;
+                display: none !important;
+            }
+
+            /* アートワークを非表示 */
+            #filesList td:nth-child(2) {
+                display: none !important;
             }
 
             /* ファイル名を目立たせる */
-            #filesList td:nth-child(2) {
+            #filesList td:nth-child(3) {
                 font-weight: 600;
                 font-size: 0.9em;
                 margin-bottom: 4px;
                 word-break: break-all;
             }
 
-            /* 放送日、サイズ、更新日時を1行にまとめて表示 */
-            #filesList td:nth-child(3),
+            /* 放送日、サイズを1行にまとめて表示（更新日時は非表示） */
             #filesList td:nth-child(4),
             #filesList td:nth-child(5) {
                 display: inline-block;
@@ -848,16 +858,17 @@
                 margin-right: 8px;
             }
 
-            #filesList td:nth-child(3)::before {
-                content: "📅 ";
+            /* 更新日時を非表示 */
+            #filesList td:nth-child(6) {
+                display: none !important;
             }
 
             #filesList td:nth-child(4)::before {
-                content: "💾 ";
+                content: "📅 ";
             }
 
             #filesList td:nth-child(5)::before {
-                content: "🕐 ";
+                content: "💾 ";
             }
 
             /* アクションボタンを横並びに */
@@ -878,8 +889,15 @@
             #filesList td:last-child a {
                 flex: 0 0 auto;
                 text-align: center;
-                padding: 6px 10px !important;
+                padding: 4px !important;
                 font-size: 0.8em !important;
+            }
+
+            /* アクションボタン内の画像アイコンを小さく */
+            #filesList td:last-child button img,
+            #filesList td:last-child a img {
+                width: 18px !important;
+                height: 18px !important;
             }
 
             /* 詳細設定のスマホ対応 */
@@ -979,12 +997,6 @@
             #audioPlayerModal .speed-btn {
                 padding: 3px 8px !important;
                 font-size: 0.75em !important;
-            }
-
-            /* ファイル名表示を小さく */
-            #audioInfo {
-                padding: 8px !important;
-                font-size: 0.8em !important;
             }
 
             /* フッターのスマホ対応 */
@@ -1165,12 +1177,12 @@
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                     <div class="setting-group" style="margin: 0;">
                         <label for="proxyUrl">プロキシURL:</label>
-                        <input type="text" id="proxyUrl" value="" placeholder="/api" style="width: 80px;">
+                        <input type="text" id="proxyUrl" value="" placeholder="空欄でOK" style="width: 80px;">
                     </div>
 
                     <div class="setting-group" style="margin: 0;">
                         <label for="scriptPath">スクリプトパス:</label>
-                        <input type="text" id="scriptPath" value="/home/sites/radiko-recorder/script/myradiko" placeholder="パス" style="width: 250px;">
+                        <input type="text" id="scriptPath" value="/app/script/myradiko" placeholder="パス" style="width: 250px;">
                     </div>
                 </div>
             </div>
@@ -1608,11 +1620,9 @@
                 <button class="modal-close" onclick="closeAudioPlayer()" style="position: absolute; right: 10px; top: 10px; background: #f8f9fa; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; border: none; cursor: pointer; color: #6c757d; transition: all 0.2s; z-index: 10001;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <!-- アルバムアート風エリア -->
+                <!-- アルバムアートワーク -->
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <div style="width: 200px; height: 200px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); margin-bottom: 15px;">
-                        <span style="font-size: 80px;">🎵</span>
-                    </div>
+                    <img src="img/jacket.png" alt="Artwork" style="width: 200px; height: 200px; margin: 0 auto 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); object-fit: cover; display: block;">
                     <h3 id="audioPlayerTitle" style="font-size: 1.1em; font-weight: 600; color: #2d3436; margin: 0; line-height: 1.4; padding: 0 10px;">再生中</h3>
                 </div>
 
@@ -1646,8 +1656,8 @@
                     <button onclick="skipAudio(-10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #667eea; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
                         -10s
                     </button>
-                    <button id="playPauseBtn" onclick="togglePlayPause()" style="width: 70px; height: 70px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 50%; cursor: pointer; color: white; font-size: 28px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
-                        ▶
+                    <button id="playPauseBtn" onclick="togglePlayPause()" style="width: 70px; height: 70px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; padding: 0;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <img id="playPauseImg" src="img/palyer_play.png" alt="再生" style="width: 100%; height: 100%; display: block;">
                     </button>
                     <button onclick="skipAudio(10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #764ba2; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
                         +10s
@@ -1732,10 +1742,6 @@
                     </div>
                 </div>
 
-                <!-- ファイル名表示 -->
-                <div id="audioInfo" style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.85em; color: #6c757d; text-align: center;">
-                    <span id="audioFileName"></span>
-                </div>
             </div>
         </div>
     </div>
@@ -1847,6 +1853,50 @@
             <div class="modal-actions">
                 <button class="btn btn-action" onclick="executeRename()" style="background: #667eea;">✏️ 変更</button>
                 <button class="btn btn-action btn-close" onclick="closeRenameModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- アートワークアップロードモーダル -->
+    <div id="artworkUploadModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>🎨 アートワーク登録</h2>
+                <button class="modal-close" onclick="closeArtworkUploadModal()">&times;</button>
+            </div>
+            <div style="padding: 15px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">番組タイトル</label>
+                    <input type="text" id="artworkTitle" style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
+                    <div style="margin-top: 6px; font-size: 0.8em; color: #6c757d;">
+                        💡 同じタイトルの番組に同じアートワークが表示されます
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">画像ファイル</label>
+                    <input type="file" id="artworkFile" accept="image/*" style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
+                    <div style="margin-top: 6px; font-size: 0.8em; color: #6c757d;">
+                        対応形式: JPEG, PNG, GIF, WebP
+                    </div>
+                </div>
+                <div id="artworkCropArea" style="display: none; margin-top: 15px;">
+                    <div style="position: relative; display: inline-block; max-width: 100%; background: #f8f9fa; border-radius: 8px; overflow: hidden;">
+                        <canvas id="artworkCanvas" style="max-width: 100%; display: block;"></canvas>
+                        <div id="cropBox" style="position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); cursor: move; display: none;">
+                            <div style="position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #667eea; top: -4px; left: -4px; cursor: nwse-resize;" data-handle="nw"></div>
+                            <div style="position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #667eea; top: -4px; right: -4px; cursor: nesw-resize;" data-handle="ne"></div>
+                            <div style="position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #667eea; bottom: -4px; left: -4px; cursor: nesw-resize;" data-handle="sw"></div>
+                            <div style="position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #667eea; bottom: -4px; right: -4px; cursor: nwse-resize;" data-handle="se"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.8em; color: #6c757d; text-align: center;">
+                        💡 ドラッグで移動、四隅のハンドルでサイズ調整
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action" id="artworkUploadBtn" onclick="uploadArtwork()" style="background: #667eea;">📤 アップロード</button>
+                <button class="btn btn-action btn-close" onclick="closeArtworkUploadModal()">キャンセル</button>
             </div>
         </div>
     </div>
@@ -3683,7 +3733,7 @@
                             <strong>${filteredFiles.length}</strong>件 / ${totalSize} GB
                         </div>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div class="file-selection-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9em;">
                             <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAll(this.checked)"
                                    style="width: 16px; height: 16px; cursor: pointer;">
@@ -3710,6 +3760,7 @@
                         <thead>
                             <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
                                 <th style="padding: 12px; text-align: center; width: 40px;"></th>
+                                <th style="padding: 12px; text-align: center; width: 60px;"></th>
                                 <th onclick="sortFiles('name')" style="padding: 12px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap;"
                                     onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
                                     ファイル名 ${currentSort.column === 'name' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
@@ -3739,33 +3790,86 @@
 
                 // ブックマークの存在チェック
                 const bookmarkKey = `bookmark_${file.path}`;
+                const durationKey = `duration_${file.path}`;
                 const savedTime = localStorage.getItem(bookmarkKey);
+                const savedDuration = localStorage.getItem(durationKey);
                 const hasBookmark = savedTime !== null;
-                let progressPercent = 0;
-                let progressText = '';
 
-                if (hasBookmark) {
-                    const time = parseFloat(savedTime);
-                    const minutes = Math.floor(time / 60);
-                    const seconds = Math.floor(time % 60);
-                    progressText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                // 時間表示を作成 (HH:MM:SS / HH:MM:SS)
+                const formatTimeDisplay = (seconds) => {
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = Math.floor(seconds % 60);
+                    if (h > 0) {
+                        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                    } else {
+                        return `${m}:${s.toString().padStart(2, '0')}`;
+                    }
+                };
+
+                const currentTime = hasBookmark ? parseFloat(savedTime) : 0;
+                const duration = savedDuration ? parseFloat(savedDuration) : 0;
+
+                // durationが0の場合は「取得中...」と表示し、非同期で長さを取得
+                let progressText = '';
+                if (duration > 0) {
+                    progressText = `${formatTimeDisplay(currentTime)} / ${formatTimeDisplay(duration)}`;
+                } else {
+                    progressText = '<span class="duration-loading" data-filepath="' + file.path + '">取得中...</span>';
                 }
 
+                // 進捗率を計算
+                let progressPercent = 0;
+                if (duration > 0) {
+                    progressPercent = Math.round((currentTime / duration) * 100);
+                }
+
+                // SVG円グラフを生成（中央塗りつぶしスタイル、数字なし）
+                const outerRadius = 10;
+                const innerRadius = 5;
+                const strokeWidth = outerRadius - innerRadius;
+                const radius = (outerRadius + innerRadius) / 2;
+                const circumference = 2 * Math.PI * radius;
+                const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
+                const progressCircle = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 6px; flex-shrink: 0;">
+                        <circle cx="12" cy="12" r="${radius}" fill="none" stroke="#e9ecef" stroke-width="${strokeWidth}"></circle>
+                        <circle cx="12" cy="12" r="${radius}" fill="none" stroke="#667eea" stroke-width="${strokeWidth}"
+                                stroke-dasharray="${circumference}" stroke-dashoffset="${strokeDashoffset}"
+                                transform="rotate(-90 12 12)"></circle>
+                    </svg>
+                `;
+
+                // アートワークURLを取得
+                const programTitle = extractProgramTitle(file.name);
+                const artworkUrl = `${baseUrl}/artwork/${encodeURIComponent(programTitle)}`;
+
                 html += `
-                    <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s; cursor: pointer; ${hasBookmark ? 'background: #fff8e1;' : ''}"
+                    <tr data-filepath="${file.path.replace(/"/g, '&quot;')}" style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s; cursor: pointer;"
                         onclick="toggleFileSelection('${file.path.replace(/'/g, "\\'")}')"
-                        onmouseover="this.style.background='${hasBookmark ? '#fff3cd' : '#f8f9fa'}'" onmouseout="this.style.background='${hasBookmark ? '#fff8e1' : 'white'}'">
+                        onmouseover="if(!this.classList.contains('selected')) this.style.background='#f8f9fa'"
+                        onmouseout="if(!this.classList.contains('selected')) this.style.background='white'">
                         <td style="padding: 10px 12px; text-align: center;" onclick="event.stopPropagation()">
                             <input type="checkbox" class="file-checkbox" value="${file.path}" onchange="updateSelectedCount()"
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
+                        <td style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">
+                            <img src="${artworkUrl}" alt="Artwork"
+                                 style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
+                                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
+                                 onerror="this.src='img/jacket.png'">
+                        </td>
                         <td style="padding: 10px 12px;">
-                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px;" title="${file.name}">
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''}" title="${file.name}">
                                 ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
                             </div>
-                            ${hasBookmark ? `<div style="font-size: 0.75em; color: #f57c00; margin-top: 3px;">再生位置: ${progressText}</div>` : ''}
+                            <div style="font-size: 0.75em; color: #667eea; margin-top: 3px; display: flex; align-items: center;">
+                                ${progressCircle}
+                                <span>${progressText}</span>
+                            </div>
                         </td>
-                        <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.9em;">
+                        <td style="padding: 10px 12px; text-align: center; color: #6c757d;">
                             ${extractBroadcastDate(file.name) || '<span style="color: #999;">不明</span>'}
                         </td>
                         <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
@@ -3784,11 +3888,17 @@
                                    onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
                                     <img src="img/download.png" alt="ダウンロード" style="width: 24px; height: 24px; display: block;">
                                 </a>
+                                <button onclick='showArtworkUploadModal("${file.name.replace(/'/g, "\\'")}")'
+                                        title="アートワーク登録"
+                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
+                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
+                                    <img src="img/artwork.png" alt="アートワーク" style="width: 24px; height: 24px; display: block;">
+                                </button>
                                 <button onclick='showRenameModal("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="リネーム"
                                         style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
                                         onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    ✏️
+                                    <img src="img/edit.png" alt="リネーム" style="width: 24px; height: 24px; display: block;">
                                 </button>
                                 <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="削除"
@@ -3874,6 +3984,63 @@
                     renderFilesList();
                 });
             }
+
+            // 未取得の音声ファイルの長さを非同期で取得
+            loadAudioDurations();
+        }
+
+        async function loadAudioDurations() {
+            const loadingElements = document.querySelectorAll('.duration-loading');
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            const formatTimeDisplay = (seconds) => {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
+                if (h > 0) {
+                    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                } else {
+                    return `${m}:${s.toString().padStart(2, '0')}`;
+                }
+            };
+
+            loadingElements.forEach(async (element) => {
+                const filepath = element.getAttribute('data-filepath');
+                const durationKey = `duration_${filepath}`;
+
+                // 既にlocalStorageにある場合は表示だけ更新
+                const cachedDuration = localStorage.getItem(durationKey);
+                if (cachedDuration) {
+                    const duration = parseFloat(cachedDuration);
+                    element.textContent = `0:00 / ${formatTimeDisplay(duration)}`;
+                    return;
+                }
+
+                try {
+                    // Audio要素を使って音声ファイルの長さを取得
+                    const audio = new Audio();
+                    audio.src = `${baseUrl}/stream/${filepath}`;
+
+                    audio.addEventListener('loadedmetadata', () => {
+                        const duration = audio.duration;
+                        if (duration && !isNaN(duration) && isFinite(duration)) {
+                            // localStorageに保存
+                            localStorage.setItem(durationKey, duration.toString());
+
+                            // 表示を更新
+                            element.textContent = `0:00 / ${formatTimeDisplay(duration)}`;
+                        }
+                    });
+
+                    audio.addEventListener('error', () => {
+                        element.textContent = '0:00';
+                    });
+                } catch (err) {
+                    console.error('Duration load error:', err);
+                    element.textContent = '0:00';
+                }
+            });
         }
 
         function sortFiles(column) {
@@ -4106,29 +4273,45 @@
                 return;
             }
 
+            console.log('Removing cron job:', job);
+            console.log('Job ID:', job.id);
+
             const title = job.title || 'タイトル不明';
             if (!confirm(`この予約を削除しますか？\n\n${title}`)) {
                 return;
             }
 
-            await removeCronJob(job.raw);
+            await removeCronJob(job.id);
         }
 
         // cronジョブを削除
-        async function removeCronJob(command) {
+        async function removeCronJob(jobId) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
+            console.log('removeCronJob called with jobId:', jobId);
+            console.log('Base URL:', baseUrl);
+
+            if (!jobId) {
+                alert('❌ エラー: ジョブIDが取得できませんでした');
+                console.error('Job ID is undefined or null');
+                return;
+            }
+
             try {
+                const payload = { id: jobId };
+                console.log('Sending payload:', payload);
+
                 const response = await fetch(`${baseUrl}/cron/remove`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ command: command })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
+                console.log('Response:', response.status, data);
 
                 if (response.ok) {
                     alert('✅ 予約を削除しました');
@@ -4198,7 +4381,7 @@
             const baseUrl = proxyUrl.trim() || '';
 
             try {
-                const response = await fetch(`${baseUrl}/api/rename-file`, {
+                const response = await fetch(`${baseUrl}/rename-file`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -4268,6 +4451,19 @@
             const checkbox = document.querySelector(`.file-checkbox[value="${path}"]`);
             if (checkbox) {
                 checkbox.checked = !checkbox.checked;
+
+                // 行の背景色を更新
+                const row = checkbox.closest('tr');
+                if (row) {
+                    if (checkbox.checked) {
+                        row.classList.add('selected');
+                        row.style.background = '#e3f2fd';
+                    } else {
+                        row.classList.remove('selected');
+                        row.style.background = 'white';
+                    }
+                }
+
                 updateSelectedCount();
             }
         }
@@ -4276,6 +4472,20 @@
         function updateSelectedCount() {
             const checkboxes = document.querySelectorAll('.file-checkbox:checked');
             const count = checkboxes.length;
+
+            // すべてのチェックボックスの背景色を更新
+            document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                const row = checkbox.closest('tr');
+                if (row) {
+                    if (checkbox.checked) {
+                        row.classList.add('selected');
+                        row.style.background = '#e3f2fd';
+                    } else {
+                        row.classList.remove('selected');
+                        row.style.background = 'white';
+                    }
+                }
+            });
 
             const selectAllCheckbox = document.getElementById('selectAllFiles');
             const deleteBtn = document.getElementById('deleteSelectedBtn');
@@ -4549,15 +4759,27 @@
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
+            // 編集中のジョブIDを取得
+            const jobId = currentEditingCron.jobData?.id;
+            if (!jobId) {
+                alert('❌ エラー: ジョブIDが見つかりません');
+                return;
+            }
+
             try {
-                // 削除
-                await fetch(`${baseUrl}/cron/remove`, {
+                // 削除（IDベース）
+                const removeResponse = await fetch(`${baseUrl}/cron/remove`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ command: currentEditingCron.original })
+                    body: JSON.stringify({ id: jobId })
                 });
+
+                if (!removeResponse.ok) {
+                    const removeData = await removeResponse.json();
+                    throw new Error('削除に失敗: ' + (removeData.error || '不明なエラー'));
+                }
 
                 // 追加
                 const response = await fetch(`${baseUrl}/cron/add`, {
@@ -4668,23 +4890,24 @@
             });
         });
 
-        document.getElementById('modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
+        // モーダル外クリックで閉じないようにイベントリスナーを削除
+        // document.getElementById('modal').addEventListener('click', function(e) {
+        //     if (e.target === this) {
+        //         closeModal();
+        //     }
+        // });
 
-        document.getElementById('cronEditModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeCronEditModal();
-            }
-        });
+        // document.getElementById('cronEditModal').addEventListener('click', function(e) {
+        //     if (e.target === this) {
+        //         closeCronEditModal();
+        //     }
+        // });
 
-        document.getElementById('cronLogModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeCronLogModal();
-            }
-        });
+        // document.getElementById('cronLogModal').addEventListener('click', function(e) {
+        //     if (e.target === this) {
+        //         closeCronLogModal();
+        //     }
+        // });
 
         // at予約一覧を読み込む
         async function loadAtJobs() {
@@ -5203,7 +5426,7 @@
         // キーボードイベントリスナーの参照（削除用）
         let audioKeyboardListener = null;
 
-        function playAudio(filepath, filename) {
+        async function playAudio(filepath, filename) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
@@ -5215,9 +5438,18 @@
             const audioSource = document.getElementById('audioSource');
             const streamUrl = `${baseUrl}/stream/${filepath}`;
 
-            // ファイル名を表示
-            document.getElementById('audioFileName').textContent = filename;
-            document.getElementById('audioPlayerTitle').textContent = '🎵 ' + filename;
+            // タイトルを表示
+            document.getElementById('audioPlayerTitle').textContent = filename;
+
+            // 番組タイトルを抽出してアートワークを読み込み
+            const programTitle = extractProgramTitle(filename);
+            const artworkUrl = await loadArtworkForTitle(programTitle);
+
+            // アートワーク画像のsrcを更新
+            const artworkImg = document.querySelector('#audioPlayerModal img[alt="Artwork"]');
+            if (artworkImg) {
+                artworkImg.src = artworkUrl;
+            }
 
             // モーダルを表示
             document.getElementById('audioPlayerModal').classList.add('active');
@@ -5309,9 +5541,11 @@
                 // 最後まで再生していなければ保存
                 if (!isNaN(duration) && duration - audioPlayer.currentTime > 3) {
                     localStorage.setItem(`bookmark_${currentAudioFilePath}`, audioPlayer.currentTime.toString());
+                    localStorage.setItem(`duration_${currentAudioFilePath}`, duration.toString());
                 } else if (!isNaN(duration) && duration - audioPlayer.currentTime < 3) {
                     // 最後まで再生した場合は削除
                     localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
+                    localStorage.removeItem(`duration_${currentAudioFilePath}`);
                 }
             }
 
@@ -5327,6 +5561,9 @@
             document.body.classList.remove('modal-open');
             // 再生速度をリセット
             setPlaybackRate(1.0);
+
+            // ファイル一覧を更新（再生位置の円グラフを更新）
+            renderFilesList();
         }
 
         // カット編集用の変数
@@ -5487,10 +5724,12 @@
             // 再生中は常に位置を自動保存（開始3秒後から）
             if (currentTime > 3 && !isNaN(duration)) {
                 localStorage.setItem(`bookmark_${currentAudioFilePath}`, currentTime.toString());
+                localStorage.setItem(`duration_${currentAudioFilePath}`, duration.toString());
 
                 // 最後まで再生した場合はブックマークを削除
                 if (duration - currentTime < 3) {
                     localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
+                    localStorage.removeItem(`duration_${currentAudioFilePath}`);
                 }
             }
         }
@@ -5581,13 +5820,15 @@
         // 再生/一時停止ボタンの表示を更新
         function updatePlayPauseButton() {
             const audioPlayer = document.getElementById('audioPlayer');
-            const playPauseBtn = document.getElementById('playPauseBtn');
-            if (!audioPlayer || !playPauseBtn) return;
+            const playPauseImg = document.getElementById('playPauseImg');
+            if (!audioPlayer || !playPauseImg) return;
 
             if (audioPlayer.paused) {
-                playPauseBtn.innerHTML = '▶';
+                playPauseImg.src = 'img/palyer_play.png';
+                playPauseImg.alt = '再生';
             } else {
-                playPauseBtn.innerHTML = '⏸';
+                playPauseImg.src = 'img/player_stop.png';
+                playPauseImg.alt = '一時停止';
             }
         }
 
@@ -5606,18 +5847,18 @@
                 return;
             }
 
-            // localStorage内のすべてのbookmark_で始まるキーを削除
+            // localStorage内のすべてのbookmark_とduration_で始まるキーを削除
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key && key.startsWith('bookmark_')) {
+                if (key && (key.startsWith('bookmark_') || key.startsWith('duration_'))) {
                     keysToRemove.push(key);
                 }
             }
 
             keysToRemove.forEach(key => localStorage.removeItem(key));
 
-            alert(`🗑️ ${keysToRemove.length}件の再生履歴をリセットしました`);
+            alert(`🗑️ ${keysToRemove.length / 2}件の再生履歴をリセットしました`);
 
             // ファイル一覧を再描画
             renderFilesList();
@@ -6091,6 +6332,439 @@
                 }
             } catch (err) {
                 maintenanceLog.textContent += `❌ エラー: ${err.message}\n`;
+            }
+        }
+
+        // ========================================
+        // アートワーク管理機能
+        // ========================================
+
+        // トリミング用のグローバル変数
+        let cropX = 0, cropY = 0, cropSize = 0;
+        let isDragging = false;
+        let isResizing = false;
+        let resizeHandle = null;
+        let dragStartX = 0, dragStartY = 0;
+        let originalImage = null;
+        let currentCropFile = null;
+        let displayScale = 1; // Canvas表示時のスケール（元画像に対する比率）
+
+        function extractProgramTitle(filename) {
+            // ファイル名から番組タイトルを抽出
+            // 形式: "番組名(YYYY.MM.DD).mp3" または "番組名_YYYY-MM-DD.mp3"
+            let title = filename;
+
+            // 拡張子を削除
+            title = title.replace(/\.(mp3|m4a|aac|wav)$/i, '');
+
+            // 日付パターンを削除 (YYYY.MM.DD) または (YYYY-MM-DD)
+            title = title.replace(/\(?\d{4}[.-]\d{2}[.-]\d{2}\)?$/i, '');
+            title = title.replace(/_\d{4}[.-]\d{2}[.-]\d{2}$/i, '');
+
+            // 末尾のアンダーバーや括弧を削除
+            title = title.replace(/[_\(\)]+$/, '');
+
+            return title.trim();
+        }
+
+        function showArtworkUploadModal(filename) {
+            const modal = document.getElementById('artworkUploadModal');
+            const titleInput = document.getElementById('artworkTitle');
+            const fileInput = document.getElementById('artworkFile');
+            const cropArea = document.getElementById('artworkCropArea');
+            const canvas = document.getElementById('artworkCanvas');
+            const cropBox = document.getElementById('cropBox');
+
+            // ファイル名から番組タイトルを抽出
+            const programTitle = extractProgramTitle(filename);
+            titleInput.value = programTitle;
+
+            // ファイル入力とプレビューをリセット
+            fileInput.value = '';
+            cropArea.style.display = 'none';
+            cropBox.style.display = 'none';
+
+            // ファイル選択時のプレビュー
+            fileInput.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    currentCropFile = file;
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            originalImage = img;
+
+                            // Canvasに画像を描画
+                            const maxWidth = 500;
+                            displayScale = Math.min(1, maxWidth / img.width, maxWidth / img.height);
+                            canvas.width = img.width * displayScale;
+                            canvas.height = img.height * displayScale;
+
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                            // トリミングエリアを表示
+                            cropArea.style.display = 'block';
+
+                            // 初期トリミング範囲を中央に配置（正方形）
+                            const minDimension = Math.min(canvas.width, canvas.height);
+                            cropSize = minDimension * 0.8; // 80%のサイズ
+                            cropX = (canvas.width - cropSize) / 2;
+                            cropY = (canvas.height - cropSize) / 2;
+
+                            updateCropBox();
+                            cropBox.style.display = 'block';
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            modal.style.display = 'flex';
+        }
+
+        function closeArtworkUploadModal() {
+            const modal = document.getElementById('artworkUploadModal');
+            modal.style.display = 'none';
+        }
+
+        // Twitter風トリミング機能
+        function updateCropBox() {
+            const canvas = document.getElementById('artworkCanvas');
+            const cropBox = document.getElementById('cropBox');
+            const rect = canvas.getBoundingClientRect();
+
+            // Canvas論理座標を表示座標に変換
+            const scaleX = rect.width / canvas.width;
+            const scaleY = rect.height / canvas.height;
+
+            const displayX = cropX * scaleX;
+            const displayY = cropY * scaleY;
+            const displaySize = cropSize * scaleX;
+
+            cropBox.style.left = displayX + 'px';
+            cropBox.style.top = displayY + 'px';
+            cropBox.style.width = displaySize + 'px';
+            cropBox.style.height = displaySize + 'px';
+        }
+
+        function initCropHandlers() {
+            const canvas = document.getElementById('artworkCanvas');
+            const cropBox = document.getElementById('cropBox');
+
+            // クロップボックスのドラッグ移動
+            cropBox.addEventListener('mousedown', (e) => {
+                // ハンドルクリックの場合はリサイズモードに
+                if (e.target.hasAttribute('data-handle')) {
+                    isResizing = true;
+                    resizeHandle = e.target.getAttribute('data-handle');
+                    e.stopPropagation();
+                } else {
+                    // ボックス本体のクリックは移動モードに
+                    isDragging = true;
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                dragStartX = (e.clientX - rect.left) * scaleX;
+                dragStartY = (e.clientY - rect.top) * scaleY;
+
+                e.preventDefault();
+            });
+
+            // マウス移動ハンドラ
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging && !isResizing) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                const currentX = (e.clientX - rect.left) * scaleX;
+                const currentY = (e.clientY - rect.top) * scaleY;
+
+                if (isDragging) {
+                    // ボックス移動
+                    const deltaX = currentX - dragStartX;
+                    const deltaY = currentY - dragStartY;
+
+                    let newX = cropX + deltaX;
+                    let newY = cropY + deltaY;
+
+                    // Canvas境界内に制限
+                    newX = Math.max(0, Math.min(newX, canvas.width - cropSize));
+                    newY = Math.max(0, Math.min(newY, canvas.height - cropSize));
+
+                    cropX = newX;
+                    cropY = newY;
+
+                    dragStartX = currentX;
+                    dragStartY = currentY;
+
+                    updateCropBox();
+                } else if (isResizing) {
+                    // リサイズ（正方形を保つ）
+                    let deltaX = currentX - dragStartX;
+                    let deltaY = currentY - dragStartY;
+
+                    // ハンドルの位置に応じてリサイズ方向を決定
+                    if (resizeHandle === 'nw') {
+                        // 左上ハンドル：左上方向にリサイズ
+                        const delta = Math.min(deltaX, deltaY);
+                        const newSize = cropSize - delta;
+                        const minSize = 50;
+
+                        if (newSize >= minSize && cropX + delta >= 0 && cropY + delta >= 0) {
+                            cropSize = newSize;
+                            cropX += delta;
+                            cropY += delta;
+                            dragStartX = currentX;
+                            dragStartY = currentY;
+                        }
+                    } else if (resizeHandle === 'ne') {
+                        // 右上ハンドル：右上方向にリサイズ
+                        const delta = Math.max(deltaX, -deltaY);
+                        const newSize = cropSize + delta;
+                        const minSize = 50;
+
+                        if (newSize >= minSize && cropX + newSize <= canvas.width && cropY - delta >= 0) {
+                            cropSize = newSize;
+                            cropY -= delta;
+                            dragStartX = currentX;
+                            dragStartY = currentY;
+                        }
+                    } else if (resizeHandle === 'sw') {
+                        // 左下ハンドル：左下方向にリサイズ
+                        const delta = Math.max(-deltaX, deltaY);
+                        const newSize = cropSize + delta;
+                        const minSize = 50;
+
+                        if (newSize >= minSize && cropX - delta >= 0 && cropY + newSize <= canvas.height) {
+                            cropSize = newSize;
+                            cropX -= delta;
+                            dragStartX = currentX;
+                            dragStartY = currentY;
+                        }
+                    } else if (resizeHandle === 'se') {
+                        // 右下ハンドル：右下方向にリサイズ
+                        const delta = Math.max(deltaX, deltaY);
+                        const newSize = cropSize + delta;
+                        const minSize = 50;
+
+                        if (newSize >= minSize && cropX + newSize <= canvas.width && cropY + newSize <= canvas.height) {
+                            cropSize = newSize;
+                            dragStartX = currentX;
+                            dragStartY = currentY;
+                        }
+                    }
+
+                    updateCropBox();
+                }
+
+                e.preventDefault();
+            });
+
+            // マウスアップハンドラ
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                isResizing = false;
+                resizeHandle = null;
+            });
+        }
+
+        function applyAndWaitForCrop() {
+            return new Promise((resolve) => {
+                // トリミング範囲が選択されているか確認
+                if (cropSize < 10) {
+                    resolve();
+                    return;
+                }
+
+                console.log('applyCrop called');
+                console.log('cropX:', cropX, 'cropY:', cropY, 'cropSize:', cropSize);
+                console.log('displayScale:', displayScale);
+                console.log('originalImage size:', originalImage.width, 'x', originalImage.height);
+
+                // Canvas論理座標を元画像の座標に変換
+                const sourceX = cropX / displayScale;
+                const sourceY = cropY / displayScale;
+                const sourceSize = cropSize / displayScale;
+
+                console.log('Source crop area:', sourceX, sourceY, sourceSize);
+
+                // 新しいCanvasにトリミング後の画像を描画
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = sourceSize;
+                tempCanvas.height = sourceSize;
+                const tempCtx = tempCanvas.getContext('2d');
+
+                tempCtx.drawImage(
+                    originalImage,
+                    sourceX, sourceY, sourceSize, sourceSize,
+                    0, 0, sourceSize, sourceSize
+                );
+
+                // トリミング後の画像を表示用Canvasに描画
+                const canvas = document.getElementById('artworkCanvas');
+                const maxWidth = 500;
+                const newDisplayScale = Math.min(1, maxWidth / sourceSize);
+                canvas.width = sourceSize * newDisplayScale;
+                canvas.height = sourceSize * newDisplayScale;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+
+                console.log('New canvas size:', canvas.width, 'x', canvas.height);
+
+                // トリミング後の画像を保存
+                tempCanvas.toBlob((blob) => {
+                    currentCropFile = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
+                    console.log('Cropped file created:', currentCropFile.size, 'bytes');
+
+                    // クロップボックスを非表示
+                    const cropBox = document.getElementById('cropBox');
+                    cropBox.style.display = 'none';
+                    cropX = cropY = cropSize = 0;
+
+                    resolve();
+                }, 'image/jpeg', 0.95);
+            });
+        }
+
+        // イベントハンドラを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            initCropHandlers();
+        });
+
+        async function resizeImage(file, maxWidth = 800, maxHeight = 800, quality = 0.85) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // アスペクト比を維持してリサイズ
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round(height * maxWidth / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round(width * maxHeight / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        // Canvasでリサイズ
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Blobに変換
+                        canvas.toBlob(
+                            (blob) => {
+                                if (blob) {
+                                    resolve(blob);
+                                } else {
+                                    reject(new Error('画像の変換に失敗しました'));
+                                }
+                            },
+                            'image/jpeg',
+                            quality
+                        );
+                    };
+                    img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadArtwork() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            const title = document.getElementById('artworkTitle').value.trim();
+            const fileInput = document.getElementById('artworkFile');
+            const file = fileInput.files[0];
+
+            if (!title) {
+                alert('番組タイトルを入力してください');
+                return;
+            }
+
+            if (!file) {
+                alert('画像ファイルを選択してください');
+                return;
+            }
+
+            // トリミング範囲が設定されている場合は、トリミングを適用
+            const cropBox = document.getElementById('cropBox');
+            if (cropBox.style.display !== 'none' && cropSize > 0) {
+                console.log('Applying crop before upload...');
+                await applyAndWaitForCrop();
+            }
+
+            try {
+                // トリミング後の画像があればそれを使用、なければ元のファイルを使用
+                const fileToUpload = currentCropFile || file;
+
+                // 画像を縮小
+                const resizedBlob = await resizeImage(fileToUpload, 800, 800, 0.85);
+
+                // ファイルサイズをMB単位で表示
+                const originalSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                const resizedSizeMB = (resizedBlob.size / 1024 / 1024).toFixed(2);
+                console.log(`Image resized: ${originalSizeMB}MB → ${resizedSizeMB}MB`);
+
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('file', resizedBlob, 'artwork.jpg');
+
+                const response = await fetch(`${baseUrl}/artwork/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ アートワークを登録しました: ${title}\n(${originalSizeMB}MB → ${resizedSizeMB}MB)`);
+                    closeArtworkUploadModal();
+                } else {
+                    alert(`❌ エラー: ${data.error || '不明なエラー'}`);
+                }
+            } catch (err) {
+                console.error('Upload artwork error:', err);
+                alert(`❌ アップロード中にエラーが発生しました: ${err.message}`);
+            }
+        }
+
+        async function loadArtworkForTitle(title) {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/artwork/${encodeURIComponent(title)}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    return URL.createObjectURL(blob);
+                } else {
+                    return 'img/jacket.png'; // デフォルト画像
+                }
+            } catch (err) {
+                console.error('Load artwork error:', err);
+                return 'img/jacket.png'; // デフォルト画像
             }
         }
     </script>
