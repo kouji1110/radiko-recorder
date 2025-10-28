@@ -10,7 +10,9 @@ import os
 logger = logging.getLogger(__name__)
 
 # DBファイルのパス
-DB_PATH = '/home/sites/radiko-recorder/data/programs.db'
+# Docker環境では環境変数BASE_DIRを使用、デフォルトは /app
+BASE_DIR = os.environ.get('BASE_DIR', '/app')
+DB_PATH = os.path.join(BASE_DIR, 'data', 'programs.db')
 
 def init_database():
     """データベースを初期化"""
