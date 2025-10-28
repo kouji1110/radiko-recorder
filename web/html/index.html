@@ -1625,15 +1625,9 @@
                     </div>
                 </div>
 
-                <!-- ブックマーク情報 -->
-                <div id="audioInfo" style="padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 0.9em; color: #495057;">
-                    <div style="margin-bottom: 8px;"><strong>ファイル名:</strong> <span id="audioFileName"></span></div>
-                    <div style="color: #6c757d; font-size: 0.85em; margin-top: 8px;">
-                        💡 再生位置は自動的に記憶されます
-                    </div>
-                    <div id="bookmarkInfo" style="color: #6c757d; font-size: 0.85em; display: none; margin-top: 8px; padding: 8px; background: #e7f3ff; border-left: 3px solid #667eea; border-radius: 4px;">
-                        📍 前回の続きから再生します (<span id="bookmarkTime"></span>)
-                    </div>
+                <!-- ファイル名表示 -->
+                <div id="audioInfo" style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.85em; color: #6c757d; text-align: center;">
+                    <span id="audioFileName"></span>
                 </div>
             </div>
             <div class="modal-actions">
@@ -5369,22 +5363,11 @@
             if (!currentAudioFilePath) return;
 
             const savedTime = localStorage.getItem(`bookmark_${currentAudioFilePath}`);
-            const bookmarkInfo = document.getElementById('bookmarkInfo');
-
             if (savedTime) {
                 const audioPlayer = document.getElementById('audioPlayer');
                 const time = parseFloat(savedTime);
-
-                // ブックマーク情報を表示
-                const minutes = Math.floor(time / 60);
-                const seconds = Math.floor(time % 60);
-                document.getElementById('bookmarkTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                bookmarkInfo.style.display = 'block';
-
                 // 再生位置を復元
                 audioPlayer.currentTime = time;
-            } else {
-                bookmarkInfo.style.display = 'none';
             }
         }
 
