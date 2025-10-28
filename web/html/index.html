@@ -900,6 +900,11 @@
                 padding: 10px 8px !important;
             }
 
+            /* カット編集パネルをスマホでは非表示 */
+            #editPanelContainer {
+                display: none !important;
+            }
+
             /* フッターのスマホ対応 */
             footer {
                 font-size: 0.65em;
@@ -1552,7 +1557,10 @@
                 </div>
 
                 <!-- 再生コントロール -->
-                <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="skipAudio(-30)" style="width: 45px; height: 45px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.75em; font-weight: 600; color: #667eea; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
+                        -30s
+                    </button>
                     <button onclick="skipAudio(-10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #667eea; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
                         -10s
                     </button>
@@ -1562,6 +1570,20 @@
                     <button onclick="skipAudio(10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #764ba2; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
                         +10s
                     </button>
+                    <button onclick="skipAudio(30)" style="width: 45px; height: 45px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.75em; font-weight: 600; color: #764ba2; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
+                        +30s
+                    </button>
+                </div>
+
+                <!-- ボリュームコントロール -->
+                <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 0.85em; color: #495057; font-weight: 600; min-width: 80px;">🔊 音量:</label>
+                        <input type="range" id="volumeControl" min="0" max="100" value="100"
+                               oninput="changeVolume(this.value)"
+                               style="flex: 1; cursor: pointer;">
+                        <span id="volumeValue" style="min-width: 50px; font-size: 0.9em; font-weight: 600; color: #667eea;">100%</span>
+                    </div>
                 </div>
 
                 <!-- 再生速度コントロール -->
@@ -1584,7 +1606,7 @@
                 </div>
 
                 <!-- カット編集パネル -->
-                <div style="padding: 12px; background: linear-gradient(135deg, #ffeaa715, #ff6b6b15); border-radius: 8px; margin-bottom: 10px; border: 2px solid #ffe8e8;">
+                <div id="editPanelContainer" style="padding: 12px; background: linear-gradient(135deg, #ffeaa715, #ff6b6b15); border-radius: 8px; margin-bottom: 10px; border: 2px solid #ffe8e8;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                         <label style="font-size: 0.85em; color: #d63031; font-weight: 600;">✂️ カット編集</label>
                         <button id="toggleEditPanel" onclick="toggleEditPanel()" style="padding: 3px 8px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.75em; color: #6c757d;">
@@ -1632,9 +1654,6 @@
                 <div id="audioInfo" style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 0.85em; color: #6c757d; text-align: center;">
                     <span id="audioFileName"></span>
                 </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-action btn-close" onclick="closeAudioPlayer()">閉じる</button>
             </div>
         </div>
     </div>
@@ -5416,10 +5435,42 @@
         // 音量を読み込み
         function loadVolume() {
             const audioPlayer = document.getElementById('audioPlayer');
+            const volumeControl = document.getElementById('volumeControl');
+            const volumeValue = document.getElementById('volumeValue');
             const savedVolume = localStorage.getItem('audioPlayerVolume');
 
             if (savedVolume !== null && audioPlayer) {
-                audioPlayer.volume = parseFloat(savedVolume);
+                const volume = parseFloat(savedVolume);
+                audioPlayer.volume = volume;
+
+                // UIを更新
+                if (volumeControl) {
+                    volumeControl.value = Math.round(volume * 100);
+                }
+                if (volumeValue) {
+                    volumeValue.textContent = Math.round(volume * 100) + '%';
+                }
+            } else if (audioPlayer) {
+                // デフォルトは100%
+                audioPlayer.volume = 1.0;
+                if (volumeControl) volumeControl.value = 100;
+                if (volumeValue) volumeValue.textContent = '100%';
+            }
+        }
+
+        // 音量を変更
+        function changeVolume(value) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const volumeValue = document.getElementById('volumeValue');
+
+            if (audioPlayer) {
+                const volume = value / 100;
+                audioPlayer.volume = volume;
+                localStorage.setItem('audioPlayerVolume', volume.toString());
+            }
+
+            if (volumeValue) {
+                volumeValue.textContent = value + '%';
             }
         }
 
