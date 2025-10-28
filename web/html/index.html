@@ -903,6 +903,40 @@
                 padding: 8px;
             }
         }
+
+        /* カスタムプログレスバー */
+        #progressBar::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s;
+        }
+
+        #progressBar::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+        }
+
+        #progressBar::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s;
+        }
+
+        #progressBar::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -1479,28 +1513,51 @@
 
     <!-- オーディオプレイヤーモーダル -->
     <div id="audioPlayerModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2 id="audioPlayerTitle">🎵 再生中</h2>
-                <button class="modal-close" onclick="closeAudioPlayer()">&times;</button>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="padding: 12px 20px; border-bottom: 1px solid #e9ecef;">
+                <button class="modal-close" onclick="closeAudioPlayer()" style="position: absolute; right: 15px; top: 15px; background: #f8f9fa; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; border: none; cursor: pointer; color: #6c757d; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <audio id="audioPlayer" controls style="width: 100%; margin-bottom: 15px;"
+                <!-- アルバムアート風エリア -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 200px; height: 200px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); margin-bottom: 15px;">
+                        <span style="font-size: 80px;">🎵</span>
+                    </div>
+                    <h3 id="audioPlayerTitle" style="font-size: 1.1em; font-weight: 600; color: #2d3436; margin: 0; line-height: 1.4; padding: 0 10px;">再生中</h3>
+                </div>
+
+                <!-- 非表示のオーディオ要素（カスタムコントロール使用） -->
+                <audio id="audioPlayer" style="display: none;"
                        ontimeupdate="updatePlaybackPosition()"
                        onloadedmetadata="loadBookmark()"
-                       onvolumechange="saveVolume()">
+                       onvolumechange="saveVolume()"
+                       onplay="updatePlayPauseButton()"
+                       onpause="updatePlayPauseButton()"
+                       onended="updatePlayPauseButton()">
                     <source id="audioSource" src="" type="audio/mpeg">
-                    お使いのブラウザは音声再生をサポートしていません。
                 </audio>
 
-                <!-- 早送り・巻き戻しコントロール -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 6px; margin-bottom: 10px;">
-                    <button onclick="skipAudio(-10)" style="padding: 5px 10px; background: rgba(102, 126, 234, 0.1); border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; color: #667eea; transition: all 0.15s;" onmouseover="this.style.background='#667eea'; this.style.color='white'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'; this.style.color='#667eea'; this.style.transform='scale(1)'">
-                        ← 10s
+                <!-- プログレスバー -->
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.75em; color: #6c757d;">
+                        <span id="currentTime">0:00</span>
+                        <span id="totalDuration">0:00</span>
+                    </div>
+                    <input type="range" id="progressBar" min="0" max="100" value="0"
+                           oninput="seekAudio(this.value)"
+                           style="width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(to right, #667eea 0%, #667eea 0%, #e9ecef 0%, #e9ecef 100%); outline: none; -webkit-appearance: none; cursor: pointer;">
+                </div>
+
+                <!-- 再生コントロール -->
+                <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <button onclick="skipAudio(-10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #667eea; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
+                        -10s
                     </button>
-                    <span style="font-size: 0.7em; color: #6c757d; letter-spacing: 0.5px;">⌨️ ←→</span>
-                    <button onclick="skipAudio(10)" style="padding: 5px 10px; background: rgba(118, 75, 162, 0.1); border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 600; color: #764ba2; transition: all 0.15s;" onmouseover="this.style.background='#764ba2'; this.style.color='white'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(118, 75, 162, 0.1)'; this.style.color='#764ba2'; this.style.transform='scale(1)'">
-                        10s →
+                    <button id="playPauseBtn" onclick="togglePlayPause()" style="width: 70px; height: 70px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; border-radius: 50%; cursor: pointer; color: white; font-size: 28px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+                        ▶
+                    </button>
+                    <button onclick="skipAudio(10)" style="width: 50px; height: 50px; background: #f8f9fa; border: none; border-radius: 50%; cursor: pointer; font-size: 0.85em; font-weight: 600; color: #764ba2; transition: all 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#e9ecef'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#f8f9fa'; this.style.transform='scale(1)'">
+                        +10s
                     </button>
                 </div>
 
@@ -5276,6 +5333,26 @@
             const currentTime = audioPlayer.currentTime;
             const duration = audioPlayer.duration;
 
+            // プログレスバーと時間表示を更新
+            const progressBar = document.getElementById('progressBar');
+            const currentTimeEl = document.getElementById('currentTime');
+            const totalDurationEl = document.getElementById('totalDuration');
+
+            if (progressBar && !isNaN(duration) && duration > 0) {
+                const progress = (currentTime / duration) * 100;
+                progressBar.value = progress;
+                // プログレスバーの色を更新
+                progressBar.style.background = `linear-gradient(to right, #667eea 0%, #667eea ${progress}%, #e9ecef ${progress}%, #e9ecef 100%)`;
+            }
+
+            if (currentTimeEl) {
+                currentTimeEl.textContent = formatTime(currentTime);
+            }
+
+            if (totalDurationEl && !isNaN(duration)) {
+                totalDurationEl.textContent = formatTime(duration);
+            }
+
             // 再生中は常に位置を自動保存（開始3秒後から）
             if (currentTime > 3 && !isNaN(duration)) {
                 localStorage.setItem(`bookmark_${currentAudioFilePath}`, currentTime.toString());
@@ -5327,6 +5404,48 @@
             if (savedVolume !== null && audioPlayer) {
                 audioPlayer.volume = parseFloat(savedVolume);
             }
+        }
+
+        // 時間をフォーマット (秒 -> mm:ss)
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 再生/一時停止トグル
+        function togglePlayPause() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (!audioPlayer) return;
+
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+            } else {
+                audioPlayer.pause();
+            }
+        }
+
+        // 再生/一時停止ボタンの表示を更新
+        function updatePlayPauseButton() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            if (!audioPlayer || !playPauseBtn) return;
+
+            if (audioPlayer.paused) {
+                playPauseBtn.innerHTML = '▶';
+            } else {
+                playPauseBtn.innerHTML = '⏸';
+            }
+        }
+
+        // プログレスバーでシーク
+        function seekAudio(value) {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (!audioPlayer || isNaN(audioPlayer.duration)) return;
+
+            const newTime = (value / 100) * audioPlayer.duration;
+            audioPlayer.currentTime = newTime;
         }
 
         // すべての再生履歴をリセット
