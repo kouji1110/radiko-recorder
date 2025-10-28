@@ -5125,6 +5125,37 @@
             // 音量を復元
             loadVolume();
 
+            // Media Session API でメタデータを設定（iOS Safari等のネイティブプレイヤー対応）
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: filename,
+                    artist: 'radiko録音',
+                    album: 'ラジオ録音',
+                    artwork: [
+                        { src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==', sizes: '512x512', type: 'image/svg+xml' }
+                    ]
+                });
+
+                // Media Session のアクションハンドラーを設定
+                navigator.mediaSession.setActionHandler('play', () => {
+                    audioPlayer.play();
+                });
+                navigator.mediaSession.setActionHandler('pause', () => {
+                    audioPlayer.pause();
+                });
+                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                    skipAudio(-10);
+                });
+                navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                    skipAudio(10);
+                });
+                navigator.mediaSession.setActionHandler('seekto', (details) => {
+                    if (details.seekTime) {
+                        audioPlayer.currentTime = details.seekTime;
+                    }
+                });
+            }
+
             // キーボードショートカットを設定（左右矢印キー）
             // 既存のリスナーがあれば削除
             if (audioKeyboardListener) {
