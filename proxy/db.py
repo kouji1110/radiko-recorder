@@ -91,6 +91,39 @@ def init_database():
             )
         ''')
 
+        # cron予約テーブル（定期録音）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cron_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                minute TEXT NOT NULL,
+                hour TEXT NOT NULL,
+                day_of_month TEXT NOT NULL,
+                month TEXT NOT NULL,
+                day_of_week TEXT NOT NULL,
+                command TEXT NOT NULL,
+                title TEXT,
+                station TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # at予約テーブル（1回限りの録音）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS at_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT UNIQUE,
+                schedule_time TEXT NOT NULL,
+                command TEXT NOT NULL,
+                title TEXT,
+                station TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -401,6 +434,160 @@ def cleanup_old_data(days_to_keep: int = 15):
     except Exception as e:
         logger.error(f'❌ Cleanup error: {str(e)}')
         return 0
+
+
+# ========================================
+# 予約管理関連の関数
+# ========================================
+
+def save_cron_job(minute: str, hour: str, day_of_month: str, month: str, day_of_week: str,
+                  command: str, title: str = '', station: str = '', start_time: str = '', end_time: str = ''):
+    """cron予約をDBに保存"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO cron_jobs (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time))
+
+        job_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ Cron job saved: {job_id}')
+        return job_id
+
+    except Exception as e:
+        logger.error(f'❌ Save cron job error: {str(e)}')
+        return None
+
+
+def get_all_cron_jobs():
+    """全てのcron予約を取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM cron_jobs ORDER BY created_at DESC')
+        rows = cursor.fetchall()
+        conn.close()
+
+        jobs = []
+        for row in rows:
+            jobs.append({
+                'id': row['id'],
+                'minute': row['minute'],
+                'hour': row['hour'],
+                'day_of_month': row['day_of_month'],
+                'month': row['month'],
+                'day_of_week': row['day_of_week'],
+                'command': row['command'],
+                'title': row['title'],
+                'station': row['station'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'created_at': row['created_at']
+            })
+
+        return jobs
+
+    except Exception as e:
+        logger.error(f'❌ Get cron jobs error: {str(e)}')
+        return []
+
+
+def delete_cron_job(job_id: int):
+    """cron予約を削除"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM cron_jobs WHERE id = ?', (job_id,))
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ Cron job deleted: {job_id}')
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Delete cron job error: {str(e)}')
+        return False
+
+
+def save_at_job(job_id: str, schedule_time: str, command: str, title: str = '',
+                station: str = '', start_time: str = '', end_time: str = ''):
+    """at予約をDBに保存"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO at_jobs (job_id, schedule_time, command, title, station, start_time, end_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (job_id, schedule_time, command, title, station, start_time, end_time))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ At job saved: {job_id}')
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Save at job error: {str(e)}')
+        return False
+
+
+def get_all_at_jobs():
+    """全てのat予約を取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM at_jobs ORDER BY schedule_time ASC')
+        rows = cursor.fetchall()
+        conn.close()
+
+        jobs = []
+        for row in rows:
+            jobs.append({
+                'id': row['id'],
+                'job_id': row['job_id'],
+                'schedule_time': row['schedule_time'],
+                'command': row['command'],
+                'title': row['title'],
+                'station': row['station'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'created_at': row['created_at']
+            })
+
+        return jobs
+
+    except Exception as e:
+        logger.error(f'❌ Get at jobs error: {str(e)}')
+        return []
+
+
+def delete_at_job(job_id: str):
+    """at予約を削除"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM at_jobs WHERE job_id = ?', (job_id,))
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ At job deleted: {job_id}')
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Delete at job error: {str(e)}')
+        return False
 
 
 if __name__ == '__main__':
