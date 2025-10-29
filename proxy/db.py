@@ -829,7 +829,7 @@ def get_all_recorded_files(limit: int = 1000, offset: int = 0):
                 p.title as program_db_title,
                 p.description as program_description,
                 p.performer as program_performer,
-                p.info as program_info,
+                p.info as program_db_info,
                 p.url as program_url
             FROM recorded_files rf
             LEFT JOIN programs p ON rf.program_id = p.id
@@ -863,11 +863,11 @@ def get_all_recorded_files(limit: int = 1000, offset: int = 0):
             # 番組表データがあれば追加
             if row['program_id']:
                 file_data['program_info'] = {
-                    'title': row['program_db_title'],
-                    'description': row['program_description'],
-                    'performer': row['program_performer'],
-                    'info': row['program_info'],
-                    'url': row['program_url']
+                    'program_db_title': row['program_db_title'],
+                    'program_description': row['program_description'],
+                    'program_performer': row['program_performer'],
+                    'program_info': row['program_db_info'],
+                    'program_url': row['program_url']
                 }
 
             files.append(file_data)

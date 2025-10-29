@@ -696,6 +696,10 @@ def list_files():
                             'duration': db_info['duration']
                         })
 
+                        # 番組情報も追加（program_infoフィールド）
+                        if db_info.get('program_info'):
+                            file_data['program_info'] = db_info['program_info']
+
                     files.append(file_data)
 
         # 更新日時でソート（新しい順）
