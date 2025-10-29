@@ -69,7 +69,7 @@ def convert_cron_dow_to_apscheduler(cron_dow):
     return dow_map.get(cron_dow, cron_dow)
 
 
-def execute_recording(command: str, job_id=None, job_type='cron'):
+def execute_recording(command: str, job_id=None, job_type='cron', metadata=None):
     """録音を実行する関数"""
     try:
         logger.info(f'🎙️ Recording started (type={job_type}, job_id={job_id})')
@@ -88,6 +88,42 @@ def execute_recording(command: str, job_id=None, job_type='cron'):
             logger.info(f'✅ Recording completed successfully')
             if result.stdout:
                 logger.info(f'📤 Output: {result.stdout[:500]}')
+
+            # 録音成功時、DBに登録
+            if metadata:
+                try:
+                    # 生成されたファイルを探す
+                    title = metadata.get('title', '')
+                    rss = metadata.get('rss', '')
+                    start_time = metadata.get('start_time', '')
+
+                    # ファイルパスを構築
+                    output_dir = os.path.join(OUTPUT_DIR, rss)
+                    filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
+                    file_path = os.path.join(output_dir, filename)
+                    relative_path = os.path.relpath(file_path, OUTPUT_DIR)
+
+                    if os.path.exists(file_path):
+                        file_stat = os.stat(file_path)
+                        file_metadata = extract_metadata_from_filename(filename, relative_path)
+
+                        # DBに登録
+                        db.register_recorded_file(
+                            file_path=relative_path,
+                            file_name=filename,
+                            program_title=file_metadata['program_title'],
+                            station_id=file_metadata['station_id'],
+                            station_name=metadata.get('station'),
+                            broadcast_date=file_metadata['broadcast_date'],
+                            start_time=start_time,
+                            end_time=metadata.get('end_time'),
+                            file_size=file_stat.st_size,
+                            duration=None,
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                        )
+                        logger.info(f'📝 Recorded file registered in DB: {relative_path}')
+                except Exception as e:
+                    logger.error(f'❌ Failed to register file in DB: {str(e)}')
         else:
             logger.error(f'❌ Recording failed with return code: {result.returncode}')
             if result.stderr:
@@ -610,15 +646,20 @@ def rename_file():
 
 @app.route('/files', methods=['GET'])
 def list_files():
-    """録音済みファイル一覧を取得"""
+    """録音済みファイル一覧を取得（DB経由、ファイルシステムと照合）"""
     try:
         base_dir = OUTPUT_DIR
+
+        # DBから録音ファイル情報を取得
+        db_files = db.get_all_recorded_files()
+        db_files_dict = {f['file_path']: f for f in db_files}
+
         files = []
 
         if not os.path.exists(base_dir):
             return jsonify({'files': []})
 
-        # ディレクトリを再帰的に探索
+        # ファイルシステムを探索し、DBと照合
         for root, dirs, filenames in os.walk(base_dir):
             for filename in filenames:
                 if filename.endswith('.mp3'):
@@ -626,12 +667,27 @@ def list_files():
                     relative_path = os.path.relpath(full_path, base_dir)
                     file_stat = os.stat(full_path)
 
-                    files.append({
+                    # DB情報があれば使用、なければファイル情報のみ
+                    db_info = db_files_dict.get(relative_path)
+
+                    file_data = {
                         'path': relative_path,
                         'name': filename,
                         'size': file_stat.st_size,
                         'modified': file_stat.st_mtime
-                    })
+                    }
+
+                    # DB情報があれば追加
+                    if db_info:
+                        file_data.update({
+                            'program_title': db_info['program_title'],
+                            'station_id': db_info['station_id'],
+                            'station_name': db_info['station_name'],
+                            'broadcast_date': db_info['broadcast_date'],
+                            'duration': db_info['duration']
+                        })
+
+                    files.append(file_data)
 
         # 更新日時でソート（新しい順）
         files.sort(key=lambda x: x['modified'], reverse=True)
@@ -954,6 +1010,10 @@ def delete_file():
         os.remove(safe_path)
         logger.info(f'File deleted: {safe_path}')
 
+        # DBからも削除
+        db.delete_recorded_file(filepath)
+        logger.info(f'File deleted from DB: {filepath}')
+
         return jsonify({'success': True, 'message': 'File deleted successfully'})
 
     except Exception as e:
@@ -991,6 +1051,10 @@ def delete_multiple_files():
                 os.remove(safe_path)
                 deleted.append(filepath)
                 logger.info(f'File deleted: {safe_path}')
+
+                # DBからも削除
+                db.delete_recorded_file(filepath)
+                logger.info(f'File deleted from DB: {filepath}')
 
             except Exception as e:
                 errors.append({'path': filepath, 'error': str(e)})
@@ -1737,6 +1801,107 @@ def delete_artwork():
 
     except Exception as e:
         logger.error(f'Delete artwork error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+def extract_metadata_from_filename(filename, filepath):
+    """ファイル名からメタデータを抽出
+
+    想定フォーマット: 番組名(YYYY.MM.DD).mp3 または 番組名_局_説明(YYYY.MM.DD).mp3
+    filepath例: JOAK-FM/番組名(2025.10.29).mp3
+    """
+    import re
+    from datetime import datetime as dt
+
+    # 局IDをファイルパスから抽出
+    station_id = None
+    if '/' in filepath:
+        station_id = filepath.split('/')[0]
+
+    # 拡張子を除去
+    name_without_ext = filename.replace('.mp3', '').replace('.m4a', '').replace('.aac', '')
+
+    # 放送日を抽出: (YYYY.MM.DD) または (YYYY-MM-DD) または _YYYY-MM-DD
+    date_pattern = r'[\(\_](\d{4})[\.\-](\d{2})[\.\-](\d{2})[\)\_]?'
+    date_match = re.search(date_pattern, name_without_ext)
+
+    broadcast_date = None
+    if date_match:
+        year, month, day = date_match.groups()
+        broadcast_date = f'{year}-{month}-{day}'
+        # 日付部分を除去して番組タイトルを抽出
+        program_title = re.sub(date_pattern, '', name_without_ext).strip('_- ')
+    else:
+        program_title = name_without_ext
+
+    return {
+        'program_title': program_title,
+        'station_id': station_id,
+        'broadcast_date': broadcast_date
+    }
+
+
+@app.route('/files/scan', methods=['POST'])
+def scan_and_register_files():
+    """既存の録音ファイルをスキャンしてDBに登録"""
+    try:
+        base_dir = OUTPUT_DIR
+        registered = 0
+        updated = 0
+        errors = []
+
+        if not os.path.exists(base_dir):
+            return jsonify({'error': 'Output directory not found'}), 404
+
+        # ファイルシステムをスキャン
+        for root, dirs, filenames in os.walk(base_dir):
+            for filename in filenames:
+                if filename.endswith(('.mp3', '.m4a', '.aac')):
+                    try:
+                        full_path = os.path.join(root, filename)
+                        relative_path = os.path.relpath(full_path, base_dir)
+                        file_stat = os.stat(full_path)
+
+                        # ファイル名からメタデータを抽出
+                        metadata = extract_metadata_from_filename(filename, relative_path)
+
+                        # DBに登録
+                        file_id = db.register_recorded_file(
+                            file_path=relative_path,
+                            file_name=filename,
+                            program_title=metadata['program_title'],
+                            station_id=metadata['station_id'],
+                            station_name=None,  # 後で追加可能
+                            broadcast_date=metadata['broadcast_date'],
+                            start_time=None,
+                            end_time=None,
+                            file_size=file_stat.st_size,
+                            duration=None,  # 後で追加可能
+                            file_modified=dt.fromtimestamp(file_stat.st_mtime).isoformat()
+                        )
+
+                        if file_id:
+                            # 既存レコードの更新か新規登録かを判定
+                            existing = db.get_recorded_file_by_path(relative_path)
+                            if existing and existing['id'] != file_id:
+                                updated += 1
+                            else:
+                                registered += 1
+
+                    except Exception as e:
+                        errors.append({'file': filename, 'error': str(e)})
+                        logger.error(f'Failed to register file {filename}: {str(e)}')
+
+        return jsonify({
+            'success': True,
+            'registered': registered,
+            'updated': updated,
+            'total': registered + updated,
+            'errors': errors
+        })
+
+    except Exception as e:
+        logger.error(f'Scan files error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 
