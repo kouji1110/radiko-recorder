@@ -1853,6 +1853,8 @@ def extract_metadata_from_filename(filename, filepath):
 @app.route('/files/scan', methods=['POST'])
 def scan_and_register_files():
     """既存の録音ファイルをスキャンしてDBに登録"""
+    from datetime import datetime
+
     try:
         base_dir = OUTPUT_DIR
         registered = 0
@@ -1886,7 +1888,7 @@ def scan_and_register_files():
                             end_time=None,
                             file_size=file_stat.st_size,
                             duration=None,  # 後で追加可能
-                            file_modified=dt.fromtimestamp(file_stat.st_mtime).isoformat()
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
                         )
 
                         if file_id:
