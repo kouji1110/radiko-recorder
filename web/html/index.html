@@ -1919,22 +1919,6 @@
         </div>
     </div>
 
-    <!-- 番組詳細モーダル -->
-    <div id="programDetailModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-                <h2>📋 番組詳細</h2>
-                <button class="modal-close" onclick="closeProgramDetailModal()">&times;</button>
-            </div>
-            <div style="padding: 20px;">
-                <div id="programDetailContent"></div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-action btn-close" onclick="closeProgramDetailModal()">閉じる</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentCommand = '';
         let currentProgramData = null;
@@ -3954,14 +3938,6 @@
                         <td style="padding: 10px 12px; position: relative;" onclick="event.stopPropagation()">
                             <!-- PC表示: 通常のボタン -->
                             <div class="file-actions-desktop">
-                                ${file.program_info ? `
-                                <button onclick='showProgramDetailModal(${JSON.stringify(file).replace(/'/g, "&#39;")})'
-                                        title="番組詳細"
-                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
-                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <span style="font-size: 20px; display: block;">ℹ️</span>
-                                </button>
-                                ` : ''}
                                 <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="${hasBookmark ? '続きから再生' : '再生'}"
                                         style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
@@ -4002,14 +3978,6 @@
                                     ⋮
                                 </button>
                                 <div id="fileMenu${idx}" class="file-menu-dropdown" style="display: none; position: absolute; right: 10px; top: 50px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; overflow: hidden;">
-                                    ${file.program_info ? `
-                                    <button onclick='showProgramDetailModal(${JSON.stringify(file).replace(/'/g, "&#39;")}); closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
-                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                                        <span style="font-size: 20px;">ℹ️</span>
-                                        <span>番組詳細</span>
-                                    </button>
-                                    ` : ''}
                                     <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
                                             style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
                                             onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
@@ -4488,89 +4456,6 @@
             document.getElementById('renameModal').classList.remove('active');
             renameFilePath = '';
             renameFileName = '';
-        }
-
-        // 番組詳細モーダルを表示
-        function showProgramDetailModal(fileData) {
-            const modal = document.getElementById('programDetailModal');
-            const content = document.getElementById('programDetailContent');
-
-            if (!fileData.program_info) {
-                alert('番組情報がありません');
-                return;
-            }
-
-            const info = fileData.program_info;
-
-            let html = `
-                <div style="margin-bottom: 20px;">
-                    <div style="font-size: 1.2em; font-weight: 600; color: #212529; margin-bottom: 10px;">
-                        ${info.program_db_title || fileData.program_title || 'タイトル不明'}
-                    </div>
-                </div>
-            `;
-
-            if (fileData.station_name || fileData.station_id) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">放送局</div>
-                        <div style="color: #495057;">${fileData.station_name || fileData.station_id}</div>
-                    </div>
-                `;
-            }
-
-            if (fileData.broadcast_date) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">放送日</div>
-                        <div style="color: #495057;">${fileData.broadcast_date}</div>
-                    </div>
-                `;
-            }
-
-            if (info.program_performer) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">🎤 出演者</div>
-                        <div style="color: #495057;">${info.program_performer}</div>
-                    </div>
-                `;
-            }
-
-            if (info.program_description) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">📝 番組説明</div>
-                        <div style="color: #495057; line-height: 1.6; white-space: pre-wrap;">${info.program_description}</div>
-                    </div>
-                `;
-            }
-
-            if (info.program_info) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">ℹ️ 詳細情報</div>
-                        <div style="color: #495057; line-height: 1.6; white-space: pre-wrap;">${info.program_info}</div>
-                    </div>
-                `;
-            }
-
-            if (info.program_url) {
-                html += `
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 0.85em; color: #6c757d; margin-bottom: 5px;">🔗 URL</div>
-                        <div><a href="${info.program_url}" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: none;">${info.program_url}</a></div>
-                    </div>
-                `;
-            }
-
-            content.innerHTML = html;
-            modal.classList.add('active');
-        }
-
-        // 番組詳細モーダルを閉じる
-        function closeProgramDetailModal() {
-            document.getElementById('programDetailModal').classList.remove('active');
         }
 
         // リネームを実行
