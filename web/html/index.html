@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>録音くん - radiko録音管理システム</title>
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
@@ -561,6 +564,18 @@
 
         .menu-overlay.active {
             display: block;
+        }
+
+        /* ファイル操作ボタンのデフォルトスタイル（PC表示） v2 */
+        .file-actions-desktop {
+            display: flex !important;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .file-actions-mobile {
+            display: none !important;
         }
 
         @media (max-width: 768px) {
@@ -3760,7 +3775,7 @@
                         <thead>
                             <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
                                 <th style="padding: 12px; text-align: center; width: 40px;"></th>
-                                <th style="padding: 12px; text-align: center; width: 60px;"></th>
+                                <th class="artwork-column" style="padding: 12px; text-align: center; width: 60px;"></th>
                                 <th onclick="sortFiles('name')" style="padding: 12px; text-align: left; cursor: pointer; user-select: none; white-space: nowrap;"
                                     onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
                                     ファイル名 ${currentSort.column === 'name' ? (currentSort.direction === 'asc' ? '▲' : '▼') : ''}
@@ -3854,7 +3869,7 @@
                             <input type="checkbox" class="file-checkbox" value="${file.path}" onchange="updateSelectedCount()"
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
-                        <td style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">
+                        <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">
                             <img src="${artworkUrl}" alt="Artwork"
                                  style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
                                  onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
@@ -3874,8 +3889,9 @@
                         </td>
                         <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.85em;">${dateStr}</td>
-                        <td style="padding: 10px 12px;" onclick="event.stopPropagation()">
-                            <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                        <td style="padding: 10px 12px; position: relative;" onclick="event.stopPropagation()">
+                            <!-- PC表示: 通常のボタン -->
+                            <div class="file-actions-desktop">
                                 <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
                                         title="${hasBookmark ? '続きから再生' : '再生'}"
                                         style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
@@ -3906,6 +3922,47 @@
                                         onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
                                     <img src="img/trash.png" alt="削除" style="width: 24px; height: 24px; display: block;">
                                 </button>
+                            </div>
+
+                            <!-- スマホ表示: メニューボタン -->
+                            <div class="file-actions-mobile">
+                                <button onclick='toggleFileMenu(event, ${idx}, "${file.path.replace(/'/g, "\\'").replace(/"/g, '&quot;')}", "${file.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}", ${hasBookmark ? "true" : "false"})'
+                                        style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1.2em; font-weight: bold; transition: background 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                        title="メニューを開く">
+                                    ⋮
+                                </button>
+                                <div id="fileMenu${idx}" class="file-menu-dropdown" style="display: none; position: absolute; right: 10px; top: 50px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; overflow: hidden;">
+                                    <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
+                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                        <img src="img/play.png" alt="" style="width: 20px; height: 20px;">
+                                        <span>${hasBookmark ? '続きから再生' : '再生'}</span>
+                                    </button>
+                                    <button onclick='window.location.href="${baseUrl}/download/${file.path}"; closeFileMenu(${idx})'
+                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                        <img src="img/download.png" alt="" style="width: 20px; height: 20px;">
+                                        <span>ダウンロード</span>
+                                    </button>
+                                    <button onclick='showArtworkUploadModal("${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
+                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                        <img src="img/artwork.png" alt="" style="width: 20px; height: 20px;">
+                                        <span>アートワーク編集</span>
+                                    </button>
+                                    <button onclick='showRenameModal("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
+                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                        <img src="img/edit.png" alt="" style="width: 20px; height: 20px;">
+                                        <span>タイトル編集</span>
+                                    </button>
+                                    <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}"); closeFileMenu(${idx})'
+                                            style="width: 100%; padding: 12px 16px; background: white; border: none; border-top: 1px solid #e9ecef; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em; color: #dc3545;"
+                                            onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
+                                        <img src="img/trash.png" alt="" style="width: 20px; height: 20px;">
+                                        <span>削除</span>
+                                    </button>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -5417,6 +5474,50 @@
             } catch (err) {
                 console.error('Error saving at job edit:', err);
                 alert(`❌ エラー: ${err.message}`);
+            }
+        }
+
+        // ファイルメニューの表示/非表示
+        let currentOpenMenuIndex = null;
+
+        function toggleFileMenu(event, idx, filepath, filename, hasBookmark) {
+            event.stopPropagation();
+
+            const menu = document.getElementById(`fileMenu${idx}`);
+
+            // 他のメニューを閉じる
+            if (currentOpenMenuIndex !== null && currentOpenMenuIndex !== idx) {
+                closeFileMenu(currentOpenMenuIndex);
+            }
+
+            // メニューの表示/非表示を切り替え
+            if (menu.style.display === 'none') {
+                menu.style.display = 'block';
+                currentOpenMenuIndex = idx;
+
+                // 外側クリックでメニューを閉じる
+                setTimeout(() => {
+                    document.addEventListener('click', closeAllMenus);
+                }, 0);
+            } else {
+                closeFileMenu(idx);
+            }
+        }
+
+        function closeFileMenu(idx) {
+            const menu = document.getElementById(`fileMenu${idx}`);
+            if (menu) {
+                menu.style.display = 'none';
+            }
+            if (currentOpenMenuIndex === idx) {
+                currentOpenMenuIndex = null;
+                document.removeEventListener('click', closeAllMenus);
+            }
+        }
+
+        function closeAllMenus() {
+            if (currentOpenMenuIndex !== null) {
+                closeFileMenu(currentOpenMenuIndex);
             }
         }
 
