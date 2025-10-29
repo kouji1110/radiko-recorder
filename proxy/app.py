@@ -96,6 +96,7 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                     title = metadata.get('title', '')
                     rss = metadata.get('rss', '')
                     start_time = metadata.get('start_time', '')
+                    station = metadata.get('station', '')
 
                     # ファイルパスを構築
                     output_dir = os.path.join(OUTPUT_DIR, rss)
@@ -107,13 +108,21 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                         file_stat = os.stat(file_path)
                         file_metadata = extract_metadata_from_filename(filename, relative_path)
 
+                        # 番組表から番組IDを検索
+                        program_id = None
+                        if rss and start_time:
+                            program_id = db.find_program_by_info(rss, start_time)
+                            if program_id:
+                                logger.info(f'📋 Found program ID: {program_id}')
+
                         # DBに登録
                         db.register_recorded_file(
                             file_path=relative_path,
                             file_name=filename,
+                            program_id=program_id,
                             program_title=file_metadata['program_title'],
                             station_id=file_metadata['station_id'],
-                            station_name=metadata.get('station'),
+                            station_name=station,
                             broadcast_date=file_metadata['broadcast_date'],
                             start_time=start_time,
                             end_time=metadata.get('end_time'),

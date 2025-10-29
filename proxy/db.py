@@ -142,6 +142,7 @@ def init_database():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_path TEXT NOT NULL UNIQUE,
                 file_name TEXT NOT NULL,
+                program_id INTEGER,
                 program_title TEXT,
                 station_id TEXT,
                 station_name TEXT,
@@ -152,7 +153,8 @@ def init_database():
                 duration REAL,
                 file_modified TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE SET NULL
             )
         ''')
 
@@ -772,8 +774,8 @@ def delete_artwork(title: str):
 # 録音ファイル管理関連の関数
 # ========================================
 
-def register_recorded_file(file_path: str, file_name: str, program_title: str = None,
-                          station_id: str = None, station_name: str = None,
+def register_recorded_file(file_path: str, file_name: str, program_id: int = None,
+                          program_title: str = None, station_id: str = None, station_name: str = None,
                           broadcast_date: str = None, start_time: str = None, end_time: str = None,
                           file_size: int = None, duration: float = None, file_modified: str = None):
     """録音ファイルをDBに登録（既存の場合は更新）"""
@@ -783,11 +785,12 @@ def register_recorded_file(file_path: str, file_name: str, program_title: str = 
 
         cursor.execute('''
             INSERT INTO recorded_files (
-                file_path, file_name, program_title, station_id, station_name,
+                file_path, file_name, program_id, program_title, station_id, station_name,
                 broadcast_date, start_time, end_time, file_size, duration, file_modified, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(file_path) DO UPDATE SET
                 file_name = excluded.file_name,
+                program_id = excluded.program_id,
                 program_title = excluded.program_title,
                 station_id = excluded.station_id,
                 station_name = excluded.station_name,
@@ -798,7 +801,7 @@ def register_recorded_file(file_path: str, file_name: str, program_title: str = 
                 duration = excluded.duration,
                 file_modified = excluded.file_modified,
                 updated_at = CURRENT_TIMESTAMP
-        ''', (file_path, file_name, program_title, station_id, station_name,
+        ''', (file_path, file_name, program_id, program_title, station_id, station_name,
               broadcast_date, start_time, end_time, file_size, duration, file_modified))
 
         file_id = cursor.lastrowid
@@ -814,15 +817,23 @@ def register_recorded_file(file_path: str, file_name: str, program_title: str = 
 
 
 def get_all_recorded_files(limit: int = 1000, offset: int = 0):
-    """全ての録音ファイルを取得"""
+    """全ての録音ファイルを取得（番組情報も含む）"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
         cursor.execute('''
-            SELECT * FROM recorded_files
-            ORDER BY file_modified DESC
+            SELECT
+                rf.*,
+                p.title as program_db_title,
+                p.description as program_description,
+                p.performer as program_performer,
+                p.info as program_info,
+                p.url as program_url
+            FROM recorded_files rf
+            LEFT JOIN programs p ON rf.program_id = p.id
+            ORDER BY rf.file_modified DESC
             LIMIT ? OFFSET ?
         ''', (limit, offset))
 
@@ -831,10 +842,11 @@ def get_all_recorded_files(limit: int = 1000, offset: int = 0):
 
         files = []
         for row in rows:
-            files.append({
+            file_data = {
                 'id': row['id'],
                 'file_path': row['file_path'],
                 'file_name': row['file_name'],
+                'program_id': row['program_id'],
                 'program_title': row['program_title'],
                 'station_id': row['station_id'],
                 'station_name': row['station_name'],
@@ -846,7 +858,19 @@ def get_all_recorded_files(limit: int = 1000, offset: int = 0):
                 'file_modified': row['file_modified'],
                 'created_at': row['created_at'],
                 'updated_at': row['updated_at']
-            })
+            }
+
+            # 番組表データがあれば追加
+            if row['program_id']:
+                file_data['program_info'] = {
+                    'title': row['program_db_title'],
+                    'description': row['program_description'],
+                    'performer': row['program_performer'],
+                    'info': row['program_info'],
+                    'url': row['program_url']
+                }
+
+            files.append(file_data)
 
         return files
 
@@ -971,6 +995,32 @@ def get_recorded_file_by_path(file_path: str):
 
     except Exception as e:
         logger.error(f'❌ Get recorded file error: {str(e)}')
+        return None
+
+
+def find_program_by_info(station_id: str, start_time: str):
+    """局IDと開始時刻から番組を検索"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT id FROM programs
+            WHERE station_id = ? AND start_time = ?
+            LIMIT 1
+        ''', (station_id, start_time))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return row['id']
+        else:
+            return None
+
+    except Exception as e:
+        logger.error(f'❌ Find program error: {str(e)}')
         return None
 
 
