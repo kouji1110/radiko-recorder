@@ -428,6 +428,40 @@ def execute_recording_http():
                 if os.path.exists(file_path):
                     # 相対パスを生成（ダウンロードURL用）
                     relative_path = f'{rss}/{filename}'
+
+                    # DBに登録
+                    try:
+                        file_stat = os.stat(file_path)
+                        broadcast_date = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}'
+
+                        # 番組表から番組IDを検索
+                        program_id = None
+                        if rss and start_time:
+                            # start_timeをISO形式に変換
+                            iso_start_time = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}T{start_time[8:10]}:{start_time[10:12]}:00'
+                            program_id = db.find_program_by_info(rss, iso_start_time)
+                            if program_id:
+                                logger.info(f'📋 Found program ID: {program_id} for {title}')
+
+                        # DBに登録（program_idを含む）
+                        db.register_recorded_file(
+                            file_path=relative_path,
+                            file_name=filename,
+                            program_id=program_id,
+                            program_title=title,
+                            station_id=rss,
+                            station_name=station,
+                            broadcast_date=broadcast_date,
+                            start_time=iso_start_time if start_time else None,
+                            end_time=f'{end_time[:4]}-{end_time[4:6]}-{end_time[6:8]}T{end_time[8:10]}:{end_time[10:12]}:00' if end_time else None,
+                            file_size=file_stat.st_size,
+                            duration=None,
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                        )
+                        logger.info(f'✅ File registered in DB: {relative_path}')
+                    except Exception as e:
+                        logger.error(f'❌ Failed to register file in DB: {str(e)}')
+
                     yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 実行完了！", "file": relative_path})}\n\n'
                 else:
                     yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 実行完了！（ファイルが見つかりません）"})}\n\n'
