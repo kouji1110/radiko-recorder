@@ -1891,6 +1891,13 @@
                     </div>
                 </div>
                 <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">アーティスト名（オプション）</label>
+                    <input type="text" id="artworkArtist" placeholder="出演者やパーソナリティ名" style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
+                    <div style="margin-top: 6px; font-size: 0.8em; color: #6c757d;">
+                        💡 MP3ファイルのアーティスト情報として埋め込まれます
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">画像ファイル</label>
                     <input type="file" id="artworkFile" accept="image/*" style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
                     <div style="margin-top: 6px; font-size: 0.8em; color: #6c757d;">
@@ -6842,6 +6849,7 @@
             const baseUrl = proxyUrl.trim() || '';
 
             const title = document.getElementById('artworkTitle').value.trim();
+            const artist = document.getElementById('artworkArtist').value.trim();
             const fileInput = document.getElementById('artworkFile');
             const file = fileInput.files[0];
 
@@ -6876,6 +6884,9 @@
 
                 const formData = new FormData();
                 formData.append('title', title);
+                if (artist) {
+                    formData.append('artist', artist);
+                }
                 formData.append('file', resizedBlob, 'artwork.jpg');
 
                 const response = await fetch(`${baseUrl}/artwork/upload`, {
@@ -6886,8 +6897,13 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert(`✅ アートワークを登録しました: ${title}\n(${originalSizeMB}MB → ${resizedSizeMB}MB)`);
+                    let message = `✅ アートワークを登録しました: ${title}\n(${originalSizeMB}MB → ${resizedSizeMB}MB)`;
+                    if (data.embedded > 0) {
+                        message += `\n\n📝 ${data.embedded}件のMP3ファイルに埋め込みました`;
+                    }
+                    alert(message);
                     closeArtworkUploadModal();
+                    loadRecordedFiles(); // ファイル一覧を更新
                 } else {
                     alert(`❌ エラー: ${data.error || '不明なエラー'}`);
                 }

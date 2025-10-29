@@ -258,6 +258,63 @@ def sanitize_filename(title):
 
     return title
 
+def embed_artwork_to_mp3(file_path, artwork_data, mime_type, title=None, artist=None):
+    """MP3ファイルにアートワークとメタデータを埋め込む"""
+    try:
+        from mutagen.mp3 import MP3
+        from mutagen.id3 import ID3, APIC, TIT2, TPE1
+
+        # MP3ファイルを読み込み
+        audio = MP3(file_path, ID3=ID3)
+
+        # ID3タグが存在しない場合は追加
+        if audio.tags is None:
+            audio.add_tags()
+
+        # アートワークを埋め込み
+        if artwork_data:
+            # 既存のアートワークを削除
+            audio.tags.delall('APIC')
+
+            # MIMEタイプをmutagenの形式に変換
+            mime_map = {
+                'image/jpeg': 'image/jpeg',
+                'image/jpg': 'image/jpeg',
+                'image/png': 'image/png',
+                'image/gif': 'image/gif',
+                'image/webp': 'image/webp'
+            }
+            mutagen_mime = mime_map.get(mime_type, 'image/jpeg')
+
+            # アートワークを追加
+            audio.tags.add(
+                APIC(
+                    encoding=3,  # UTF-8
+                    mime=mutagen_mime,
+                    type=3,  # Cover (front)
+                    desc='Cover',
+                    data=artwork_data
+                )
+            )
+
+        # タイトルを埋め込み
+        if title:
+            audio.tags.delall('TIT2')
+            audio.tags.add(TIT2(encoding=3, text=title))
+
+        # アーティスト名を埋め込み
+        if artist:
+            audio.tags.delall('TPE1')
+            audio.tags.add(TPE1(encoding=3, text=artist))
+
+        # 保存
+        audio.save()
+        return True
+
+    except Exception as e:
+        logger.error(f'Failed to embed artwork to {file_path}: {str(e)}')
+        return False
+
 # DB初期化
 db.init_database()
 
@@ -1768,6 +1825,7 @@ def upload_artwork():
 
         file = request.files['file']
         title = request.form['title']
+        artist = request.form.get('artist', '')  # アーティスト名（オプション）
 
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
@@ -1785,10 +1843,43 @@ def upload_artwork():
         # DBに保存
         success = db.save_artwork(title, image_data, mime_type)
 
-        if success:
-            return jsonify({'success': True, 'message': f'Artwork uploaded for: {title}'})
-        else:
+        if not success:
             return jsonify({'error': 'Failed to save artwork'}), 500
+
+        # 該当する番組タイトルのMP3ファイルを検索してアートワークを埋め込む
+        embedded_count = 0
+        failed_count = 0
+
+        # 番組タイトルから抽出した名前でファイルを検索
+        program_title_pattern = title.replace('_', ' ')  # アンダーバーをスペースに戻す
+
+        for root, dirs, files in os.walk(OUTPUT_DIR):
+            for filename in files:
+                if filename.endswith('.mp3'):
+                    # ファイル名から番組名を抽出
+                    name_without_ext = filename.replace('.mp3', '')
+                    # 日付部分を削除
+                    import re
+                    file_program_name = re.sub(r'\(\d{4}\.\d{2}\.\d{2}\)$', '', name_without_ext).strip()
+
+                    # 番組タイトルとマッチするか確認
+                    if file_program_name == title or file_program_name == program_title_pattern:
+                        file_path = os.path.join(root, filename)
+                        logger.info(f'Embedding artwork to: {file_path}')
+
+                        if embed_artwork_to_mp3(file_path, image_data, mime_type, title=title, artist=artist if artist else None):
+                            embedded_count += 1
+                        else:
+                            failed_count += 1
+
+        logger.info(f'Artwork embedded: {embedded_count} files, failed: {failed_count} files')
+
+        return jsonify({
+            'success': True,
+            'message': f'Artwork uploaded for: {title}',
+            'embedded': embedded_count,
+            'failed': failed_count
+        })
 
     except Exception as e:
         logger.error(f'Upload artwork error: {str(e)}')
