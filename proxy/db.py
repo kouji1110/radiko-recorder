@@ -136,6 +136,42 @@ def init_database():
             )
         ''')
 
+        # 録音ファイル管理テーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS recorded_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_path TEXT NOT NULL UNIQUE,
+                file_name TEXT NOT NULL,
+                program_title TEXT,
+                station_id TEXT,
+                station_name TEXT,
+                broadcast_date TEXT,
+                start_time TEXT,
+                end_time TEXT,
+                file_size INTEGER,
+                duration REAL,
+                file_modified TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # 録音ファイル用インデックス
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_recorded_files_program_title
+            ON recorded_files(program_title)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_recorded_files_broadcast_date
+            ON recorded_files(broadcast_date)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_recorded_files_station
+            ON recorded_files(station_id)
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -730,6 +766,212 @@ def delete_artwork(title: str):
     except Exception as e:
         logger.error(f'❌ Delete artwork error: {str(e)}')
         return False
+
+
+# ========================================
+# 録音ファイル管理関連の関数
+# ========================================
+
+def register_recorded_file(file_path: str, file_name: str, program_title: str = None,
+                          station_id: str = None, station_name: str = None,
+                          broadcast_date: str = None, start_time: str = None, end_time: str = None,
+                          file_size: int = None, duration: float = None, file_modified: str = None):
+    """録音ファイルをDBに登録（既存の場合は更新）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO recorded_files (
+                file_path, file_name, program_title, station_id, station_name,
+                broadcast_date, start_time, end_time, file_size, duration, file_modified, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(file_path) DO UPDATE SET
+                file_name = excluded.file_name,
+                program_title = excluded.program_title,
+                station_id = excluded.station_id,
+                station_name = excluded.station_name,
+                broadcast_date = excluded.broadcast_date,
+                start_time = excluded.start_time,
+                end_time = excluded.end_time,
+                file_size = excluded.file_size,
+                duration = excluded.duration,
+                file_modified = excluded.file_modified,
+                updated_at = CURRENT_TIMESTAMP
+        ''', (file_path, file_name, program_title, station_id, station_name,
+              broadcast_date, start_time, end_time, file_size, duration, file_modified))
+
+        file_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ Recorded file registered: {file_path}')
+        return file_id
+
+    except Exception as e:
+        logger.error(f'❌ Register recorded file error: {str(e)}')
+        return None
+
+
+def get_all_recorded_files(limit: int = 1000, offset: int = 0):
+    """全ての録音ファイルを取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM recorded_files
+            ORDER BY file_modified DESC
+            LIMIT ? OFFSET ?
+        ''', (limit, offset))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        files = []
+        for row in rows:
+            files.append({
+                'id': row['id'],
+                'file_path': row['file_path'],
+                'file_name': row['file_name'],
+                'program_title': row['program_title'],
+                'station_id': row['station_id'],
+                'station_name': row['station_name'],
+                'broadcast_date': row['broadcast_date'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'file_size': row['file_size'],
+                'duration': row['duration'],
+                'file_modified': row['file_modified'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            })
+
+        return files
+
+    except Exception as e:
+        logger.error(f'❌ Get recorded files error: {str(e)}')
+        return []
+
+
+def search_recorded_files(keyword: str = None, station_id: str = None,
+                         broadcast_date_from: str = None, broadcast_date_to: str = None):
+    """録音ファイルを検索"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = 'SELECT * FROM recorded_files WHERE 1=1'
+        params = []
+
+        if keyword:
+            query += ' AND (program_title LIKE ? OR file_name LIKE ?)'
+            params.extend([f'%{keyword}%', f'%{keyword}%'])
+
+        if station_id:
+            query += ' AND station_id = ?'
+            params.append(station_id)
+
+        if broadcast_date_from:
+            query += ' AND broadcast_date >= ?'
+            params.append(broadcast_date_from)
+
+        if broadcast_date_to:
+            query += ' AND broadcast_date <= ?'
+            params.append(broadcast_date_to)
+
+        query += ' ORDER BY file_modified DESC LIMIT 1000'
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        files = []
+        for row in rows:
+            files.append({
+                'id': row['id'],
+                'file_path': row['file_path'],
+                'file_name': row['file_name'],
+                'program_title': row['program_title'],
+                'station_id': row['station_id'],
+                'station_name': row['station_name'],
+                'broadcast_date': row['broadcast_date'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'file_size': row['file_size'],
+                'duration': row['duration'],
+                'file_modified': row['file_modified'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            })
+
+        return files
+
+    except Exception as e:
+        logger.error(f'❌ Search recorded files error: {str(e)}')
+        return []
+
+
+def delete_recorded_file(file_path: str):
+    """録音ファイルをDBから削除"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('DELETE FROM recorded_files WHERE file_path = ?', (file_path,))
+
+        conn.commit()
+        affected_rows = cursor.rowcount
+        conn.close()
+
+        if affected_rows > 0:
+            logger.info(f'✅ Recorded file deleted from DB: {file_path}')
+            return True
+        else:
+            logger.warning(f'⚠️ Recorded file not found in DB: {file_path}')
+            return False
+
+    except Exception as e:
+        logger.error(f'❌ Delete recorded file error: {str(e)}')
+        return False
+
+
+def get_recorded_file_by_path(file_path: str):
+    """ファイルパスで録音ファイル情報を取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM recorded_files WHERE file_path = ?', (file_path,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return {
+                'id': row['id'],
+                'file_path': row['file_path'],
+                'file_name': row['file_name'],
+                'program_title': row['program_title'],
+                'station_id': row['station_id'],
+                'station_name': row['station_name'],
+                'broadcast_date': row['broadcast_date'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'file_size': row['file_size'],
+                'duration': row['duration'],
+                'file_modified': row['file_modified'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            }
+        else:
+            return None
+
+    except Exception as e:
+        logger.error(f'❌ Get recorded file error: {str(e)}')
+        return None
 
 
 if __name__ == '__main__':
