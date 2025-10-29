@@ -1232,7 +1232,10 @@
                 <div style="padding: 15px; background: white;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
                         <h2 style="margin: 0; font-size: 1.3em; color: #212529;">📁 録音済みファイル一覧</h2>
-                        <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-warning" onclick="scanExistingFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔍 既存ファイルをスキャン</button>
+                            <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                        </div>
                     </div>
                     <div id="filesLoading" class="loading" style="display: none;">
                         <div class="spinner"></div>
@@ -3675,6 +3678,49 @@
             }
         }
 
+        async function scanExistingFiles() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            const confirmed = confirm('既存の録音ファイルをスキャンしてDBに登録します。\n\n処理には時間がかかる場合があります。\n続行しますか？');
+            if (!confirmed) return;
+
+            const filesLoading = document.getElementById('filesLoading');
+            const filesList = document.getElementById('filesList');
+
+            filesLoading.style.display = 'block';
+            filesList.innerHTML = '<div style="text-align: center; padding: 40px; font-size: 0.95em; color: #667eea;">ファイルをスキャン中...</div>';
+
+            try {
+                const response = await fetch(`${baseUrl}/files/scan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`スキャンに失敗しました: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ スキャン完了！\n\n新規登録: ${data.registered}件\n更新: ${data.updated}件\n合計: ${data.total}件\n${data.errors && data.errors.length > 0 ? `\nエラー: ${data.errors.length}件` : ''}`);
+                    // ファイル一覧を再読み込み
+                    await loadRecordedFiles();
+                } else {
+                    throw new Error(data.error || 'スキャンに失敗しました');
+                }
+
+            } catch (err) {
+                console.error('Error scanning files:', err);
+                filesLoading.style.display = 'none';
+                alert(`❌ スキャン中にエラーが発生しました\n\n${err.message}`);
+                filesList.innerHTML = '<div style="color: #dc3545; text-align: center; padding: 40px; font-size: 0.95em;">スキャンに失敗しました</div>';
+            }
+        }
+
         function renderFilesList() {
             const filesList = document.getElementById('filesList');
             const proxyUrl = document.getElementById('proxyUrl').value;
@@ -3883,6 +3929,21 @@
                                 ${progressCircle}
                                 <span>${progressText}</span>
                             </div>
+                            ${file.program_info && file.program_info.program_db_title ? `
+                            <div style="font-size: 0.75em; color: #28a745; margin-top: 4px; padding: 3px 6px; background: #d4edda; border-radius: 3px; display: inline-block;" title="番組表データあり">
+                                📋 ${file.program_info.program_db_title}
+                            </div>
+                            ` : ''}
+                            ${file.program_info && file.program_info.program_description ? `
+                            <div style="font-size: 0.7em; color: #6c757d; margin-top: 3px; max-width: 800px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${file.program_info.program_description.replace(/"/g, '&quot;')}">
+                                ${file.program_info.program_description}
+                            </div>
+                            ` : ''}
+                            ${file.program_info && file.program_info.program_performer ? `
+                            <div style="font-size: 0.7em; color: #17a2b8; margin-top: 2px;">
+                                🎤 ${file.program_info.program_performer}
+                            </div>
+                            ` : ''}
                         </td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d;">
                             ${extractBroadcastDate(file.name) || '<span style="color: #999;">不明</span>'}
