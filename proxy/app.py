@@ -540,6 +540,7 @@ def execute_recording_http():
 
             # 出力を逐次送信
             last_output_time = time.time()
+            error_403_detected = False
 
             while True:
                 # プロセスが終了したかチェック
@@ -552,6 +553,8 @@ def execute_recording_http():
                             if line:
                                 timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                                 yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                                if '403 Forbidden' in line:
+                                    error_403_detected = True
                     break
 
                 # 出力を読み取る（ノンブロッキング）
@@ -562,6 +565,8 @@ def execute_recording_http():
                     if line:
                         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                         yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                        if '403 Forbidden' in line:
+                            error_403_detected = True
                 else:
                     # 出力がない場合は少し待つ
                     time.sleep(0.1)
@@ -645,6 +650,10 @@ def execute_recording_http():
                 # コマンドが失敗した場合
                 logger.error(f'❌ Recording command failed with returncode: {process.returncode}')
                 yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 録音失敗 (終了コード: {process.returncode})"})}\n\n'
+
+                # 403エラーの場合は追加説明
+                if error_403_detected:
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] ⚠️ 403 Forbiddenエラー: radikoのタイムシフト期間外（7日以上前）の可能性があります"})}\n\n'
 
                 # それでもファイルが存在する場合（部分的に成功）
                 if file_exists:

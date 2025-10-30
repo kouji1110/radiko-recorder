@@ -3685,6 +3685,10 @@
                     const isPastProgram = prog.to < now;
                     const isFutureProgram = prog.ft > now;
 
+                    // radikoタイムシフト期間チェック（放送終了後7日以内）
+                    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    const isWithinTimeshift = prog.to >= sevenDaysAgo && prog.to < now;
+
                     // radikoのURL
                     const radikoTime = formatRadikoUrl(prog.ft);
                     const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
@@ -3692,8 +3696,8 @@
                     // ボタンを生成
                     let buttonsHtml = '';
 
-                    // 終了済み番組：ダウンロードボタン
-                    if (isPastProgram) {
+                    // 終了済み番組かつタイムシフト期間内：ダウンロードボタン
+                    if (isWithinTimeshift) {
                         buttonsHtml += `<button class="btn-action btn-download" onclick='event.stopPropagation(); showDownloadCommandByIndex(${prog._index})'>DL</button>`;
                     }
 
