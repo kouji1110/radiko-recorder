@@ -5185,7 +5185,7 @@
                             <input type="checkbox" class="file-checkbox" value="${file.path}" onchange="updateSelectedCount()"
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
-                        <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudioByIndex(${index})">
+                        <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudioByIndex(${startIdx + idx})">
                             <div style="position: relative;">
                                 <img src="${artworkUrl}" alt="Artwork"
                                      style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
@@ -5197,7 +5197,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudioByIndex(${index})" title="クリックで再生">
+                        <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudioByIndex(${startIdx + idx})" title="クリックで再生">
                             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''} cursor: pointer; transition: color 0.2s;"
                                  onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='${hasBookmark ? '#1976d2' : '#212529'}'">
                                 ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
