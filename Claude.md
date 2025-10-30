@@ -66,6 +66,24 @@ radiko-recorder/
 - 再起動: `docker-compose restart`
 - 再ビルド: `docker-compose up -d --build`
 
+### ⚠️ 重要: コード変更時の反映方法
+
+**Pythonバックエンド（proxy/）の変更時:**
+- `proxy/app.py`, `proxy/db.py`, `proxy/fetch_programs.py` などを変更した場合
+- **必ず再ビルドが必要**: `docker-compose up -d --build proxy`
+- 理由: `proxy/`ディレクトリはボリュームマウントされていないため、ビルド時にコンテナ内にコピーされる
+- `docker-compose restart proxy` だけでは変更が反映されない
+
+**フロントエンド（web/html/）の変更時:**
+- `web/html/index.html` を変更した場合
+- ブラウザでリロード（Shift+F5 または Cmd+Shift+R）するだけで反映される
+- 理由: `./web/html:/usr/share/nginx/html` としてボリュームマウントされている
+- コンテナの再起動は不要
+
+**よくあるトラブル:**
+- Pythonコードを変更したのに動作が変わらない → 再ビルドを忘れている
+- 「修正したはずなのに動かない」 → proxyコンテナを再ビルドしたか確認
+
 ## 作成日
 2025-10-21
 
@@ -73,6 +91,34 @@ radiko-recorder/
 - radikoのXMLキャッシュは無効化設定済み
 - CORSは完全に許可（flask-cors使用）
 - プロキシサーバーはproduction設定
+
+## 仮想フォルダ機能
+
+録音ファイルを仮想的なフォルダで分類管理する機能。物理的なファイル配置は変えず、DBで管理する。
+
+### データベース構造
+- **`virtual_folders`テーブル**: フォルダ情報（id, name, color, icon, sort_order等）
+- **`recorded_files.virtual_folder_id`**: 外部キー。どの仮想フォルダに属するかを示す
+- **`recorded_files.file_path`**: 実際のファイルパス（例: `MBS/番組名.mp3`）
+
+### 重要な仕様
+1. **ファイルは常に`output/radio/{放送局ID}/`に物理的に保存される**
+2. **仮想フォルダはDB上の分類のみ**（物理的なフォルダ移動は行わない）
+3. フロントエンドからは**フォルダID**（整数）を送信
+4. バックエンドは`virtual_folder_id`をDBに保存
+5. フォルダ名からIDを取得: `db.get_virtual_folder_by_name(folder_name)`
+
+### 実装箇所
+- フロントエンド: `targetFolderSelect`（select要素のvalue属性にフォルダIDが入る）
+- DL録音: `/execute` エンドポイントで`folder`パラメータ（フォルダID）を受け取る
+- at予約: `/schedule-at` エンドポイントで`folder`パラメータを受け取り、コマンドに含める
+- cron予約: フロントエンドでコマンド生成時にフォルダIDを第7引数に含める
+- 予約実行: `execute_recording`関数がコマンドからフォルダIDを抽出してDB登録
+
+### よくあるトラブル
+- フォルダが保存されない → フロントエンドのconsole.logでフォルダIDが送信されているか確認
+- `virtual_folder_id`がNULL → バックエンドのログに`📁 Received virtual_folder_id:`が出ているか確認
+- コード修正したのに反映されない → proxyコンテナを再ビルドしたか確認
 
 ## TODO: 予約情報の永続化（優先度: 高）
 
