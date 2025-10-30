@@ -591,6 +591,10 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                position: sticky;
+                top: 0;
+                z-index: 200;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
 
             header h1 {
@@ -634,6 +638,7 @@
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
+                align-items: end;
             }
 
             /* エリア選択と日付を1行目に配置 */
@@ -665,6 +670,8 @@
                 font-size: 0.75em;
                 font-weight: 600;
                 color: #495057;
+                min-height: 16px;
+                line-height: 16px;
             }
 
             .setting-group input,
@@ -674,6 +681,14 @@
                 font-size: 0.9em;
                 border: 1px solid #dee2e6;
                 border-radius: 4px;
+                height: 38px;
+                box-sizing: border-box;
+            }
+
+            /* 日付ピッカーの高さを揃える */
+            #datePicker {
+                height: 38px !important;
+                box-sizing: border-box !important;
             }
 
             /* エリア選択のラベルを短く */
@@ -717,6 +732,11 @@
             /* スマホ用放送局選択を表示 */
             #stationSelector {
                 display: block !important;
+                position: sticky !important;
+                top: 52px !important;
+                z-index: 100 !important;
+                background: #f8f9fa !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
             }
 
             /* 番組カードのスマホ対応 */
@@ -730,23 +750,75 @@
                 display: none;
             }
 
-            .program-card {
-                font-size: 0.9em;
+            /* モバイルではスクロールコンテナの高さ制限を解除 */
+            .station-programs {
+                max-height: none !important;
+                overflow-y: visible !important;
             }
 
-            .program-header {
-                flex-direction: column;
-                gap: 8px;
+            .program-card {
+                font-size: 1em;
+                padding: 12px;
+                margin-bottom: 2px;
+                border-radius: 6px;
+                border: 1px solid #e9ecef;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }
+
+            .program-card:hover {
+                background: white;
+            }
+
+            .program-card.now-playing {
+                border-left: 4px solid #ffc107;
+                background: #fff9e6;
+            }
+
+            .program-time {
+                font-size: 0.85em;
+                margin-bottom: 6px;
+            }
+
+            .program-title {
+                font-size: 0.95em;
+                margin-bottom: 10px;
+                line-height: 1.4;
+            }
+
+            /* モバイルでは番組詳細を非表示 */
+            .program-detail {
+                display: none;
             }
 
             .program-actions {
-                flex-direction: column;
                 gap: 6px;
+                flex-wrap: nowrap;
             }
 
             .btn-action {
-                width: 100%;
-                padding: 10px;
+                flex: 1;
+                padding: 10px 8px;
+                font-size: 0.8em;
+                min-height: 40px;
+                border-radius: 6px;
+            }
+
+            /* radikoボタンのモバイル最適化 */
+            .program-actions a {
+                min-width: 40px !important;
+                min-height: 40px !important;
+                width: 40px !important;
+                height: 40px !important;
+                padding: 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 6px !important;
+            }
+
+            .program-actions a img {
+                width: 24px !important;
+                height: 24px !important;
             }
 
             /* モーダルのスマホ対応 */
