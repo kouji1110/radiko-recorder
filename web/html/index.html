@@ -4459,6 +4459,12 @@
             }
 
             // 即時実行（DL）の場合
+            // 選択されたフォルダを取得（HTMLを書き換える前に！）
+            const folderSelect = document.getElementById('targetFolderSelect');
+            const selectedFolder = folderSelect ? folderSelect.value : '';
+            console.log('📁 DL録音 - folderSelect element:', folderSelect);
+            console.log('📁 DL録音 - selectedFolder value:', selectedFolder);
+
             const commandBox = document.getElementById('commandBox');
             commandBox.innerHTML = `
                 <div style="background: #ffffff; border: 2px solid #e9ecef; border-radius: 8px; padding: 20px; margin-top: 15px;">
@@ -4490,10 +4496,6 @@
             const totalDurationSeconds = Math.floor((endTime - startTime) / 1000);
             // グローバル変数として保存
             window.recordingTotalDuration = totalDurationSeconds;
-
-            // 選択されたフォルダを取得
-            const folderSelect = document.getElementById('targetFolderSelect');
-            const selectedFolder = folderSelect ? folderSelect.value : '';
 
             // POSTリクエストで実行
             const response = await fetch(`${baseUrl}/execute`, {
