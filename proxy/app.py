@@ -586,15 +586,18 @@ def execute_recording_http():
             # ファイル名を先に生成
             filename = f'{safe_title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
 
-            # ファイルパスを構築（フォルダ指定を考慮）
+            # myradikoは常にOUTPUT_DIR/rss/に保存する（実際のファイルパス）
+            actual_output_dir = os.path.join(OUTPUT_DIR, rss)
+            actual_file_path = os.path.join(actual_output_dir, filename)
+
+            # DB保存用の相対パス（仮想フォルダを含む）
             if folder:
-                output_dir = os.path.join(OUTPUT_DIR, folder, rss)
                 relative_path = f'{folder}/{rss}/{filename}'
             else:
-                output_dir = os.path.join(OUTPUT_DIR, rss)
                 relative_path = f'{rss}/{filename}'
 
-            file_path = os.path.join(output_dir, filename)
+            # ファイル存在確認は実際のパスで行う
+            file_path = actual_file_path
 
             # ISO形式の時刻を事前に準備
             iso_start_time = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}T{start_time[8:10]}:{start_time[10:12]}:00' if start_time else None
