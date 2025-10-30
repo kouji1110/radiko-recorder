@@ -4119,7 +4119,15 @@
         }
 
         async function showDownloadCommand(prog) {
+            console.log('showDownloadCommand called with prog:', prog);
             const scriptPath = document.getElementById('scriptPath').value;
+
+            if (!prog || !prog.to || !prog.ft) {
+                console.error('Invalid prog data:', prog);
+                alert('番組データが不正です。もう一度お試しください。');
+                return;
+            }
+
             const endTime = new Date(prog.to);
             endTime.setMinutes(endTime.getMinutes() + 5);
 

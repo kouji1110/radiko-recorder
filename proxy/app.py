@@ -573,32 +573,47 @@ def execute_recording_http():
                         last_output_time = time.time()
 
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-            if process.returncode == 0:
-                # ファイルパスを構築（サニタイズしたタイトルを使用）
+
+            # ファイル名を先に生成
+            filename = f'{safe_title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
+
+            # ファイルパスを構築（フォルダ指定を考慮）
+            if folder:
+                output_dir = os.path.join(OUTPUT_DIR, folder, rss)
+                relative_path = f'{folder}/{rss}/{filename}'
+            else:
                 output_dir = os.path.join(OUTPUT_DIR, rss)
-                filename = f'{safe_title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
-                file_path = os.path.join(output_dir, filename)
+                relative_path = f'{rss}/{filename}'
 
-                # ファイルが存在するか確認
-                if os.path.exists(file_path):
-                    # 相対パスを生成（ダウンロードURL用）
-                    relative_path = f'{rss}/{filename}'
+            file_path = os.path.join(output_dir, filename)
 
-                    # DBに登録
+            # ISO形式の時刻を事前に準備
+            iso_start_time = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}T{start_time[8:10]}:{start_time[10:12]}:00' if start_time else None
+            iso_end_time = f'{end_time[:4]}-{end_time[4:6]}-{end_time[6:8]}T{end_time[8:10]}:{end_time[10:12]}:00' if end_time else None
+            broadcast_date = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}' if start_time else None
+
+            # ファイルの存在確認
+            file_exists = os.path.exists(file_path)
+
+            if process.returncode == 0:
+                # コマンドは成功したがファイルが見つからない場合
+                if not file_exists:
+                    logger.error(f'❌ Command succeeded but file not found: {file_path}')
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラー: コマンドは成功しましたが、ファイルが見つかりません"})}\n\n'
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 期待されたファイル: {filename}"})}\n\n'
+                else:
+                    # 成功 & ファイル存在 → DBに登録
                     try:
                         file_stat = os.stat(file_path)
-                        broadcast_date = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}'
 
                         # 番組表から番組IDを検索
                         program_id = None
-                        if rss and start_time:
-                            # start_timeをISO形式に変換
-                            iso_start_time = f'{start_time[:4]}-{start_time[4:6]}-{start_time[6:8]}T{start_time[8:10]}:{start_time[10:12]}:00'
+                        if rss and iso_start_time:
                             program_id = db.find_program_by_info(rss, iso_start_time)
                             if program_id:
                                 logger.info(f'📋 Found program ID: {program_id} for {title}')
 
-                        # DBに登録（program_idを含む）
+                        # DBに登録
                         db.register_recorded_file(
                             file_path=relative_path,
                             file_name=filename,
@@ -607,8 +622,8 @@ def execute_recording_http():
                             station_id=rss,
                             station_name=station,
                             broadcast_date=broadcast_date,
-                            start_time=iso_start_time if start_time else None,
-                            end_time=f'{end_time[:4]}-{end_time[4:6]}-{end_time[6:8]}T{end_time[8:10]}:{end_time[10:12]}:00' if end_time else None,
+                            start_time=iso_start_time,
+                            end_time=iso_end_time,
                             file_size=file_stat.st_size,
                             duration=None,
                             file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
@@ -621,14 +636,47 @@ def execute_recording_http():
                         embed_metadata_after_recording(file_path, title, station)
                         timestamp_embed = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                         yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータ埋め込み完了"})}\n\n'
+
+                        yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 録音完了！", "file": relative_path})}\n\n'
                     except Exception as e:
                         logger.error(f'❌ Failed to register file in DB: {str(e)}')
-
-                    yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 実行完了！", "file": relative_path})}\n\n'
-                else:
-                    yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 実行完了！（ファイルが見つかりません）"})}\n\n'
+                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"})}\n\n'
             else:
-                yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラーが発生しました (終了コード: {process.returncode})"})}\n\n'
+                # コマンドが失敗した場合
+                logger.error(f'❌ Recording command failed with returncode: {process.returncode}')
+                yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 録音失敗 (終了コード: {process.returncode})"})}\n\n'
+
+                # それでもファイルが存在する場合（部分的に成功）
+                if file_exists:
+                    logger.warning(f'⚠️ File exists despite error: {file_path}')
+                    yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ⚠️ エラーがありましたが、ファイルは作成されています"})}\n\n'
+
+                    # DBに登録（エラーがあったことを記録）
+                    try:
+                        file_stat = os.stat(file_path)
+                        program_id = None
+                        if rss and iso_start_time:
+                            program_id = db.find_program_by_info(rss, iso_start_time)
+
+                        db.register_recorded_file(
+                            file_path=relative_path,
+                            file_name=filename,
+                            program_id=program_id,
+                            program_title=title,
+                            station_id=rss,
+                            station_name=station,
+                            broadcast_date=broadcast_date,
+                            start_time=iso_start_time,
+                            end_time=iso_end_time,
+                            file_size=file_stat.st_size,
+                            duration=None,
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                        )
+                        logger.info(f'✅ File registered in DB despite error: {relative_path}')
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ファイルをDBに登録しました"})}\n\n'
+                    except Exception as e:
+                        logger.error(f'❌ Failed to register file in DB: {str(e)}')
+                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"})}\n\n'
 
         except Exception as e:
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
