@@ -318,12 +318,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 9999;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s;
+            animation: fadeIn 0.2s ease-out;
             overflow-y: auto;
+            backdrop-filter: blur(4px);
         }
 
         .modal.active {
@@ -338,31 +339,37 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
         .modal-content {
             background: white;
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 800px;
+            padding: 0;
+            border-radius: 16px;
+            max-width: 700px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-height: 85vh;
+            overflow: hidden;
+            animation: modalSlide 0.3s ease-out;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
             position: relative;
             z-index: 10000;
+            display: flex;
+            flex-direction: column;
         }
 
-        @keyframes slideUp {
+        @keyframes modalSlide {
             from {
-                transform: translateY(50px);
+                transform: scale(0.95);
                 opacity: 0;
             }
             to {
-                transform: translateY(0);
+                transform: scale(1);
                 opacity: 1;
             }
         }
@@ -371,50 +378,71 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e9ecef;
+            padding: 24px 28px;
+            border-bottom: 1px solid #e9ecef;
+            background: white;
+            flex-shrink: 0;
         }
 
         .modal-header h2 {
             color: #212529;
-            font-size: 1.8em;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin: 0;
         }
 
         .modal-close {
-            background: none;
+            background: #f8f9fa;
             border: none;
-            font-size: 2em;
+            font-size: 1.5em;
             cursor: pointer;
             color: #6c757d;
             padding: 0;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
         }
 
         .modal-close:hover {
-            background: #f8f9fa;
+            background: #e9ecef;
             color: #212529;
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            padding: 28px;
+            flex: 1;
         }
 
         .command-box {
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
             font-family: 'Courier New', monospace;
-            font-size: 0.95em;
+            font-size: 0.9em;
             line-height: 1.6;
             word-break: break-all;
-            color: #212529;
+            color: #495057;
+        }
+
+        /* コマンド表示用のスタイル（番組詳細以外） */
+        .command-box.command-display {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px;
         }
 
         .modal-actions {
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            padding: 20px 28px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+            flex-shrink: 0;
         }
 
         .btn-execute {
@@ -1818,7 +1846,9 @@
                 <h2 id="modalTitle">コマンド</h2>
                 <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
-            <div class="command-box" id="commandBox"></div>
+            <div class="modal-body">
+                <div class="command-box" id="commandBox"></div>
+            </div>
             <div class="modal-actions">
                 <button class="btn btn-action btn-execute" id="executeBtn" onclick="executeCommand()" style="display: none;">実行</button>
                 <button class="btn btn-action" id="registerCronBtn" style="display: none; background: #28a745; color: white;">⏰ cron登録</button>
@@ -2046,7 +2076,7 @@
                 <h2>⏰ 予約を編集</h2>
                 <button class="modal-close" onclick="closeCronEditModal()">&times;</button>
             </div>
-
+            <div class="modal-body">
             <!-- 番組情報 -->
             <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
                 <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">📺 番組情報</label>
@@ -2115,6 +2145,7 @@
                 <div style="font-size: 0.8em; color: #6c757d; margin-top: 5px;">
                     💡 コマンドを直接編集できます。録音時間を細かく調整したい場合などに使用してください。
                 </div>
+            </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-action" onclick="saveCronEdit()" style="background: #28a745; color: white;">💾 保存</button>
@@ -3075,6 +3106,7 @@
             const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
             const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
             const dateStr = `${prog.ft.getFullYear()}/${prog.ft.getMonth() + 1}/${prog.ft.getDate()}`;
+            const duration = Math.round((prog.to - prog.ft) / 60000); // 分単位
 
             // radikoの番組ページURL（秒まで含む14桁形式）
             const radikoTime = formatRadikoUrl(prog.ft);
@@ -3084,51 +3116,57 @@
             const cleanDesc = cleanupDescription(prog.desc);
 
             let detailHtml = `
-                <div style="font-size: 14px; line-height: 1.6; color: #333;">
-                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #ddd;">
-                        <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">${prog.title}</div>
-                        <div style="color: #666; font-size: 13px; margin-bottom: 8px;">
-                            <div>${prog.stationName} (${prog.stationId})</div>
-                            <div>${dateStr} ${startTime} - ${endTime}</div>
-                        </div>
-                        <div>
-                            <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer"
-                               style="display: inline-block; padding: 8px 16px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">
-                                📻 radikoで聴く
-                            </a>
-                        </div>
+                <div style="line-height: 1.7;">
+                    <!-- タイトル -->
+                    <h3 style="font-size: 1.4em; font-weight: 600; color: #212529; margin: 0 0 16px 0; line-height: 1.4;">${prog.title}</h3>
+
+                    <!-- 基本情報 -->
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin-bottom: 20px; font-size: 0.95em; color: #495057;">
+                        <div style="font-weight: 500;">放送局</div>
+                        <div>${prog.stationName}</div>
+                        <div style="font-weight: 500;">放送日時</div>
+                        <div>${dateStr} ${startTime} - ${endTime} (${duration}分)</div>
+                    </div>
+
+                    <!-- radikoボタン -->
+                    <div style="margin-bottom: 24px;">
+                        <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer"
+                           style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-size: 0.95em; font-weight: 500; transition: background 0.2s;"
+                           onmouseover="this.style.background='#5568d3'"
+                           onmouseout="this.style.background='#667eea'">
+                            📻 radikoで聴く
+                        </a>
                     </div>
             `;
 
             if (prog.pfm) {
                 const cleanPfm = cleanupDescription(prog.pfm);
                 detailHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">出演者</div>
-                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; white-space: pre-line;">${cleanPfm}</div>
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">出演者</div>
+                        <div style="color: #212529; font-size: 0.95em; line-height: 1.8; white-space: pre-line;">${cleanPfm}</div>
                     </div>
                 `;
             }
 
             if (cleanDesc && cleanDesc !== '説明なし') {
-                // テンポラリ要素でHTMLをパース
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cleanDesc;
 
                 detailHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">番組説明</div>
-                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">番組説明</div>
+                        <div style="color: #212529; font-size: 0.95em; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
                     </div>
                 `;
             }
 
             if (prog.url) {
                 detailHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">URL</div>
-                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 13px; word-break: break-all;">
-                            <a href="${prog.url}" target="_blank" style="color: #007bff; text-decoration: none;">${prog.url}</a>
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">番組URL</div>
+                        <div style="word-break: break-all;">
+                            <a href="${prog.url}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 0.9em;">${prog.url}</a>
                         </div>
                     </div>
                 `;
@@ -3140,9 +3178,9 @@
                 tempDiv.innerHTML = cleanInfo;
 
                 detailHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #555;">その他情報</div>
-                        <div style="padding: 8px 10px; background: #f5f5f5; border-left: 3px solid #007bff; font-size: 12px; color: #666; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">その他情報</div>
+                        <div style="color: #495057; font-size: 0.85em; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
                     </div>
                 `;
             }
@@ -3150,8 +3188,10 @@
             detailHtml += '</div>';
 
             currentCommand = ''; // コマンドはクリアする
+            const commandBox = document.getElementById('commandBox');
+            commandBox.className = 'command-box'; // command-displayクラスを削除
             document.getElementById('modalTitle').textContent = '番組詳細';
-            document.getElementById('commandBox').innerHTML = detailHtml;
+            commandBox.innerHTML = detailHtml;
             document.getElementById('modal').classList.add('active');
         }
 
@@ -3230,55 +3270,40 @@
             const dayShort = daysOfWeekShort[dayOfWeek];
 
             const commandBoxContent = `
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
-                    <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                        📻 ${prog.title}
-                    </div>
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
-                        <div style="opacity: 0.9;">放送局:</div>
-                        <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
+                <div style="line-height: 1.7;">
+                    <!-- タイトル -->
+                    <h3 style="font-size: 1.4em; font-weight: 600; color: #212529; margin: 0 0 16px 0; line-height: 1.4;">${prog.title}</h3>
 
-                        <div style="opacity: 0.9;">放送日:</div>
-                        <div style="font-weight: 600;">毎週${dayLabel}</div>
+                    <!-- 基本情報 -->
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin-bottom: 20px; font-size: 0.95em; color: #495057;">
+                        <div style="font-weight: 500;">放送局</div>
+                        <div>${prog.stationName || prog.stationId}</div>
+                        <div style="font-weight: 500;">放送日時</div>
+                        <div>毎週${dayLabel} ${startTimeStr} - ${endTimeStr} (${durationStr})</div>
+                        <div style="font-weight: 500;">実行タイミング</div>
+                        <div>毎週${dayLabel} ${execTimeStr} （番組終了5分後）</div>
+                    </div>
 
-                        <div style="opacity: 0.9;">時間:</div>
-                        <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
-                    </div>
-                </div>
-
-                <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 12px; padding: 20px; margin-bottom: 15px;">
-                    <div style="font-size: 1.2em; font-weight: 700; color: #2e7d32; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                        🔁 定期実行スケジュール
-                    </div>
-                    <div style="font-size: 1.4em; font-weight: 700; color: #388e3c; margin-bottom: 8px;">
-                        毎週${dayLabel} ${execTimeStr}
-                    </div>
-                    <div style="color: #2e7d32; font-size: 0.9em;">
-                        📝 番組終了の5分後に毎週自動で録音します
-                    </div>
-                </div>
-
-                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
-                    <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 cronコマンド</div>
-                    <details>
-                        <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
-                            クリックして表示
-                        </summary>
-                        <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                    <!-- cronコマンド -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">cronコマンド</div>
+                        <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; font-family: 'Courier New', monospace; font-size: 0.85em; color: #495057; word-break: break-all; line-height: 1.6;">
                             ${command}
                         </div>
-                    </details>
-                </div>
+                    </div>
 
-                <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px; margin-top: 15px; border-radius: 4px;">
-                    <div style="color: #e65100; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
-                        <span>💡</span>
-                        <span>「cron登録」ボタンを押すと、毎週自動で録音が実行されます</span>
+                    <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 12px; border-radius: 4px;">
+                        <div style="color: #e65100; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                            <span>💡</span>
+                            <span>「cron登録」ボタンを押すと、毎週自動で録音が実行されます</span>
+                        </div>
                     </div>
                 </div>
             `;
 
-            document.getElementById('commandBox').innerHTML = commandBoxContent;
+            const commandBox = document.getElementById('commandBox');
+            commandBox.className = 'command-box command-display'; // コマンド表示用スタイル追加
+            commandBox.innerHTML = commandBoxContent;
             document.getElementById('executeBtn').style.display = 'none';
 
             // cron登録ボタンを表示
@@ -3346,44 +3371,39 @@
                 const durationStr = durationHours > 0 ? `${durationHours}時間${durationMins}分` : `${durationMins}分`;
 
                 commandBoxContent = `
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
-                        <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                            📻 ${prog.title}
+                    <div style="line-height: 1.7;">
+                        <!-- タイトル -->
+                        <h3 style="font-size: 1.4em; font-weight: 600; color: #212529; margin: 0 0 16px 0; line-height: 1.4;">${prog.title}</h3>
+
+                        <!-- 基本情報 -->
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin-bottom: 20px; font-size: 0.95em; color: #495057;">
+                            <div style="font-weight: 500;">放送局</div>
+                            <div>${prog.stationName || prog.stationId}</div>
+                            <div style="font-weight: 500;">放送日時</div>
+                            <div>${startDateStr} ${startTimeStr} - ${endTimeStr} (${durationStr})</div>
                         </div>
-                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
-                            <div style="opacity: 0.9;">放送局:</div>
-                            <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
 
-                            <div style="opacity: 0.9;">放送日:</div>
-                            <div style="font-weight: 600;">${startDateStr}</div>
-
-                            <div style="opacity: 0.9;">時間:</div>
-                            <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
-                        </div>
-                    </div>
-
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
-                        <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 録音コマンド</div>
-                        <details>
-                            <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
-                                クリックして表示
-                            </summary>
-                            <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                        <!-- 録音コマンド -->
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">録音コマンド</div>
+                            <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; font-family: 'Courier New', monospace; font-size: 0.85em; color: #495057; word-break: break-all; line-height: 1.6;">
                                 ${command}
                             </div>
-                        </details>
-                    </div>
+                        </div>
 
-                    <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; margin-top: 15px; border-radius: 4px;">
-                        <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
-                            <span>💡</span>
-                            <span>「実行」ボタンを押すと、この番組の録音をすぐに開始します</span>
+                        <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; border-radius: 4px;">
+                            <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                                <span>💡</span>
+                                <span>「実行」ボタンを押すと、この番組の録音をすぐに開始します</span>
+                            </div>
                         </div>
                     </div>
                 `;
             }
 
-            document.getElementById('commandBox').innerHTML = commandBoxContent;
+            const commandBox = document.getElementById('commandBox');
+            commandBox.className = 'command-box command-display'; // コマンド表示用スタイル追加
+            commandBox.innerHTML = commandBoxContent;
             document.getElementById('executeBtn').style.display = 'inline-block';
             document.getElementById('modal').classList.add('active');
         }
@@ -3460,56 +3480,41 @@
                 const weekday = weekdays[atExecTime.getDay()];
 
                 commandBoxContent = `
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; margin-bottom: 15px; color: white;">
-                        <div style="font-size: 1.3em; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                            📻 ${prog.title}
-                        </div>
-                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; font-size: 0.95em; line-height: 1.6;">
-                            <div style="opacity: 0.9;">放送局:</div>
-                            <div style="font-weight: 600;">${prog.stationName || prog.stationId}</div>
+                    <div style="line-height: 1.7;">
+                        <!-- タイトル -->
+                        <h3 style="font-size: 1.4em; font-weight: 600; color: #212529; margin: 0 0 16px 0; line-height: 1.4;">${prog.title}</h3>
 
-                            <div style="opacity: 0.9;">放送日:</div>
-                            <div style="font-weight: 600;">${startDateStr}</div>
+                        <!-- 基本情報 -->
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin-bottom: 20px; font-size: 0.95em; color: #495057;">
+                            <div style="font-weight: 500;">放送局</div>
+                            <div>${prog.stationName || prog.stationId}</div>
+                            <div style="font-weight: 500;">放送日時</div>
+                            <div>${startDateStr} ${startTimeStr} - ${endTimeStr} (${durationStr})</div>
+                            <div style="font-weight: 500;">実行予定時刻</div>
+                            <div>${execDateStr} (${weekday}) ${execTimeStr} （番組終了5分後）</div>
+                        </div>
 
-                            <div style="opacity: 0.9;">時間:</div>
-                            <div style="font-weight: 600;">${startTimeStr} 〜 ${endTimeStr} （${durationStr}）</div>
-                        </div>
-                    </div>
-
-                    <div style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 12px; padding: 20px; margin-bottom: 15px;">
-                        <div style="font-size: 1.2em; font-weight: 700; color: #e65100; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                            ⏰ 予約実行時刻
-                        </div>
-                        <div style="font-size: 1.4em; font-weight: 700; color: #f57c00; margin-bottom: 8px;">
-                            ${execDateStr} (${weekday}) ${execTimeStr}
-                        </div>
-                        <div style="color: #e65100; font-size: 0.9em;">
-                            📝 番組終了の5分後に録音を開始します
-                        </div>
-                    </div>
-
-                    <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; border: 1px solid #e9ecef;">
-                        <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 8px; font-weight: 600;">📝 予約コマンド</div>
-                        <details>
-                            <summary style="cursor: pointer; color: #667eea; font-size: 0.9em; user-select: none;">
-                                クリックして表示
-                            </summary>
-                            <div style="font-family: 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 4px; font-size: 0.85em; margin-top: 10px; border: 1px solid #dee2e6; word-break: break-all; color: #495057;">
+                        <!-- 予約コマンド -->
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">予約コマンド</div>
+                            <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 12px; font-family: 'Courier New', monospace; font-size: 0.85em; color: #495057; word-break: break-all; line-height: 1.6;">
                                 ${command}
                             </div>
-                        </details>
-                    </div>
+                        </div>
 
-                    <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; margin-top: 15px; border-radius: 4px;">
-                        <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
-                            <span>💡</span>
-                            <span>「実行」ボタンを押すと、指定時刻に自動で録音が開始されます</span>
+                        <div style="background: #e7f3ff; border-left: 4px solid #2196f3; padding: 12px; border-radius: 4px;">
+                            <div style="color: #1976d2; font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+                                <span>💡</span>
+                                <span>「実行」ボタンを押すと、指定時刻に自動で録音が開始されます</span>
+                            </div>
                         </div>
                     </div>
                 `;
             }
 
-            document.getElementById('commandBox').innerHTML = commandBoxContent;
+            const commandBox = document.getElementById('commandBox');
+            commandBox.className = 'command-box command-display'; // コマンド表示用スタイル追加
+            commandBox.innerHTML = commandBoxContent;
             document.getElementById('executeBtn').style.display = 'inline-block';
             document.getElementById('modal').classList.add('active');
         }
