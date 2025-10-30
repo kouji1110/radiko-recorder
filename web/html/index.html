@@ -4508,27 +4508,38 @@
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let buffer = '';
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+
+                // 最後の行は不完全な可能性があるので保持
+                buffer = lines.pop() || '';
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.substring(6));
-                        addLog(data.type, data.message, data.file);
+                        try {
+                            const jsonStr = line.substring(6).trim();
+                            if (jsonStr) {
+                                const data = JSON.parse(jsonStr);
+                                addLog(data.type, data.message, data.file);
 
-                        if (data.type === 'success' || data.type === 'error') {
-                            executeBtn.disabled = false;
-                            executeBtn.innerHTML = '<span style="font-size: 1.3em; display: block; margin-bottom: 2px;">▶️</span><span style="font-size: 0.85em;">実行</span>';
+                                if (data.type === 'success' || data.type === 'error') {
+                                    executeBtn.disabled = false;
+                                    executeBtn.innerHTML = '<span style="font-size: 1.3em; display: block; margin-bottom: 2px;">▶️</span><span style="font-size: 0.85em;">実行</span>';
 
-                            // 成功時はファイル一覧を更新
-                            if (data.type === 'success') {
-                                setTimeout(() => loadRecordedFiles(), 1000);
+                                    // 成功時はファイル一覧を更新
+                                    if (data.type === 'success') {
+                                        setTimeout(() => loadRecordedFiles(), 1000);
+                                    }
+                                }
                             }
+                        } catch (e) {
+                            console.error('JSON parse error:', e, 'Line:', line);
                         }
                     }
                 }
