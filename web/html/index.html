@@ -928,6 +928,11 @@
                 display: block;
             }
 
+            /* 放送局セレクターの位置調整（ヘッダー分） */
+            #stationSelector {
+                top: 60px !important; /* ヘッダーの高さ分 */
+            }
+
             /* 設定エリアのスマホ対応 */
             .settings {
                 padding: 10px;
@@ -1716,7 +1721,7 @@
                 </div>
 
                 <!-- スマホ用の放送局選択 -->
-                <div id="stationSelector" style="display: none; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                <div id="stationSelector" style="display: none; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     <label for="mobileStationSelect" style="font-size: 0.85em; font-weight: 600; color: #495057; display: block; margin-bottom: 6px;">📻 放送局を選択:</label>
                     <select id="mobileStationSelect" style="width: 100%; padding: 10px; font-size: 0.9em; border: 1px solid #dee2e6; border-radius: 4px;">
                         <option value="">-- 放送局を選択してください --</option>
@@ -3587,12 +3592,17 @@
         }
 
         function displayStations(stationMap, programList) {
-            // PC表示を優先: 常にPC表示にする（モバイル対応は一旦無効化）
-            // const isMobile = window.innerWidth <= 768;
-            const isMobile = false; // 強制的にPC表示
+            // スマホ判定（768px以下）
+            const isMobile = window.innerWidth <= 768;
             const mobileStationSelect = document.getElementById('mobileStationSelect');
+            const stationSelector = document.getElementById('stationSelector');
 
             if (isMobile && mobileStationSelect) {
+                // 放送局セレクターを表示
+                if (stationSelector) {
+                    stationSelector.style.display = 'block';
+                }
+
                 // グローバル変数に保存
                 currentStationMap = stationMap;
                 currentProgramList = programList;
@@ -3607,7 +3617,7 @@
                 stationArray.forEach(station => {
                     const option = document.createElement('option');
                     option.value = station.id;
-                    option.textContent = `${station.name} (${station.id})`;
+                    option.textContent = station.name;
                     mobileStationSelect.appendChild(option);
                 });
 
@@ -3631,6 +3641,11 @@
                     // 初回表示: 最初の放送局を表示
                     displaySelectedStation(stationMap, programList, firstStationId);
                     return; // スマホの場合はここで終了
+                }
+            } else {
+                // PC時は放送局セレクターを非表示
+                if (stationSelector) {
+                    stationSelector.style.display = 'none';
                 }
             }
 
@@ -4088,7 +4103,16 @@
             const registerBtn = document.getElementById('registerCronBtn');
             if (registerBtn) {
                 registerBtn.style.display = 'inline-block';
-                registerBtn.onclick = () => addCronJob(command);
+                registerBtn.onclick = () => {
+                    // 選択されたフォルダを取得
+                    const folderSelect = document.getElementById('targetFolderSelect');
+                    const selectedFolder = folderSelect ? folderSelect.value : '';
+
+                    // フォルダを含めたコマンドを再生成
+                    const commandWithFolder = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${safeTitle}" "${prog.stationId}" "${prog.stationId}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "${selectedFolder}" "" >> /tmp/myradiko_output.log 2>&1`;
+
+                    addCronJob(commandWithFolder, prog.title, prog.stationName);
+                };
             }
 
             document.getElementById('modal').classList.add('active');
@@ -4372,6 +4396,10 @@
                 const scriptPath = document.getElementById('scriptPath').value;
                 const atTime = `${String(atExecTime.getHours()).padStart(2, '0')}:${String(atExecTime.getMinutes()).padStart(2, '0')} ${atExecTime.getFullYear()}-${String(atExecTime.getMonth() + 1).padStart(2, '0')}-${String(atExecTime.getDate()).padStart(2, '0')}`;
 
+                // 選択されたフォルダを取得
+                const folderSelect = document.getElementById('targetFolderSelect');
+                const selectedFolder = folderSelect ? folderSelect.value : '';
+
                 try {
                     const response = await fetch(`${baseUrl}/schedule-at`, {
                         method: 'POST',
@@ -4384,7 +4412,8 @@
                             start_time: startStr,
                             end_time: endStr,
                             station_id: prog.stationId,
-                            at_time: atTime
+                            at_time: atTime,
+                            folder: selectedFolder
                         })
                     });
 
@@ -4450,6 +4479,10 @@
             // グローバル変数として保存
             window.recordingTotalDuration = totalDurationSeconds;
 
+            // 選択されたフォルダを取得
+            const folderSelect = document.getElementById('targetFolderSelect');
+            const selectedFolder = folderSelect ? folderSelect.value : '';
+
             // POSTリクエストで実行
             const response = await fetch(`${baseUrl}/execute`, {
                 method: 'POST',
@@ -4461,7 +4494,8 @@
                     rss: prog.stationId,
                     station: prog.stationId,
                     start_time: startStr,
-                    end_time: endStr
+                    end_time: endStr,
+                    folder: selectedFolder
                 })
             });
 
@@ -4886,6 +4920,9 @@
                 return file.name.toLowerCase().includes(filterText.toLowerCase());
             });
 
+            // 表示用ファイルリストをグローバルに保存（program_info含む）
+            currentDisplayedFiles = filteredFiles;
+
             // ソート
             filteredFiles.sort((a, b) => {
                 let valA, valB;
@@ -5148,7 +5185,7 @@
                             <input type="checkbox" class="file-checkbox" value="${file.path}" onchange="updateSelectedCount()"
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
-                        <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">
+                        <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudioByIndex(${index})">
                             <div style="position: relative;">
                                 <img src="${artworkUrl}" alt="Artwork"
                                      style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
@@ -5160,7 +5197,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')" title="クリックで再生">
+                        <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudioByIndex(${index})" title="クリックで再生">
                             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''} cursor: pointer; transition: color 0.2s;"
                                  onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='${hasBookmark ? '#1976d2' : '#212529'}'">
                                 ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
@@ -5471,36 +5508,79 @@
                     const endTime = job.endTime ? `${job.endTime.slice(0,2)}:${job.endTime.slice(2,4)}` : '';
                     const timeRange = startTime && endTime ? `${startTime}-${endTime}` : '';
 
-                    html += `
-                        <div style="padding: 12px; background: white; border: 1px solid #dee2e6; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="font-weight: 600; color: #212529; margin-bottom: 4px; font-size: 0.95em;">
+                    const isMobile = window.innerWidth <= 768;
+
+                    if (isMobile) {
+                        // スマホレイアウト
+                        html += `
+                            <div style="padding: 12px; background: white; border: 1px solid #dee2e6; border-radius: 6px;">
+                                <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 1em; line-height: 1.4;">
                                     ${title}
                                 </div>
-                                <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.8em; color: #6c757d;">
-                                    ${station ? `<span>🏢 ${station}</span>` : ''}
-                                    ${timeRange ? `<span>📡 ${timeRange}</span>` : ''}
-                                    <span>⏰ ${cronInfo.description.replace('実行タイミング: ', '')}</span>
+                                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.85em; color: #495057; margin-bottom: 10px;">
+                                    ${station ? `
+                                        <div style="display: flex; align-items: center; gap: 4px;">
+                                            <span>📻</span>
+                                            <span>${station}</span>
+                                        </div>
+                                    ` : ''}
+                                    ${timeRange ? `
+                                        <div style="display: flex; align-items: center; gap: 4px;">
+                                            <span>🕒</span>
+                                            <span>${timeRange}</span>
+                                        </div>
+                                    ` : ''}
+                                    <div style="display: flex; align-items: center; gap: 4px; color: #6c757d; font-size: 0.8em;">
+                                        <span>⏰</span>
+                                        <span>${cronInfo.description.replace('実行タイミング: ', '')}</span>
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <button onclick='editCronJob(${index}, ${JSON.stringify(job).replace(/'/g, "\\'").replace(/"/g, "&quot;")})'
+                                            class="btn btn-secondary"
+                                            style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">
+                                        ✏️ 編集
+                                    </button>
+                                    <button onclick='removeCronJobByIndex(${index})'
+                                            style="padding: 8px 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                        ✕ 削除
+                                    </button>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                                <button onclick='editCronJob(${index}, ${JSON.stringify(job).replace(/'/g, "\\'").replace(/"/g, "&quot;")})'
-                                        style="padding: 8px 14px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
-                                        onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
-                                        onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
-                                        title="編集">
-                                    ✏️ 編集
-                                </button>
-                                <button onclick='removeCronJobByIndex(${index})'
-                                        style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
-                                        onmouseover="this.style.background='#c0392b'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
-                                        onmouseout="this.style.background='#e74c3c'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
-                                        title="削除">
-                                    ✕ 削除
-                                </button>
+                        `;
+                    } else {
+                        // PCレイアウト（従来通り）
+                        html += `
+                            <div style="padding: 12px; background: white; border: 1px solid #dee2e6; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-weight: 600; color: #212529; margin-bottom: 4px; font-size: 0.95em;">
+                                        ${title}
+                                    </div>
+                                    <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.8em; color: #6c757d;">
+                                        ${station ? `<span>🏢 ${station}</span>` : ''}
+                                        ${timeRange ? `<span>📡 ${timeRange}</span>` : ''}
+                                        <span>⏰ ${cronInfo.description.replace('実行タイミング: ', '')}</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                                    <button onclick='editCronJob(${index}, ${JSON.stringify(job).replace(/'/g, "\\'").replace(/"/g, "&quot;")})'
+                                            style="padding: 8px 14px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
+                                            onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
+                                            onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
+                                            title="編集">
+                                        ✏️ 編集
+                                    </button>
+                                    <button onclick='removeCronJobByIndex(${index})'
+                                            style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
+                                            onmouseover="this.style.background='#c0392b'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
+                                            onmouseout="this.style.background='#e74c3c'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
+                                            title="削除">
+                                        ✕ 削除
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 });
 
                 html += '</div>';
@@ -6436,41 +6516,84 @@
                         console.error('日時のパースに失敗:', job.datetime, e);
                     }
 
-                    html += `
-                        <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: white;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 1.05em;">
-                                        ${job.title}
-                                    </div>
-                                    ${job.station ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">📻 ${job.station}</div>` : ''}
-                                    ${job.startTime && job.endTime ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">🕒 ${job.startTime} - ${job.endTime}</div>` : ''}
-                                    <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 3px;">
-                                        ⏱️ Job #${job.id}
-                                    </div>
-                                    <div style="color: #6c757d; font-size: 0.85em;">
-                                        実行予定: ${formattedDatetime}
-                                    </div>
+                    const isMobile = window.innerWidth <= 768;
+
+                    if (isMobile) {
+                        // スマホレイアウト
+                        html += `
+                            <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; background: white;">
+                                <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 1em; line-height: 1.4;">
+                                    ${job.title}
                                 </div>
-                                <div style="display: flex; gap: 8px;">
+                                ${job.station ? `
+                                    <div style="color: #495057; font-size: 0.85em; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                                        <span>📻</span>
+                                        <span>${job.station}</span>
+                                    </div>
+                                ` : ''}
+                                ${job.startTime && job.endTime ? `
+                                    <div style="color: #495057; font-size: 0.85em; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                                        <span>🕒</span>
+                                        <span>${job.startTime} - ${job.endTime}</span>
+                                    </div>
+                                ` : ''}
+                                <div style="color: #6c757d; font-size: 0.8em; margin-bottom: 4px;">
+                                    ⏱️ 実行予定: ${formattedDatetime}
+                                </div>
+                                <div style="color: #999; font-size: 0.75em; margin-bottom: 10px;">
+                                    Job #${job.id}
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                                     <button onclick='editAtJob("${job.id}")'
-                                            style="padding: 8px 14px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
-                                            onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
-                                            onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
-                                            title="編集">
+                                            class="btn btn-secondary"
+                                            style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">
                                         ✏️ 編集
                                     </button>
                                     <button onclick='cancelAtJob("${job.id}")'
-                                            style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
-                                            onmouseover="this.style.background='#c0392b'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
-                                            onmouseout="this.style.background='#e74c3c'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
-                                            title="キャンセル">
+                                            style="padding: 8px 12px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; white-space: nowrap;">
                                         ✕ キャンセル
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        // PCレイアウト（従来通り）
+                        html += `
+                            <div style="border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; background: white;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 1.05em;">
+                                            ${job.title}
+                                        </div>
+                                        ${job.station ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">📻 ${job.station}</div>` : ''}
+                                        ${job.startTime && job.endTime ? `<div style="color: #495057; font-size: 0.9em; margin-bottom: 5px;">🕒 ${job.startTime} - ${job.endTime}</div>` : ''}
+                                        <div style="color: #6c757d; font-size: 0.85em; margin-bottom: 3px;">
+                                            ⏱️ Job #${job.id}
+                                        </div>
+                                        <div style="color: #6c757d; font-size: 0.85em;">
+                                            実行予定: ${formattedDatetime}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button onclick='editAtJob("${job.id}")'
+                                                style="padding: 8px 14px; background: #3498db; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
+                                                onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
+                                                onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
+                                                title="編集">
+                                            ✏️ 編集
+                                        </button>
+                                        <button onclick='cancelAtJob("${job.id}")'
+                                                style="padding: 8px 14px; background: #e74c3c; color: white; border: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);"
+                                                onmouseover="this.style.background='#c0392b'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0, 0, 0, 0.15)'"
+                                                onmouseout="this.style.background='#e74c3c'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'"
+                                                title="キャンセル">
+                                            ✕ キャンセル
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
                 });
 
                 html += '</div>';
@@ -6878,8 +7001,18 @@
         let currentAudioFilePath = '';
         // キーボードイベントリスナーの参照（削除用）
         let audioKeyboardListener = null;
+        // 現在表示中のファイル一覧（program_info付き）
+        let currentDisplayedFiles = [];
 
-        async function playAudio(filepath, filename) {
+        // インデックスからファイルを再生
+        function playAudioByIndex(index) {
+            const file = currentDisplayedFiles[index];
+            if (file) {
+                playAudio(file.path, file.name, file.program_info);
+            }
+        }
+
+        async function playAudio(filepath, filename, programInfo = null) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
@@ -6917,13 +7050,30 @@
 
             // Media Session API でメタデータを設定（iOS Safari等のネイティブプレイヤー対応）
             if ('mediaSession' in navigator) {
+                // 番組情報があればそれを使用、なければデフォルト値
+                const artist = programInfo?.station || 'radiko録音';
+                const album = programInfo?.start_time ? `${programInfo.start_time.substring(0, 10).replace(/-/g, '/')}放送` : 'ラジオ録音';
+
+                // アートワークの配列を準備
+                const artworkArray = [];
+
+                // 読み込んだアートワークがあれば追加
+                if (artworkUrl && !artworkUrl.includes('jacket.png')) {
+                    artworkArray.push({ src: artworkUrl, sizes: '512x512', type: 'image/jpeg' });
+                }
+
+                // フォールバック用のSVGアイコンを追加
+                artworkArray.push({
+                    src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==',
+                    sizes: '512x512',
+                    type: 'image/svg+xml'
+                });
+
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: filename,
-                    artist: 'radiko録音',
-                    album: 'ラジオ録音',
-                    artwork: [
-                        { src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==', sizes: '512x512', type: 'image/svg+xml' }
-                    ]
+                    title: programTitle || filename,
+                    artist: artist,
+                    album: album,
+                    artwork: artworkArray
                 });
 
                 // Media Session のアクションハンドラーを設定

@@ -488,6 +488,7 @@ def execute_recording_http():
     station = data.get('station', '')
     start_time = data.get('start_time', '')
     end_time = data.get('end_time', '')
+    folder = data.get('folder', '')
 
     # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
     safe_title = sanitize_filename(title)
@@ -516,9 +517,9 @@ def execute_recording_http():
             station,
             start_time,
             end_time,
-            '',  # SKIP
-            '',  # DIR
-            ''   # MAIL
+            '',      # SKIP
+            folder,  # DIR（保存先フォルダ）
+            ''       # MAIL
         ]
 
         cmd_str = ' '.join([f'"{arg}"' if ' ' in arg else arg for arg in cmd])
@@ -1365,6 +1366,7 @@ def schedule_at():
         end_time = data.get('end_time')      # YYYYMMDDHHmm形式
         station_id = data.get('station_id')
         at_time = data.get('at_time')        # HH:MM YYYY-MM-DD形式
+        folder = data.get('folder', '')      # 保存先フォルダ
 
         if not all([start_time, end_time, station_id, at_time]):
             return jsonify({'error': 'Missing required parameters'}), 400
@@ -1373,7 +1375,7 @@ def schedule_at():
         safe_title = sanitize_filename(title)
 
         # cronと同じ形式のコマンドを生成（サニタイズしたタイトルを使用）
-        command = f'{script_path} "{safe_title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "" "" >> /tmp/myradiko_output.log 2>&1'
+        command = f'{script_path} "{safe_title}" "{station_id}" "{station_id}" "{start_time}" "{end_time}" "" "{folder}" "" >> /tmp/myradiko_output.log 2>&1'
 
         # at_timeをdatetimeに変換 (HH:MM YYYY-MM-DD -> datetime)
         schedule_time_str = f"{at_time.split()[1]} {at_time.split()[0]}"  # YYYY-MM-DD HH:MM
