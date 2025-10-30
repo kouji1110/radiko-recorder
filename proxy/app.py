@@ -242,6 +242,15 @@ def restore_jobs_from_db():
                 # cron形式の曜日をAPScheduler形式に変換
                 apscheduler_dow = convert_cron_dow_to_apscheduler(job['day_of_week'])
 
+                # metadataを構築
+                metadata = {
+                    'title': job.get('title', ''),
+                    'rss': job.get('station', ''),
+                    'station': job.get('station', ''),
+                    'start_time': job.get('start_time', ''),
+                    'end_time': job.get('end_time', '')
+                }
+
                 scheduler.add_job(
                     func=execute_recording,
                     trigger='cron',
@@ -250,7 +259,7 @@ def restore_jobs_from_db():
                     day=job['day_of_month'],
                     month=job['month'],
                     day_of_week=apscheduler_dow,
-                    args=[job['command'], job['id'], 'cron'],
+                    args=[job['command'], job['id'], 'cron', metadata],
                     id=f"cron_{job['id']}",
                     replace_existing=True
                 )
@@ -273,11 +282,20 @@ def restore_jobs_from_db():
                     db.delete_at_job(job['id'])
                     continue
 
+                # metadataを構築
+                metadata = {
+                    'title': job.get('title', ''),
+                    'rss': job.get('station', ''),
+                    'station': job.get('station', ''),
+                    'start_time': job.get('start_time', ''),
+                    'end_time': job.get('end_time', '')
+                }
+
                 scheduler.add_job(
                     func=execute_recording,
                     trigger='date',
                     run_date=run_date,
-                    args=[job['command'], job['id'], 'at'],
+                    args=[job['command'], job['id'], 'at', metadata],
                     id=f"at_{job['id']}",
                     replace_existing=True
                 )
@@ -1502,12 +1520,21 @@ def schedule_at():
         if not job_id:
             return jsonify({'error': 'Failed to save at job to database'}), 500
 
+        # metadataを構築
+        metadata = {
+            'title': title,
+            'rss': station_id,
+            'station': station_id,
+            'start_time': start_time,
+            'end_time': end_time
+        }
+
         # スケジューラーに登録
         scheduler.add_job(
             func=execute_recording,
             trigger='date',
             run_date=schedule_time,
-            args=[command, job_id],
+            args=[command, job_id, 'at', metadata],
             id=f"at_{job_id}",
             replace_existing=True
         )
