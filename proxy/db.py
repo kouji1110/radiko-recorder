@@ -797,7 +797,8 @@ def delete_artwork(title: str):
 def register_recorded_file(file_path: str, file_name: str, program_id: int = None,
                           program_title: str = None, station_id: str = None, station_name: str = None,
                           broadcast_date: str = None, start_time: str = None, end_time: str = None,
-                          file_size: int = None, duration: float = None, file_modified: str = None):
+                          file_size: int = None, duration: float = None, file_modified: str = None,
+                          virtual_folder_id: int = None):
     """録音ファイルをDBに登録（既存の場合は更新）"""
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -806,8 +807,9 @@ def register_recorded_file(file_path: str, file_name: str, program_id: int = Non
         cursor.execute('''
             INSERT INTO recorded_files (
                 file_path, file_name, program_id, program_title, station_id, station_name,
-                broadcast_date, start_time, end_time, file_size, duration, file_modified, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                broadcast_date, start_time, end_time, file_size, duration, file_modified,
+                virtual_folder_id, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(file_path) DO UPDATE SET
                 file_name = excluded.file_name,
                 program_id = excluded.program_id,
@@ -820,15 +822,17 @@ def register_recorded_file(file_path: str, file_name: str, program_id: int = Non
                 file_size = excluded.file_size,
                 duration = excluded.duration,
                 file_modified = excluded.file_modified,
+                virtual_folder_id = excluded.virtual_folder_id,
                 updated_at = CURRENT_TIMESTAMP
         ''', (file_path, file_name, program_id, program_title, station_id, station_name,
-              broadcast_date, start_time, end_time, file_size, duration, file_modified))
+              broadcast_date, start_time, end_time, file_size, duration, file_modified,
+              virtual_folder_id))
 
         file_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
-        logger.info(f'✅ Recorded file registered: {file_path}')
+        logger.info(f'✅ Recorded file registered: {file_path} (virtual_folder_id={virtual_folder_id})')
         return file_id
 
     except Exception as e:
@@ -1068,6 +1072,25 @@ def create_virtual_folder(name: str, parent_id: int = None, color: str = None, i
 
     except Exception as e:
         logger.error(f'❌ Create virtual folder error: {str(e)}')
+        return None
+
+
+def get_virtual_folder_by_name(name: str):
+    """フォルダ名からIDを取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT id FROM virtual_folders WHERE name = ?', (name,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return row[0]
+        return None
+
+    except Exception as e:
+        logger.error(f'❌ Get virtual folder by name error: {str(e)}')
         return None
 
 

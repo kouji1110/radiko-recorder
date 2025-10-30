@@ -122,17 +122,22 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
         logger.info(f'🎙️ Recording started (type={job_type}, job_id={job_id})')
         logger.info(f'📝 Command: {command}')
 
-        # コマンドからfolderパラメータを抽出（第7引数）
-        # 形式: myradiko "title" "rss" "station" "start" "end" "" "folder" "" >> ...
-        folder = ''
+        # コマンドからフォルダIDパラメータを抽出（第7引数）
+        # 形式: myradiko "title" "rss" "station" "start" "end" "" "folder_id" "" >> ...
+        virtual_folder_id = None
         try:
             import re
             # 7番目のクォート内の文字列を探す
             pattern = r'"([^"]*)"'
             matches = re.findall(pattern, command)
             if len(matches) >= 7:
-                folder = matches[6]  # 7番目の引数（0-indexed）
-                logger.info(f'📁 Extracted folder from command: "{folder}"')
+                folder_id_str = matches[6]  # 7番目の引数（0-indexed）
+                if folder_id_str and folder_id_str != '':
+                    try:
+                        virtual_folder_id = int(folder_id_str)
+                        logger.info(f'📁 Extracted virtual_folder_id from command: {virtual_folder_id}')
+                    except (ValueError, TypeError):
+                        logger.warning(f'⚠️ Invalid folder ID in command: {folder_id_str}')
         except Exception as e:
             logger.warning(f'⚠️ Failed to extract folder from command: {str(e)}')
 
@@ -166,12 +171,10 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                     actual_output_dir = os.path.join(OUTPUT_DIR, rss)
                     actual_file_path = os.path.join(actual_output_dir, filename)
 
-                    # DB保存用の相対パス（仮想フォルダを含む）
-                    if folder:
-                        relative_path = f'{folder}/{rss}/{filename}'
-                        logger.info(f'📁 Using virtual folder path: {relative_path}')
-                    else:
-                        relative_path = f'{rss}/{filename}'
+                    # file_pathは実際のパス（仮想フォルダを含まない）
+                    relative_path = f'{rss}/{filename}'
+
+                    # virtual_folder_idは外側のスコープから取得済み
 
                     # ファイル存在確認は実際のパスで行う
                     file_path = actual_file_path
@@ -200,7 +203,8 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                             end_time=metadata.get('end_time'),
                             file_size=file_stat.st_size,
                             duration=None,
-                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                            virtual_folder_id=virtual_folder_id
                         )
                         logger.info(f'📝 Recorded file registered in DB: {relative_path}')
 
@@ -513,7 +517,15 @@ def execute_recording_http():
     station = data.get('station', '')
     start_time = data.get('start_time', '')
     end_time = data.get('end_time', '')
-    folder = data.get('folder', '')
+    folder_id_str = data.get('folder', '')
+
+    # フォルダIDを整数に変換（空文字列はNone）
+    virtual_folder_id = None
+    if folder_id_str and folder_id_str != '':
+        try:
+            virtual_folder_id = int(folder_id_str)
+        except (ValueError, TypeError):
+            logger.warning(f'⚠️ Invalid folder ID: {folder_id_str}')
 
     # タイトルをサニタイズ（スペースをアンダーバーに、全角記号を半角に）
     safe_title = sanitize_filename(title)
@@ -521,6 +533,7 @@ def execute_recording_http():
     # デバッグ用ログ
     logger.info(f'Original title: {title}')
     logger.info(f'Sanitized title: {safe_title}')
+    logger.info(f'📁 Received virtual_folder_id: {virtual_folder_id}')
 
     def generate_log():
         """ログをストリーミングで返す"""
@@ -542,9 +555,9 @@ def execute_recording_http():
             station,
             start_time,
             end_time,
-            '',      # SKIP
-            folder,  # DIR（保存先フォルダ）
-            ''       # MAIL
+            '',  # SKIP
+            '',  # DIR（使用しない）
+            ''   # MAIL
         ]
 
         cmd_str = ' '.join([f'"{arg}"' if ' ' in arg else arg for arg in cmd])
@@ -615,11 +628,10 @@ def execute_recording_http():
             actual_output_dir = os.path.join(OUTPUT_DIR, rss)
             actual_file_path = os.path.join(actual_output_dir, filename)
 
-            # DB保存用の相対パス（仮想フォルダを含む）
-            if folder:
-                relative_path = f'{folder}/{rss}/{filename}'
-            else:
-                relative_path = f'{rss}/{filename}'
+            # file_pathは実際のパス（仮想フォルダを含まない）
+            relative_path = f'{rss}/{filename}'
+
+            # virtual_folder_idは外側のスコープから取得済み
 
             # ファイル存在確認は実際のパスで行う
             file_path = actual_file_path
@@ -663,7 +675,8 @@ def execute_recording_http():
                             end_time=iso_end_time,
                             file_size=file_stat.st_size,
                             duration=None,
-                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                            file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                            virtual_folder_id=virtual_folder_id
                         )
                         logger.info(f'✅ File registered in DB: {relative_path}')
 
