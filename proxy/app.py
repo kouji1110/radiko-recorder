@@ -178,6 +178,9 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                             file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
                         )
                         logger.info(f'📝 Recorded file registered in DB: {relative_path}')
+
+                        # メタデータとアートワークを埋め込む
+                        embed_metadata_after_recording(file_path, title, station)
                 except Exception as e:
                     logger.error(f'❌ Failed to register file in DB: {str(e)}')
         else:
@@ -361,6 +364,53 @@ def embed_artwork_to_mp3(file_path, artwork_data, mime_type, title=None, artist=
     except Exception as e:
         logger.error(f'Failed to embed artwork to {file_path}: {str(e)}')
         return False
+
+
+def embed_metadata_after_recording(file_path: str, title: str, station: str):
+    """録音完了後にメタデータとアートワークを埋め込む"""
+    try:
+        if not os.path.exists(file_path):
+            logger.warning(f'File not found for metadata embedding: {file_path}')
+            return False
+
+        # アートワークをDBから取得
+        artwork_data = db.get_artwork(title)
+
+        if artwork_data:
+            # アートワークが登録されている場合、埋め込む
+            logger.info(f'Embedding artwork for: {title}')
+            result = embed_artwork_to_mp3(
+                file_path,
+                artwork_data['image_data'],
+                artwork_data['mime_type'],
+                title=title,
+                artist=station
+            )
+            if result:
+                logger.info(f'✅ Metadata embedded successfully: {file_path}')
+            else:
+                logger.warning(f'⚠️ Failed to embed metadata: {file_path}')
+            return result
+        else:
+            # アートワークがない場合、タイトルとアーティストのみ埋め込む
+            logger.info(f'No artwork found, embedding title/artist only: {title}')
+            result = embed_artwork_to_mp3(
+                file_path,
+                None,  # アートワークなし
+                None,
+                title=title,
+                artist=station
+            )
+            if result:
+                logger.info(f'✅ Title/Artist embedded successfully: {file_path}')
+            else:
+                logger.warning(f'⚠️ Failed to embed title/artist: {file_path}')
+            return result
+
+    except Exception as e:
+        logger.error(f'❌ Error embedding metadata: {str(e)}')
+        return False
+
 
 # DB初期化
 db.init_database()
@@ -563,6 +613,13 @@ def execute_recording_http():
                             file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
                         )
                         logger.info(f'✅ File registered in DB: {relative_path}')
+
+                        # メタデータとアートワークを埋め込む
+                        timestamp_embed = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータを埋め込み中..."})}\n\n'
+                        embed_metadata_after_recording(file_path, title, station)
+                        timestamp_embed = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータ埋め込み完了"})}\n\n'
                     except Exception as e:
                         logger.error(f'❌ Failed to register file in DB: {str(e)}')
 
@@ -1108,18 +1165,20 @@ def delete_file():
         if not safe_path.startswith(base_dir):
             return jsonify({'error': 'Invalid file path'}), 400
 
-        if not os.path.exists(safe_path):
-            return jsonify({'error': 'File not found'}), 404
+        # ファイルが存在する場合は物理削除
+        file_existed = os.path.exists(safe_path)
+        if file_existed:
+            os.remove(safe_path)
+            logger.info(f'File deleted: {safe_path}')
+        else:
+            logger.warning(f'File not found (will delete DB record only): {safe_path}')
 
-        # ファイルを削除
-        os.remove(safe_path)
-        logger.info(f'File deleted: {safe_path}')
-
-        # DBからも削除
+        # DBからも削除（ファイルが存在しなくてもDBレコードは削除）
         db.delete_recorded_file(filepath)
         logger.info(f'File deleted from DB: {filepath}')
 
-        return jsonify({'success': True, 'message': 'File deleted successfully'})
+        message = 'File deleted successfully' if file_existed else 'DB record deleted (file not found)'
+        return jsonify({'success': True, 'message': message, 'file_existed': file_existed})
 
     except Exception as e:
         logger.error(f'Delete file error: {str(e)}')
@@ -1148,18 +1207,19 @@ def delete_multiple_files():
                     errors.append({'path': filepath, 'error': 'Invalid file path'})
                     continue
 
-                if not os.path.exists(safe_path):
-                    errors.append({'path': filepath, 'error': 'File not found'})
-                    continue
+                # ファイルが存在する場合は物理削除
+                file_existed = os.path.exists(safe_path)
+                if file_existed:
+                    os.remove(safe_path)
+                    logger.info(f'File deleted: {safe_path}')
+                else:
+                    logger.warning(f'File not found (will delete DB record only): {safe_path}')
 
-                # ファイルを削除
-                os.remove(safe_path)
-                deleted.append(filepath)
-                logger.info(f'File deleted: {safe_path}')
-
-                # DBからも削除
+                # DBからも削除（ファイルが存在しなくてもDBレコードは削除）
                 db.delete_recorded_file(filepath)
                 logger.info(f'File deleted from DB: {filepath}')
+
+                deleted.append(filepath)
 
             except Exception as e:
                 errors.append({'path': filepath, 'error': str(e)})
@@ -1809,6 +1869,54 @@ def admin_db_status():
         logger.error(f'Admin DB status error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
+@app.route('/admin/cleanup-orphaned-records', methods=['POST'])
+def cleanup_orphaned_records():
+    """物理ファイルが存在しないDBレコードを削除"""
+    try:
+        import sqlite3
+
+        conn = sqlite3.connect(db.DB_PATH)
+        cursor = conn.cursor()
+
+        # 全ての録音ファイルレコードを取得
+        cursor.execute('SELECT id, file_path FROM recorded_files')
+        all_records = cursor.fetchall()
+
+        orphaned = []
+        cleaned = []
+
+        for record_id, file_path in all_records:
+            if not file_path:
+                continue
+
+            full_path = os.path.join(OUTPUT_DIR, file_path)
+
+            # ファイルが存在しない場合
+            if not os.path.exists(full_path):
+                orphaned.append({
+                    'id': record_id,
+                    'path': file_path
+                })
+
+                # DBから削除
+                cursor.execute('DELETE FROM recorded_files WHERE id = ?', (record_id,))
+                cleaned.append(file_path)
+                logger.info(f'Orphaned record cleaned: {file_path}')
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'orphaned_count': len(orphaned),
+            'cleaned': cleaned,
+            'message': f'{len(cleaned)} orphaned records cleaned'
+        })
+
+    except Exception as e:
+        logger.error(f'Cleanup orphaned records error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
 
 # ========================================
 # アートワーク管理API
@@ -1940,6 +2048,92 @@ def delete_artwork():
 
     except Exception as e:
         logger.error(f'Delete artwork error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/batch-update-metadata', methods=['POST'])
+def batch_update_metadata():
+    """すべての録音ファイルのメタデータを一括更新"""
+    try:
+        # DBから全ての録音ファイルを取得
+        import sqlite3
+        conn = sqlite3.connect(db.DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT file_path, program_title, station_name
+            FROM recorded_files
+            WHERE file_path IS NOT NULL
+        ''')
+
+        files = cursor.fetchall()
+        conn.close()
+
+        processed = 0
+        success_count = 0
+        failed_count = 0
+        skipped_count = 0
+        results = []
+
+        for file_path, program_title, station_name in files:
+            processed += 1
+            full_path = os.path.join(OUTPUT_DIR, file_path)
+
+            # ファイルが存在しない場合はスキップ
+            if not os.path.exists(full_path):
+                skipped_count += 1
+                results.append({
+                    'file': file_path,
+                    'success': False,
+                    'message': 'File not found'
+                })
+                continue
+
+            # MP3ファイルのみ処理
+            if not full_path.endswith('.mp3'):
+                skipped_count += 1
+                results.append({
+                    'file': file_path,
+                    'success': False,
+                    'message': 'Not an MP3 file'
+                })
+                continue
+
+            # メタデータを埋め込む
+            result = embed_metadata_after_recording(
+                full_path,
+                program_title or '',
+                station_name or ''
+            )
+
+            if result:
+                success_count += 1
+                results.append({
+                    'file': file_path,
+                    'success': True,
+                    'message': 'Metadata updated'
+                })
+            else:
+                failed_count += 1
+                results.append({
+                    'file': file_path,
+                    'success': False,
+                    'message': 'Failed to update metadata'
+                })
+
+        logger.info(f'Batch metadata update: processed={processed}, success={success_count}, failed={failed_count}, skipped={skipped_count}')
+
+        return jsonify({
+            'success': True,
+            'processed': processed,
+            'success_count': success_count,
+            'failed_count': failed_count,
+            'skipped_count': skipped_count,
+            'results': results
+        })
+
+    except Exception as e:
+        logger.error(f'Batch update metadata error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 
