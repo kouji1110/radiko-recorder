@@ -2291,12 +2291,13 @@
 
                 <!-- 非表示のオーディオ要素（カスタムコントロール使用） -->
                 <audio id="audioPlayer" style="display: none;"
+                       preload="metadata"
                        ontimeupdate="updatePlaybackPosition()"
                        onloadedmetadata="loadBookmark()"
                        onvolumechange="saveVolume()"
-                       onplay="updatePlayPauseButton()"
-                       onpause="updatePlayPauseButton()"
-                       onended="updatePlayPauseButton()">
+                       onplay="updatePlayPauseButton(); updateMediaSessionState('playing')"
+                       onpause="updatePlayPauseButton(); updateMediaSessionState('paused')"
+                       onended="updatePlayPauseButton(); updateMediaSessionState('none')">
                     <source id="audioSource" src="" type="audio/mpeg">
                 </audio>
 
@@ -7119,6 +7120,23 @@
                         audioPlayer.currentTime = details.seekTime;
                     }
                 });
+
+                // 次/前トラックのハンドラー（複数ファイル再生時）
+                navigator.mediaSession.setActionHandler('nexttrack', () => {
+                    const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
+                    if (currentIndex >= 0 && currentIndex < currentDisplayedFiles.length - 1) {
+                        playAudioByIndex(currentIndex + 1);
+                    }
+                });
+                navigator.mediaSession.setActionHandler('previoustrack', () => {
+                    const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
+                    if (currentIndex > 0) {
+                        playAudioByIndex(currentIndex - 1);
+                    }
+                });
+
+                // 初期状態を設定
+                navigator.mediaSession.playbackState = 'none';
             }
 
             // キーボードショートカットを設定（左右矢印キー）
@@ -7158,6 +7176,32 @@
                 audioPlayer.removeEventListener('canplay', playWhenReady);
             }, { once: true });
         }
+
+        // Media Session状態を更新する関数
+        function updateMediaSessionState(state) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = state;
+                console.log('Media Session state updated:', state);
+            }
+        }
+
+        // ページがバックグラウンドに入った時の処理
+        document.addEventListener('visibilitychange', () => {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (document.hidden) {
+                // バックグラウンドに入った時、再生中なら状態を維持
+                if (!audioPlayer.paused && 'mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                    console.log('Page hidden, maintaining playback state');
+                }
+            } else {
+                // フォアグラウンドに戻った時
+                if (!audioPlayer.paused && 'mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'playing';
+                    console.log('Page visible, confirming playback state');
+                }
+            }
+        });
 
         // オーディオプレイヤーを閉じる
         function closeAudioPlayer() {
