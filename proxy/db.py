@@ -152,9 +152,26 @@ def init_database():
                 file_size INTEGER,
                 duration REAL,
                 file_modified TIMESTAMP,
+                virtual_folder_id INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE SET NULL
+                FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE SET NULL,
+                FOREIGN KEY (virtual_folder_id) REFERENCES virtual_folders(id) ON DELETE SET NULL
+            )
+        ''')
+
+        # 仮想フォルダテーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS virtual_folders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                parent_id INTEGER,
+                color TEXT,
+                icon TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_id) REFERENCES virtual_folders(id) ON DELETE CASCADE
             )
         ''')
 
@@ -1022,6 +1039,267 @@ def find_program_by_info(station_id: str, start_time: str):
     except Exception as e:
         logger.error(f'❌ Find program error: {str(e)}')
         return None
+
+
+# ========================================
+# 仮想フォルダ管理
+# ========================================
+
+def create_virtual_folder(name: str, parent_id: int = None, color: str = None, icon: str = None):
+    """仮想フォルダを作成"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO virtual_folders (name, parent_id, color, icon)
+            VALUES (?, ?, ?, ?)
+        ''', (name, parent_id, color, icon))
+
+        folder_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        logger.info(f'✅ Virtual folder created: {name} (ID: {folder_id})')
+        return folder_id
+
+    except Exception as e:
+        logger.error(f'❌ Create virtual folder error: {str(e)}')
+        return None
+
+
+def get_all_virtual_folders():
+    """全ての仮想フォルダを取得"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT * FROM virtual_folders
+            ORDER BY sort_order ASC, name ASC
+        ''')
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        folders = []
+        for row in rows:
+            folders.append({
+                'id': row['id'],
+                'name': row['name'],
+                'parent_id': row['parent_id'],
+                'color': row['color'],
+                'icon': row['icon'],
+                'sort_order': row['sort_order'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            })
+
+        return folders
+
+    except Exception as e:
+        logger.error(f'❌ Get virtual folders error: {str(e)}')
+        return []
+
+
+def update_virtual_folder(folder_id: int, name: str = None, color: str = None, icon: str = None, parent_id: int = None):
+    """仮想フォルダを更新"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if name is not None:
+            updates.append('name = ?')
+            params.append(name)
+        if color is not None:
+            updates.append('color = ?')
+            params.append(color)
+        if icon is not None:
+            updates.append('icon = ?')
+            params.append(icon)
+        if parent_id is not None:
+            updates.append('parent_id = ?')
+            params.append(parent_id)
+
+        if not updates:
+            return False
+
+        updates.append('updated_at = CURRENT_TIMESTAMP')
+        params.append(folder_id)
+
+        query = f"UPDATE virtual_folders SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(query, params)
+
+        conn.commit()
+        affected_rows = cursor.rowcount
+        conn.close()
+
+        if affected_rows > 0:
+            logger.info(f'✅ Virtual folder updated: ID {folder_id}')
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        logger.error(f'❌ Update virtual folder error: {str(e)}')
+        return False
+
+
+def delete_virtual_folder(folder_id: int):
+    """仮想フォルダを削除（フォルダ内のファイルはルートに移動）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # フォルダ内のファイルをルート（NULL）に移動
+        cursor.execute('''
+            UPDATE recorded_files
+            SET virtual_folder_id = NULL
+            WHERE virtual_folder_id = ?
+        ''', (folder_id,))
+
+        # フォルダを削除
+        cursor.execute('DELETE FROM virtual_folders WHERE id = ?', (folder_id,))
+
+        conn.commit()
+        affected_rows = cursor.rowcount
+        conn.close()
+
+        if affected_rows > 0:
+            logger.info(f'✅ Virtual folder deleted: ID {folder_id}')
+            return True
+        else:
+            return False
+
+    except Exception as e:
+        logger.error(f'❌ Delete virtual folder error: {str(e)}')
+        return False
+
+
+def move_file_to_folder(file_path: str, folder_id: int = None):
+    """ファイルを仮想フォルダに移動（folder_id=Noneでルートに移動）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE recorded_files
+            SET virtual_folder_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE file_path = ?
+        ''', (folder_id, file_path))
+
+        conn.commit()
+        affected_rows = cursor.rowcount
+        conn.close()
+
+        if affected_rows > 0:
+            logger.info(f'✅ File moved to folder: {file_path} -> Folder ID {folder_id}')
+            return True
+        else:
+            logger.warning(f'⚠️ File not found: {file_path}')
+            return False
+
+    except Exception as e:
+        logger.error(f'❌ Move file to folder error: {str(e)}')
+        return False
+
+
+def get_files_in_folder(folder_id: int = None, limit: int = 1000, offset: int = 0):
+    """仮想フォルダ内のファイルを取得（folder_id=Noneでルートのファイル）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        if folder_id is None:
+            # ルートのファイル（フォルダに属していないファイル）
+            cursor.execute('''
+                SELECT
+                    rf.*,
+                    p.title as program_db_title,
+                    p.description as program_description,
+                    p.performer as program_performer,
+                    p.info as program_db_info,
+                    p.url as program_url
+                FROM recorded_files rf
+                LEFT JOIN programs p ON rf.program_id = p.id
+                WHERE rf.virtual_folder_id IS NULL
+                ORDER BY rf.file_modified DESC
+                LIMIT ? OFFSET ?
+            ''', (limit, offset))
+        else:
+            # 指定されたフォルダ内のファイル
+            cursor.execute('''
+                SELECT
+                    rf.*,
+                    p.title as program_db_title,
+                    p.description as program_description,
+                    p.performer as program_performer,
+                    p.info as program_db_info,
+                    p.url as program_url
+                FROM recorded_files rf
+                LEFT JOIN programs p ON rf.program_id = p.id
+                WHERE rf.virtual_folder_id = ?
+                ORDER BY rf.file_modified DESC
+                LIMIT ? OFFSET ?
+            ''', (folder_id, limit, offset))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        files = []
+        for row in rows:
+            # file_modifiedをUnixタイムスタンプに変換（文字列の場合）
+            modified_value = row['file_modified']
+            if isinstance(modified_value, str):
+                from datetime import datetime
+                try:
+                    dt = datetime.fromisoformat(modified_value.replace('Z', '+00:00'))
+                    modified_value = dt.timestamp()
+                except:
+                    modified_value = 0
+
+            # フロントエンドが期待する形式に合わせる（path, name, size, modifiedを使用）
+            file_data = {
+                'id': row['id'],
+                'path': row['file_path'],  # フロントエンドは 'path' を期待
+                'name': row['file_name'],  # フロントエンドは 'name' を期待
+                'size': row['file_size'],  # フロントエンドは 'size' を期待
+                'modified': modified_value,  # Unixタイムスタンプ
+                'program_id': row['program_id'],
+                'program_title': row['program_title'],
+                'station_id': row['station_id'],
+                'station_name': row['station_name'],
+                'broadcast_date': row['broadcast_date'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'duration': row['duration'],
+                'virtual_folder_id': row['virtual_folder_id'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            }
+
+            # 番組表データがあれば追加
+            if row['program_id']:
+                file_data['program_info'] = {
+                    'program_db_title': row['program_db_title'],
+                    'program_description': row['program_description'],
+                    'program_performer': row['program_performer'],
+                    'program_info': row['program_db_info'],
+                    'program_url': row['program_url']
+                }
+
+            files.append(file_data)
+
+        return files
+
+    except Exception as e:
+        logger.error(f'❌ Get files in folder error: {str(e)}')
+        return []
 
 
 if __name__ == '__main__':

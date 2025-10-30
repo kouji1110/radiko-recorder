@@ -746,56 +746,10 @@ def rename_file():
 
 @app.route('/files', methods=['GET'])
 def list_files():
-    """録音済みファイル一覧を取得（DB経由、ファイルシステムと照合）"""
+    """録音済みファイル一覧を取得（ルートフォルダのみ、virtual_folder_id=NULL）"""
     try:
-        base_dir = OUTPUT_DIR
-
-        # DBから録音ファイル情報を取得
-        db_files = db.get_all_recorded_files()
-        db_files_dict = {f['file_path']: f for f in db_files}
-
-        files = []
-
-        if not os.path.exists(base_dir):
-            return jsonify({'files': []})
-
-        # ファイルシステムを探索し、DBと照合
-        for root, dirs, filenames in os.walk(base_dir):
-            for filename in filenames:
-                if filename.endswith('.mp3'):
-                    full_path = os.path.join(root, filename)
-                    relative_path = os.path.relpath(full_path, base_dir)
-                    file_stat = os.stat(full_path)
-
-                    # DB情報があれば使用、なければファイル情報のみ
-                    db_info = db_files_dict.get(relative_path)
-
-                    file_data = {
-                        'path': relative_path,
-                        'name': filename,
-                        'size': file_stat.st_size,
-                        'modified': file_stat.st_mtime
-                    }
-
-                    # DB情報があれば追加
-                    if db_info:
-                        file_data.update({
-                            'program_title': db_info['program_title'],
-                            'station_id': db_info['station_id'],
-                            'station_name': db_info['station_name'],
-                            'broadcast_date': db_info['broadcast_date'],
-                            'duration': db_info['duration']
-                        })
-
-                        # 番組情報も追加（program_infoフィールド）
-                        if db_info.get('program_info'):
-                            file_data['program_info'] = db_info['program_info']
-
-                    files.append(file_data)
-
-        # 更新日時でソート（新しい順）
-        files.sort(key=lambda x: x['modified'], reverse=True)
-
+        # DBからルートフォルダのファイルを取得（virtual_folder_id=NULL）
+        files = db.get_files_in_folder(folder_id=None, limit=1000, offset=0)
         return jsonify({'files': files})
     except Exception as e:
         logger.error(f'List files error: {str(e)}')
@@ -2042,6 +1996,103 @@ def scan_and_register_files():
 
     except Exception as e:
         logger.error(f'Scan files error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+# ========================================
+# 仮想フォルダ管理API
+# ========================================
+
+@app.route('/folders', methods=['GET'])
+def list_folders():
+    """仮想フォルダ一覧を取得"""
+    try:
+        folders = db.get_all_virtual_folders()
+        return jsonify({'success': True, 'folders': folders})
+    except Exception as e:
+        logger.error(f'List folders error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/folders', methods=['POST'])
+def create_folder():
+    """仮想フォルダを作成"""
+    try:
+        data = request.json
+        name = data.get('name')
+        if not name:
+            return jsonify({'error': 'フォルダ名が必要です'}), 400
+
+        parent_id = data.get('parent_id')
+        color = data.get('color')
+        icon = data.get('icon')
+
+        folder_id = db.create_virtual_folder(name, parent_id, color, icon)
+        return jsonify({'success': True, 'folder_id': folder_id})
+    except Exception as e:
+        logger.error(f'Create folder error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/folders/<int:folder_id>', methods=['PUT'])
+def update_folder(folder_id):
+    """仮想フォルダを更新"""
+    try:
+        data = request.json
+        success = db.update_virtual_folder(
+            folder_id,
+            name=data.get('name'),
+            color=data.get('color'),
+            icon=data.get('icon'),
+            parent_id=data.get('parent_id')
+        )
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f'Update folder error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/folders/<int:folder_id>', methods=['DELETE'])
+def delete_folder(folder_id):
+    """仮想フォルダを削除"""
+    try:
+        success = db.delete_virtual_folder(folder_id)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f'Delete folder error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/files/move', methods=['POST'])
+def move_file():
+    """ファイルを仮想フォルダに移動"""
+    try:
+        data = request.json
+        file_path = data.get('file_path')
+        folder_id = data.get('folder_id')
+
+        if not file_path:
+            return jsonify({'error': 'ファイルパスが必要です'}), 400
+
+        success = db.move_file_to_folder(file_path, folder_id)
+        return jsonify({'success': success})
+    except Exception as e:
+        logger.error(f'Move file error: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/folders/<int:folder_id>/files', methods=['GET'])
+def get_folder_files(folder_id):
+    """仮想フォルダ内のファイルを取得"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 1000, type=int)
+        offset = (page - 1) * limit
+
+        files = db.get_files_in_folder(folder_id, limit, offset)
+        return jsonify({'success': True, 'files': files})
+    except Exception as e:
+        logger.error(f'Get folder files error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 

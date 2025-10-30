@@ -789,6 +789,141 @@
                 min-width: 100% !important;
             }
 
+            /* ファイル一覧テーブルのモバイル最適化 - カード型レイアウト */
+            #filesList table {
+                display: block;
+            }
+
+            #filesList thead {
+                display: none;
+            }
+
+            #filesList tbody {
+                display: block;
+            }
+
+            #filesList tbody tr {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                padding: 10px !important;
+                margin-bottom: 8px !important;
+                border: 1px solid #e9ecef !important;
+                border-radius: 8px !important;
+                background: white !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+            }
+
+            #filesList tbody tr:hover {
+                background: #f8f9fa !important;
+            }
+
+            /* チェックボックス列 */
+            #filesList td:nth-child(1) {
+                order: 1;
+                padding: 0 8px 0 0 !important;
+                width: auto !important;
+            }
+
+            /* アートワーク列 */
+            #filesList .artwork-column {
+                order: 2;
+                padding: 0 10px 0 0 !important;
+                width: auto !important;
+            }
+
+            #filesList .artwork-column img {
+                width: 48px !important;
+                height: 48px !important;
+            }
+
+            /* ファイル名列 - flexで広がる */
+            #filesList td:nth-child(3) {
+                order: 3;
+                flex: 1 !important;
+                padding: 0 !important;
+                max-width: none !important;
+                min-width: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 4px !important;
+            }
+
+            #filesList td:nth-child(3) > div:first-child {
+                max-width: none !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                word-break: break-word;
+                line-height: 1.4;
+                font-size: 0.95em;
+                font-weight: 500;
+            }
+
+            /* 再生進捗を非表示 */
+            #filesList td:nth-child(3) > div:nth-child(2) {
+                display: none;
+            }
+
+            /* モバイル用情報を表示 */
+            #filesList td:nth-child(3) .mobile-info {
+                display: block !important;
+            }
+
+            /* 放送日時列を非表示（モバイル用情報に含まれる） */
+            #filesList td:nth-child(4) {
+                display: none !important;
+            }
+
+            /* ファイルサイズ列を非表示（モバイル用情報に含まれる） */
+            #filesList td:nth-child(5) {
+                display: none !important;
+            }
+
+            /* 更新日時列を非表示 */
+            #filesList td:nth-child(6) {
+                display: none !important;
+            }
+
+            /* 操作ボタン（⋮）を右端に配置 */
+            #filesList td:last-child {
+                order: 4;
+                padding: 0 0 0 10px !important;
+                width: auto !important;
+                text-align: right !important;
+            }
+
+            #filesList td:last-child button {
+                font-size: 1.5em !important;
+                padding: 4px 8px !important;
+                min-width: auto !important;
+                background: transparent !important;
+                border: none !important;
+                color: #6c757d !important;
+            }
+
+            /* ファイル一覧ヘッダーのモバイル最適化 */
+            #filesHeaderSection {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 10px !important;
+            }
+
+            #filesHeaderSection h2 {
+                font-size: 1em !important;
+            }
+
+            #filesHeaderButtons {
+                width: 100% !important;
+                gap: 6px !important;
+            }
+
+            #filesHeaderButtons button {
+                flex: 1 !important;
+                padding: 8px 4px !important;
+                font-size: 0.7em !important;
+                min-width: 0 !important;
+            }
+
             /* ファイル一覧のボタン群を縦並びに */
             #filesList > div:first-child > div:first-child {
                 flex-direction: column !important;
@@ -1230,13 +1365,22 @@
         <div id="filesTab" class="tab-content">
             <div class="content">
                 <div style="padding: 15px; background: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
+                    <div id="filesHeaderSection" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
                         <h2 style="margin: 0; font-size: 1.3em; color: #212529;">📁 録音済みファイル一覧</h2>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-warning" onclick="scanExistingFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔍 既存ファイルをスキャン</button>
-                            <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
+                        <div id="filesHeaderButtons" style="display: flex; gap: 10px;">
+                            <button class="btn btn-success" onclick="showCreateFolderModal()" style="padding: 6px 16px; font-size: 0.9em; white-space: nowrap;">📂 新規フォルダ</button>
+                            <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em; white-space: nowrap;">🔄 更新</button>
                         </div>
                     </div>
+
+                    <!-- パンくずリストと戻るボタン -->
+                    <div id="breadcrumb" style="display: none; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <div id="breadcrumbPath" style="font-size: 0.9em; color: #495057;">
+                            <!-- パンくずリストがここに表示される -->
+                        </div>
+                        <button class="btn btn-secondary" onclick="navigateUp()" style="padding: 4px 12px; font-size: 0.85em;">← 戻る</button>
+                    </div>
+
                     <div id="filesLoading" class="loading" style="display: none;">
                         <div class="spinner"></div>
                         <p>ファイル一覧を読み込み中...</p>
@@ -1631,16 +1775,72 @@
         </div>
     </div>
 
+    <!-- フォルダ作成・編集モーダル -->
+    <div id="folderModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="folderModalTitle">📂 新規フォルダ作成</h2>
+                <button class="modal-close" onclick="closeFolderModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">フォルダ名 <span style="color: #dc3545;">*</span></label>
+                <input type="text" id="folderName" placeholder="例: お気に入り、ニュース、音楽..." style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">カラー（オプション）</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="selectFolderColor('#667eea')" class="folder-color-btn" data-color="#667eea" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #667eea; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#764ba2')" class="folder-color-btn" data-color="#764ba2" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #764ba2; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#f093fb')" class="folder-color-btn" data-color="#f093fb" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #f093fb; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#fa709a')" class="folder-color-btn" data-color="#fa709a" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #fa709a; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#fee140')" class="folder-color-btn" data-color="#fee140" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #fee140; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#30cfd0')" class="folder-color-btn" data-color="#30cfd0" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #30cfd0; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#a8edea')" class="folder-color-btn" data-color="#a8edea" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #a8edea; cursor: pointer; transition: all 0.2s;"></button>
+                    <button onclick="selectFolderColor('#6c757d')" class="folder-color-btn" data-color="#6c757d" style="width: 40px; height: 40px; border: 2px solid #dee2e6; border-radius: 8px; background: #6c757d; cursor: pointer; transition: all 0.2s;"></button>
+                </div>
+                <input type="hidden" id="selectedFolderColor" value="">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action btn-primary" onclick="saveFolderModal()">保存</button>
+                <button class="btn btn-action btn-close" onclick="closeFolderModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ファイル移動モーダル -->
+    <div id="moveFileModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>📁 ファイルを移動</h2>
+                <button class="modal-close" onclick="closeMoveFileModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <div style="padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 0.9em; color: #495057;">
+                    <strong id="moveFileName"></strong> を移動します
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">移動先フォルダを選択</label>
+                <div id="folderList" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                    <!-- フォルダリストがここに表示される -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action btn-close" onclick="closeMoveFileModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <!-- オーディオプレイヤーモーダル -->
     <div id="audioPlayerModal" class="modal">
-        <div class="modal-content" style="max-width: 500px; padding: 0;">
-            <div class="modal-header" style="padding: 12px 50px 12px 20px; border-bottom: 1px solid #e9ecef; position: relative;">
+        <div class="modal-content" style="max-width: 500px; padding: 0; touch-action: manipulation;">
+            <div class="modal-header" style="padding: 12px 50px 12px 20px; border-bottom: 1px solid #e9ecef; position: relative; touch-action: manipulation;">
                 <button class="modal-close" onclick="closeAudioPlayer()" style="position: absolute; right: 10px; top: 10px; background: #f8f9fa; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; border: none; cursor: pointer; color: #6c757d; transition: all 0.2s; z-index: 10001;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">&times;</button>
             </div>
-            <div style="padding: 20px;">
+            <div style="padding: 20px; touch-action: manipulation;">
                 <!-- アルバムアートワーク -->
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <img src="img/jacket.png" alt="Artwork" style="width: 200px; height: 200px; margin: 0 auto 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); object-fit: cover; display: block;">
+                <div style="text-align: center; margin-bottom: 20px; touch-action: manipulation;">
+                    <img src="img/jacket.png" alt="Artwork" style="width: 200px; height: 200px; margin: 0 auto 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); object-fit: cover; display: block; touch-action: manipulation;">
                     <h3 id="audioPlayerTitle" style="font-size: 1.1em; font-weight: 600; color: #2d3436; margin: 0; line-height: 1.4; padding: 0 10px;">再生中</h3>
                 </div>
 
@@ -3651,7 +3851,18 @@
             filesList.innerHTML = '';
 
             try {
-                const response = await fetch(`${baseUrl}/files`);
+                // フォルダ情報を取得
+                await loadFolders();
+
+                // 現在のフォルダに応じてファイルを取得
+                let url;
+                if (currentFolderId !== null) {
+                    url = `${baseUrl}/folders/${currentFolderId}/files`;
+                } else {
+                    url = `${baseUrl}/files`;
+                }
+
+                const response = await fetch(url);
                 if (!response.ok) {
                     console.error('Failed to load recorded files:', response.statusText);
                     filesLoading.style.display = 'none';
@@ -3662,14 +3873,21 @@
                 const data = await response.json();
                 allRecordedFiles = data.files || [];
 
+                // パンくずリストを更新
+                updateBreadcrumb();
+
                 filesLoading.style.display = 'none';
 
-                if (allRecordedFiles.length === 0) {
+                // 現在のフォルダ内のサブフォルダを取得
+                const currentFolders = allFolders.filter(f => f.parent_id === currentFolderId);
+
+                // ルート画面で何もない場合のみ空メッセージを表示
+                if (currentFolderId === null && currentFolders.length === 0 && allRecordedFiles.length === 0) {
                     filesList.innerHTML = `
                         <div style="text-align: center; padding: 60px 20px;">
                             <div style="font-size: 3em; margin-bottom: 15px;">📭</div>
-                            <div style="color: #6c757d; font-size: 1.1em; font-weight: 500;">録音済みファイルはありません</div>
-                            <div style="color: #adb5bd; font-size: 0.9em; margin-top: 8px;">番組を録音すると、ここに表示されます</div>
+                            <div style="color: #6c757d; font-size: 1.1em; font-weight: 500;">フォルダとファイルがありません</div>
+                            <div style="color: #adb5bd; font-size: 0.9em; margin-top: 8px;">📂 新規フォルダボタンでフォルダを作成できます</div>
                         </div>
                     `;
                     return;
@@ -3851,9 +4069,99 @@
                         <tbody>
             `;
 
+            // フォルダ内にいる場合は「一個上のフォルダに移動」行を追加
+            if (currentFolderId !== null) {
+                html += `
+                    <tr style="border-bottom: 1px solid #e9ecef; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);"
+                        onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='translateX(0)'"
+                        onclick="navigateUp()">
+                        <td style="padding: 12px; text-align: center;"></td>
+                        <td class="artwork-column" style="padding: 12px; text-align: center;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, #8B9DC3 0%, #6c757d 100%); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s;">
+                                ↰
+                            </div>
+                        </td>
+                        <td style="padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="font-weight: 600; color: #495057; font-size: 1em;">
+                                    上へ戻る
+                                </div>
+                                <span style="padding: 3px 10px; background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%); color: #6c757d; border-radius: 14px; font-size: 0.7em; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">親フォルダ</span>
+                            </div>
+                        </td>
+                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: right; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: center;"></td>
+                    </tr>
+                `;
+            }
+
+            // 現在のフォルダ内のサブフォルダを表示
+            const currentFolders = allFolders.filter(f => f.parent_id === currentFolderId);
+            currentFolders.forEach((folder) => {
+                const baseColor = folder.color || '#667eea';
+                // グラデーション用に明るい色を計算
+                const lighterColor = folder.color ? folder.color + 'dd' : '#7c8ffc';
+
+                html += `
+                    <tr style="border-bottom: 1px solid #e9ecef; cursor: pointer; transition: all 0.2s ease;"
+                        onmouseover="this.style.background='#f8f9fa'; this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.background='white'; this.style.transform='translateX(0)'"
+                        onclick="navigateToFolder(${folder.id})">
+                        <td style="padding: 12px; text-align: center;"></td>
+                        <td class="artwork-column" style="padding: 12px; text-align: center;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, ${baseColor} 0%, ${lighterColor} 100%); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto; box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25); transition: all 0.3s ease; position: relative; overflow: hidden;"
+                                 onmouseover="this.style.transform='scale(1.08) rotate(2deg)'; this.style.boxShadow='0 5px 20px rgba(102, 126, 234, 0.35)'"
+                                 onmouseout="this.style.transform='scale(1) rotate(0deg)'; this.style.boxShadow='0 3px 12px rgba(102, 126, 234, 0.25)'">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);"></div>
+                                <span style="position: relative; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));">📁</span>
+                            </div>
+                        </td>
+                        <td style="padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="font-weight: 600; color: #212529; font-size: 1em;">
+                                    ${folder.name}
+                                </div>
+                                <span style="padding: 3px 10px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); color: #1976d2; border-radius: 14px; font-size: 0.7em; font-weight: 600; box-shadow: 0 1px 3px rgba(25, 118, 210, 0.15);">フォルダ</span>
+                            </div>
+                        </td>
+                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: right; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <div class="file-actions-desktop">
+                                <button onclick='event.stopPropagation(); editFolder(${folder.id})'
+                                        title="フォルダ編集"
+                                        style="padding: 6px 10px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
+                                        onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'"
+                                        onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                    ✏️
+                                </button>
+                                <button onclick='event.stopPropagation(); deleteFolder(${folder.id}, "${folder.name.replace(/'/g, "\\'")}")'
+                                        title="フォルダ削除"
+                                        style="padding: 6px 10px; background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); border: 1px solid #ffcccc; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
+                                        onmouseover="this.style.background='linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(220,53,69,0.2)'"
+                                        onmouseout="this.style.background='linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                    🗑️
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
             pageFiles.forEach((file, idx) => {
+                // ファイルデータの検証
+                if (!file || !file.path || !file.name) {
+                    console.warn('Invalid file data:', file);
+                    return;
+                }
+
                 const fileSize = (file.size / 1024 / 1024).toFixed(1);
-                const modDate = new Date(file.modified * 1000);
+                // file.modifiedは文字列（ISO形式）またはUnixタイムスタンプの可能性があるため両方対応
+                const modDate = typeof file.modified === 'string' ? new Date(file.modified) : new Date(file.modified * 1000);
                 const dateStr = `${modDate.getMonth() + 1}/${modDate.getDate()} ${String(modDate.getHours()).padStart(2, '0')}:${String(modDate.getMinutes()).padStart(2, '0')}`;
 
                 // ブックマークの存在チェック
@@ -3923,18 +4231,28 @@
                                    style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
                         <td class="artwork-column" style="padding: 8px; text-align: center;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')">
-                            <img src="${artworkUrl}" alt="Artwork"
-                                 style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
-                                 onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
-                                 onerror="this.src='img/jacket.png'">
+                            <div style="position: relative;">
+                                <img src="${artworkUrl}" alt="Artwork"
+                                     style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s;"
+                                     onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"
+                                     onerror="this.src='img/jacket.png'">
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.6); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;"
+                                     onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                                    <span style="color: white; font-size: 12px;">▶</span>
+                                </div>
+                            </div>
                         </td>
-                        <td style="padding: 10px 12px;">
-                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''}" title="${file.name}">
+                        <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudio('${file.path.replace(/'/g, "\\'")}', '${file.name.replace(/'/g, "\\'")}')" title="クリックで再生">
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''} cursor: pointer; transition: color 0.2s;"
+                                 onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='${hasBookmark ? '#1976d2' : '#212529'}'">
                                 ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
                             </div>
                             <div style="font-size: 0.75em; color: #667eea; margin-top: 3px; display: flex; align-items: center;">
                                 ${progressCircle}
                                 <span>${progressText}</span>
+                            </div>
+                            <div class="mobile-info" style="font-size: 0.75em; color: #6c757d; margin-top: 4px; display: none;">
+                                📅 ${extractBroadcastDate(file.name) || '不明'} • 💾 ${fileSize} MB
                             </div>
                         </td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d;">
@@ -3942,81 +4260,17 @@
                         </td>
                         <td style="padding: 10px 12px; text-align: right; color: #6c757d;">${fileSize} MB</td>
                         <td style="padding: 10px 12px; text-align: center; color: #6c757d; font-size: 0.85em;">${dateStr}</td>
-                        <td style="padding: 10px 12px; position: relative;" onclick="event.stopPropagation()">
-                            <!-- PC表示: 通常のボタン -->
-                            <div class="file-actions-desktop">
-                                <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        title="${hasBookmark ? '続きから再生' : '再生'}"
-                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
-                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <img src="img/play.png" alt="再生" style="width: 24px; height: 24px; display: block;">
-                                </button>
-                                <a href="${baseUrl}/download/${file.path}" download="${file.name}"
-                                   title="ダウンロード"
-                                   style="padding: 4px; background: transparent; text-decoration: none; display: inline-block; transition: all 0.2s; opacity: 0.8;"
-                                   onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <img src="img/download.png" alt="ダウンロード" style="width: 24px; height: 24px; display: block;">
-                                </a>
-                                <button onclick='showArtworkUploadModal("${file.name.replace(/'/g, "\\'")}")'
-                                        title="アートワーク登録"
-                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
-                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <img src="img/artwork.png" alt="アートワーク" style="width: 24px; height: 24px; display: block;">
-                                </button>
-                                <button onclick='showRenameModal("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        title="リネーム"
-                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
-                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <img src="img/edit.png" alt="リネーム" style="width: 24px; height: 24px; display: block;">
-                                </button>
-                                <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}")'
-                                        title="削除"
-                                        style="padding: 4px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; opacity: 0.8;"
-                                        onmouseover="this.style.opacity='1'; this.style.transform='scale(1.1)'" onmouseout="this.style.opacity='0.8'; this.style.transform='scale(1)'">
-                                    <img src="img/trash.png" alt="削除" style="width: 24px; height: 24px; display: block;">
-                                </button>
-                            </div>
-
-                            <!-- スマホ表示: メニューボタン -->
-                            <div class="file-actions-mobile">
-                                <button onclick='toggleFileMenu(event, ${idx}, "${file.path.replace(/'/g, "\\'").replace(/"/g, '&quot;')}", "${file.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}", ${hasBookmark ? "true" : "false"})'
-                                        style="padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1.2em; font-weight: bold; transition: background 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-                                        title="メニューを開く">
-                                    ⋮
-                                </button>
-                                <div id="fileMenu${idx}" class="file-menu-dropdown" style="display: none; position: absolute; right: 10px; top: 50px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px; overflow: hidden;">
-                                    <button onclick='playAudio("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
-                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                                        <img src="img/play.png" alt="" style="width: 20px; height: 20px;">
-                                        <span>${hasBookmark ? '続きから再生' : '再生'}</span>
-                                    </button>
-                                    <button onclick='window.location.href="${baseUrl}/download/${file.path}"; closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
-                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                                        <img src="img/download.png" alt="" style="width: 20px; height: 20px;">
-                                        <span>ダウンロード</span>
-                                    </button>
-                                    <button onclick='showArtworkUploadModal("${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
-                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                                        <img src="img/artwork.png" alt="" style="width: 20px; height: 20px;">
-                                        <span>アートワーク編集</span>
-                                    </button>
-                                    <button onclick='showRenameModal("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}"); closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em;"
-                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                                        <img src="img/edit.png" alt="" style="width: 20px; height: 20px;">
-                                        <span>タイトル編集</span>
-                                    </button>
-                                    <button onclick='deleteFile("${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}"); closeFileMenu(${idx})'
-                                            style="width: 100%; padding: 12px 16px; background: white; border: none; border-top: 1px solid #e9ecef; text-align: left; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 10px; font-size: 0.95em; color: #dc3545;"
-                                            onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
-                                        <img src="img/trash.png" alt="" style="width: 20px; height: 20px;">
-                                        <span>削除</span>
-                                    </button>
-                                </div>
-                            </div>
+                        <td style="padding: 10px 12px; text-align: center;" onclick="event.stopPropagation()">
+                            <button data-file-idx="${idx}"
+                                    data-file-path="${file.path.replace(/"/g, '&quot;')}"
+                                    data-file-name="${file.name.replace(/"/g, '&quot;')}"
+                                    data-has-bookmark="${hasBookmark}"
+                                    onclick='toggleFileMenu(event, ${idx}, "${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}", ${hasBookmark})'
+                                    style="padding: 8px 12px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 18px; font-weight: bold; color: #495057;"
+                                    onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='scale(1.05)'"
+                                    onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='scale(1)'">
+                                ⋮
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -4557,6 +4811,138 @@
         }
 
         // 行クリックでチェックボックスを切り替え
+        function toggleFileMenu(event, idx, filePath, fileName, hasBookmark) {
+            event.stopPropagation(); // 行選択を防ぐ
+
+            // 既存のアクションシートがあれば閉じる
+            const existingSheet = document.getElementById('fileActionSheet');
+            if (existingSheet) {
+                closeActionSheet();
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            // PC/モバイル判定
+            const isMobile = window.innerWidth < 768;
+
+            // 背景オーバーレイを作成
+            const overlay = document.createElement('div');
+            overlay.id = 'fileActionSheetOverlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9998; opacity: 0; transition: opacity 0.3s ease;';
+            overlay.onclick = closeActionSheet;
+
+            // アクションシートを作成
+            const sheet = document.createElement('div');
+            sheet.id = 'fileActionSheet';
+
+            if (isMobile) {
+                // モバイル: 下からスライドイン
+                sheet.style.cssText = 'position: fixed; left: 0; right: 0; bottom: 0; background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); z-index: 9999; transform: translateY(100%); transition: transform 0.3s ease; max-width: 100%; margin: 0; padding-bottom: env(safe-area-inset-bottom);';
+            } else {
+                // PC: 中央にモーダル
+                sheet.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 9999; opacity: 0; transition: all 0.3s ease; max-width: 480px; width: 90%;';
+            }
+
+            sheet.innerHTML = `
+                <div style="padding: 20px 20px 10px 20px; border-bottom: 1px solid #f0f0f0;">
+                    ${isMobile ? '<div style="width: 40px; height: 4px; background: #dee2e6; border-radius: 2px; margin: 0 auto 16px auto;"></div>' : ''}
+                    <div style="font-weight: 600; font-size: 1.1em; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${fileName}">${fileName.replace(/\.(mp3|m4a|aac|wav)$/i, '')}</div>
+                </div>
+                <div style="padding: 8px 0; max-height: ${isMobile ? '70vh' : '60vh'}; overflow-y: auto;">
+                    <a href="${baseUrl}/download/${filePath}" download="${fileName}" onclick='closeActionSheet();'
+                       style="padding: 16px 24px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 16px; text-decoration: none; color: inherit;"
+                       onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">💾</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #212529;">ダウンロード</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin-top: 2px;">デバイスに保存</div>
+                        </div>
+                    </a>
+                    <div onclick='showMoveFileModal("${filePath.replace(/'/g, "\\'")}", "${fileName.replace(/'/g, "\\'")}"); closeActionSheet();'
+                         style="padding: 16px 24px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 16px;"
+                         onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">📁</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #212529;">フォルダに移動</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin-top: 2px;">別のフォルダへ移動</div>
+                        </div>
+                    </div>
+                    <div onclick='showArtworkUploadModal("${fileName.replace(/'/g, "\\'")}"); closeActionSheet();'
+                         style="padding: 16px 24px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 16px;"
+                         onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🎨</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #212529;">アートワーク</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin-top: 2px;">ジャケット画像を登録</div>
+                        </div>
+                    </div>
+                    <div onclick='showRenameModal("${filePath.replace(/'/g, "\\'")}", "${fileName.replace(/'/g, "\\'")}"); closeActionSheet();'
+                         style="padding: 16px 24px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 16px;"
+                         onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">✏️</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #212529;">リネーム</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin-top: 2px;">ファイル名を変更</div>
+                        </div>
+                    </div>
+                    <div onclick='deleteFile("${filePath.replace(/'/g, "\\'")}", "${fileName.replace(/'/g, "\\'")}"); closeActionSheet();'
+                         style="padding: 16px 24px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 16px;"
+                         onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='white'">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🗑️</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #dc3545;">削除</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin-top: 2px;">ファイルを完全に削除</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding: 12px 20px 20px 20px;">
+                    <button onclick='closeActionSheet()' style="width: 100%; padding: 14px; background: #f8f9fa; border: none; border-radius: 12px; font-weight: 600; color: #495057; cursor: pointer; font-size: 1em; transition: background 0.2s;"
+                            onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                        キャンセル
+                    </button>
+                </div>
+            `;
+
+            // DOMに追加
+            document.body.appendChild(overlay);
+            document.body.appendChild(sheet);
+
+            // アニメーション開始
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                if (isMobile) {
+                    sheet.style.transform = 'translateY(0)';
+                } else {
+                    sheet.style.transform = 'translate(-50%, -50%) scale(1)';
+                    sheet.style.opacity = '1';
+                }
+            });
+        }
+
+        function closeActionSheet() {
+            const overlay = document.getElementById('fileActionSheetOverlay');
+            const sheet = document.getElementById('fileActionSheet');
+
+            if (overlay && sheet) {
+                const isMobile = window.innerWidth < 768;
+
+                overlay.style.opacity = '0';
+                if (isMobile) {
+                    sheet.style.transform = 'translateY(100%)';
+                } else {
+                    sheet.style.transform = 'translate(-50%, -50%) scale(0.9)';
+                    sheet.style.opacity = '0';
+                }
+
+                setTimeout(() => {
+                    overlay.remove();
+                    sheet.remove();
+                }, 300);
+            }
+        }
+
         function toggleFileSelection(path) {
             const checkbox = document.querySelector(`.file-checkbox[value="${path}"]`);
             if (checkbox) {
@@ -5530,50 +5916,6 @@
             }
         }
 
-        // ファイルメニューの表示/非表示
-        let currentOpenMenuIndex = null;
-
-        function toggleFileMenu(event, idx, filepath, filename, hasBookmark) {
-            event.stopPropagation();
-
-            const menu = document.getElementById(`fileMenu${idx}`);
-
-            // 他のメニューを閉じる
-            if (currentOpenMenuIndex !== null && currentOpenMenuIndex !== idx) {
-                closeFileMenu(currentOpenMenuIndex);
-            }
-
-            // メニューの表示/非表示を切り替え
-            if (menu.style.display === 'none') {
-                menu.style.display = 'block';
-                currentOpenMenuIndex = idx;
-
-                // 外側クリックでメニューを閉じる
-                setTimeout(() => {
-                    document.addEventListener('click', closeAllMenus);
-                }, 0);
-            } else {
-                closeFileMenu(idx);
-            }
-        }
-
-        function closeFileMenu(idx) {
-            const menu = document.getElementById(`fileMenu${idx}`);
-            if (menu) {
-                menu.style.display = 'none';
-            }
-            if (currentOpenMenuIndex === idx) {
-                currentOpenMenuIndex = null;
-                document.removeEventListener('click', closeAllMenus);
-            }
-        }
-
-        function closeAllMenus() {
-            if (currentOpenMenuIndex !== null) {
-                closeFileMenu(currentOpenMenuIndex);
-            }
-        }
-
         // 音声ファイルを再生
         // 現在再生中のファイルパス（ブックマーク用）
         let currentAudioFilePath = '';
@@ -6506,6 +6848,8 @@
         function extractProgramTitle(filename) {
             // ファイル名から番組タイトルを抽出
             // 形式: "番組名(YYYY.MM.DD).mp3" または "番組名_YYYY-MM-DD.mp3"
+            if (!filename) return '';
+
             let title = filename;
 
             // 拡張子を削除
@@ -6928,6 +7272,313 @@
             } catch (err) {
                 console.error('Load artwork error:', err);
                 return 'img/jacket.png'; // デフォルト画像
+            }
+        }
+
+        // ========================================
+        // 仮想フォルダ管理
+        // ========================================
+        let allFolders = [];
+        // 現在表示中のフォルダID (null = ルート) - localStorageから復元
+        let currentFolderId = localStorage.getItem('currentFolderId') ? parseInt(localStorage.getItem('currentFolderId')) : null;
+        let folderHistory = []; // フォルダ階層の履歴
+        let editingFolderId = null;
+
+        async function loadFolders() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/folders`);
+                const data = await response.json();
+
+                if (data.success) {
+                    allFolders = data.folders || [];
+                }
+            } catch (err) {
+                console.error('Load folders error:', err);
+            }
+        }
+
+        function navigateToFolder(folderId) {
+            currentFolderId = folderId;
+            // localStorageに保存
+            if (folderId === null) {
+                localStorage.removeItem('currentFolderId');
+            } else {
+                localStorage.setItem('currentFolderId', folderId);
+            }
+            loadRecordedFiles();
+        }
+
+        function navigateUp() {
+            // 現在のフォルダの親フォルダに戻る
+            if (currentFolderId === null) return;
+
+            const currentFolder = allFolders.find(f => f.id === currentFolderId);
+            currentFolderId = currentFolder ? currentFolder.parent_id : null;
+            // localStorageに保存
+            if (currentFolderId === null) {
+                localStorage.removeItem('currentFolderId');
+            } else {
+                localStorage.setItem('currentFolderId', currentFolderId);
+            }
+            loadRecordedFiles();
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const breadcrumbPath = document.getElementById('breadcrumbPath');
+
+            if (currentFolderId === null) {
+                breadcrumb.style.display = 'none';
+                return;
+            }
+
+            breadcrumb.style.display = 'flex';
+
+            // パンくずリストを生成
+            const path = [];
+            let folderId = currentFolderId;
+            while (folderId !== null) {
+                const folder = allFolders.find(f => f.id === folderId);
+                if (!folder) break;
+                path.unshift(folder);
+                folderId = folder.parent_id;
+            }
+
+            let html = '<a href="javascript:navigateToFolder(null)" style="color: #667eea; text-decoration: none;">🏠 ホーム</a>';
+            for (const folder of path) {
+                html += ` / <a href="javascript:navigateToFolder(${folder.id})" style="color: #667eea; text-decoration: none;">${folder.name}</a>`;
+            }
+
+            breadcrumbPath.innerHTML = html;
+        }
+
+        function showCreateFolderModal() {
+            editingFolderId = null;
+            document.getElementById('folderModalTitle').textContent = '📂 新規フォルダ作成';
+            document.getElementById('folderName').value = '';
+            document.getElementById('selectedFolderColor').value = '';
+
+            // カラーボタンの選択状態をリセット
+            document.querySelectorAll('.folder-color-btn').forEach(btn => {
+                btn.style.border = '2px solid #dee2e6';
+                btn.style.transform = 'scale(1)';
+            });
+
+            document.getElementById('folderModal').style.display = 'block';
+        }
+
+        function editFolder(folderId) {
+            const folder = allFolders.find(f => f.id === folderId);
+            if (!folder) return;
+
+            editingFolderId = folderId;
+            document.getElementById('folderModalTitle').textContent = '📂 フォルダ編集';
+            document.getElementById('folderName').value = folder.name;
+            document.getElementById('selectedFolderColor').value = folder.color || '';
+
+            // カラーボタンの選択状態を設定
+            document.querySelectorAll('.folder-color-btn').forEach(btn => {
+                if (btn.dataset.color === folder.color) {
+                    btn.style.border = '3px solid #212529';
+                    btn.style.transform = 'scale(1.1)';
+                } else {
+                    btn.style.border = '2px solid #dee2e6';
+                    btn.style.transform = 'scale(1)';
+                }
+            });
+
+            document.getElementById('folderModal').style.display = 'block';
+        }
+
+        function closeFolderModal() {
+            document.getElementById('folderModal').style.display = 'none';
+            editingFolderId = null;
+        }
+
+        function selectFolderColor(color) {
+            document.getElementById('selectedFolderColor').value = color;
+
+            // カラーボタンの選択状態を更新
+            document.querySelectorAll('.folder-color-btn').forEach(btn => {
+                if (btn.dataset.color === color) {
+                    btn.style.border = '3px solid #212529';
+                    btn.style.transform = 'scale(1.1)';
+                } else {
+                    btn.style.border = '2px solid #dee2e6';
+                    btn.style.transform = 'scale(1)';
+                }
+            });
+        }
+
+        async function saveFolderModal() {
+            const name = document.getElementById('folderName').value.trim();
+            const color = document.getElementById('selectedFolderColor').value;
+
+            if (!name) {
+                alert('フォルダ名を入力してください');
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                let response;
+                if (editingFolderId) {
+                    // 更新
+                    response = await fetch(`${baseUrl}/folders/${editingFolderId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color })
+                    });
+                } else {
+                    // 作成（現在のフォルダの中に作成）
+                    response = await fetch(`${baseUrl}/folders`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, color, parent_id: currentFolderId })
+                    });
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeFolderModal();
+                    loadRecordedFiles();
+                } else {
+                    alert(`エラー: ${data.error || '不明なエラー'}`);
+                }
+            } catch (err) {
+                console.error('Save folder error:', err);
+                alert(`エラーが発生しました: ${err.message}`);
+            }
+        }
+
+        async function deleteFolder(folderId, folderName) {
+            if (!confirm(`フォルダ「${folderName}」を削除しますか？\n\n※ フォルダ内のファイルは削除されず、「すべてのファイル」に移動されます。`)) {
+                return;
+            }
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/folders/${folderId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (currentFolderId === folderId) {
+                        currentFolderId = null;
+                    }
+                    loadRecordedFiles();
+                } else {
+                    alert(`エラー: ${data.error || '不明なエラー'}`);
+                }
+            } catch (err) {
+                console.error('Delete folder error:', err);
+                alert(`エラーが発生しました: ${err.message}`);
+            }
+        }
+
+        let movingFilePath = null;
+
+        function showMoveFileModal(filePath, fileName) {
+            movingFilePath = filePath;
+            document.getElementById('moveFileName').textContent = fileName;
+
+            // フォルダリストを表示
+            renderFolderListForMove();
+
+            document.getElementById('moveFileModal').style.display = 'block';
+        }
+
+        function closeMoveFileModal() {
+            document.getElementById('moveFileModal').style.display = 'none';
+            movingFilePath = null;
+        }
+
+        function renderFolderListForMove() {
+            const folderList = document.getElementById('folderList');
+
+            if (allFolders.length === 0) {
+                folderList.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #adb5bd;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">📂</div>
+                        <div style="font-size: 0.9em;">フォルダがありません</div>
+                        <div style="font-size: 0.8em; margin-top: 5px;">先にフォルダを作成してください</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            // ルートフォルダ（フォルダなし）オプション
+            html += `
+                <div onclick="moveToSelectedFolder(null)" style="padding: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 8px; background: #f8f9fa; border: 1px solid #dee2e6; transition: all 0.2s; display: flex; align-items: center; gap: 10px;"
+                     onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                    <span style="font-size: 1.5em;">🏠</span>
+                    <div>
+                        <div style="font-weight: 600; color: #495057;">ルート（フォルダなし）</div>
+                        <div style="font-size: 0.8em; color: #6c757d;">フォルダに入れない</div>
+                    </div>
+                </div>
+            `;
+
+            // 全フォルダを表示（階層構造で）
+            function renderFolder(folder, level = 0) {
+                const bgColor = folder.color || '#6c757d';
+                const indent = level * 20;
+
+                html += `
+                    <div onclick="moveToSelectedFolder(${folder.id})" style="padding: 12px; padding-left: ${12 + indent}px; border-radius: 6px; cursor: pointer; margin-bottom: 8px; background: white; border: 1px solid #e9ecef; transition: all 0.2s; display: flex; align-items: center; gap: 10px;"
+                         onmouseover="this.style.background='#f8f9fa'; this.style.borderColor='${bgColor}'" onmouseout="this.style.background='white'; this.style.borderColor='#e9ecef'">
+                        <span style="width: 24px; height: 24px; border-radius: 4px; background: ${bgColor}; flex-shrink: 0;"></span>
+                        <div style="font-weight: 600; color: #495057;">${folder.name}</div>
+                    </div>
+                `;
+
+                // 子フォルダを表示
+                const children = allFolders.filter(f => f.parent_id === folder.id);
+                children.forEach(child => renderFolder(child, level + 1));
+            }
+
+            // ルートフォルダ（parent_id === null）から表示
+            allFolders.filter(f => f.parent_id === null).forEach(folder => renderFolder(folder));
+
+            folderList.innerHTML = html;
+        }
+
+        async function moveToSelectedFolder(folderId) {
+            if (!movingFilePath) return;
+
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+
+            try {
+                const response = await fetch(`${baseUrl}/files/move`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: movingFilePath, folder_id: folderId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeMoveFileModal();
+                    loadRecordedFiles();
+                } else {
+                    alert(`エラー: ${data.error || '不明なエラー'}`);
+                }
+            } catch (err) {
+                console.error('Move file error:', err);
+                alert(`エラーが発生しました: ${err.message}`);
             }
         }
     </script>
