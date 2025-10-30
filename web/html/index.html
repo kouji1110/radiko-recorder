@@ -1176,7 +1176,8 @@
                 display: flex !important;
                 flex-direction: row !important;
                 align-items: center !important;
-                padding: 10px !important;
+                gap: 12px !important;
+                padding: 12px !important;
                 margin-bottom: 8px !important;
                 border: 1px solid #e9ecef !important;
                 border-radius: 8px !important;
@@ -1188,35 +1189,31 @@
                 background: #f8f9fa !important;
             }
 
-            /* チェックボックス列 */
-            #filesList td:nth-child(1) {
-                order: 1;
-                padding: 0 8px 0 0 !important;
-                width: auto !important;
+            /* チェックボックス列（非表示） */
+            #filesList tbody tr td:nth-child(1) {
+                display: none;
             }
 
             /* アートワーク列 */
-            #filesList .artwork-column {
-                order: 2;
-                padding: 0 10px 0 0 !important;
-                width: auto !important;
+            #filesList tbody tr td:nth-child(2) {
+                flex-shrink: 0;
             }
 
-            #filesList .artwork-column img {
-                width: 48px !important;
-                height: 48px !important;
+            #filesList tbody tr td:nth-child(2) img,
+            #filesList tbody tr td:nth-child(2) > div {
+                width: 48px;
+                height: 48px;
+                font-size: 28px;
+                display: block;
             }
 
             /* ファイル名列 - flexで広がる */
-            #filesList td:nth-child(3) {
-                order: 3;
-                flex: 1 !important;
-                padding: 0 !important;
-                max-width: none !important;
-                min-width: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 4px !important;
+            #filesList tbody tr td:nth-child(3) {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
             }
 
             #filesList td:nth-child(3) > div:first-child {
@@ -1255,20 +1252,16 @@
             }
 
             /* 操作ボタン（⋮）を右端に配置 */
-            #filesList td:last-child {
-                order: 4;
-                padding: 0 0 0 10px !important;
-                width: auto !important;
-                text-align: right !important;
+            #filesList tbody tr td:last-child {
+                flex-shrink: 0;
             }
 
-            #filesList td:last-child button {
-                font-size: 1.5em !important;
-                padding: 4px 8px !important;
-                min-width: auto !important;
-                background: transparent !important;
-                border: none !important;
-                color: #6c757d !important;
+            #filesList tbody tr td:last-child button {
+                font-size: 1.5em;
+                padding: 4px 8px;
+                background: transparent;
+                border: none;
+                color: #6c757d;
             }
 
             /* ファイル一覧ヘッダーのモバイル最適化 */
@@ -1356,44 +1349,22 @@
                 display: none !important;
             }
 
-            /* アートワークを非表示 */
-            #filesList td:nth-child(2) {
-                display: none !important;
+            /* gap調整（より狭く） */
+            #filesList tbody tr {
+                gap: 10px !important;
             }
 
-            /* ファイル名を目立たせる */
-            #filesList td:nth-child(3) {
-                font-weight: 600;
-                font-size: 0.9em;
-                margin-bottom: 4px;
-                word-break: break-all;
+            /* アートワークサイズを小さく */
+            #filesList tbody tr td:nth-child(2) img,
+            #filesList tbody tr td:nth-child(2) > div {
+                width: 44px;
+                height: 44px;
+                font-size: 26px;
             }
 
-            /* 放送日、サイズを1行にまとめて表示（更新日時は非表示） */
-            #filesList td:nth-child(4),
-            #filesList td:nth-child(5) {
-                display: inline-block;
-                font-size: 0.75em;
-                color: #6c757d;
-                margin-right: 8px;
-            }
-
-            /* 更新日時を非表示 */
-            #filesList td:nth-child(6) {
-                display: none !important;
-            }
-
-            #filesList td:nth-child(4)::before {
-                content: "📅 ";
-            }
-
-            #filesList td:nth-child(5)::before {
-                content: "💾 ";
-            }
-
-            /* アクションボタンを横並びに */
-            #filesList td:last-child {
-                margin-top: 6px;
+            /* 操作ボタンサイズ調整 */
+            #filesList tbody tr td:last-child button {
+                font-size: 1.3em;
                 text-align: left !important;
             }
 
@@ -1751,11 +1722,17 @@
                     </div>
 
                     <!-- パンくずリストと戻るボタン -->
-                    <div id="breadcrumb" style="display: none; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
-                        <div id="breadcrumbPath" style="font-size: 0.9em; color: #495057;">
-                            <!-- パンくずリストがここに表示される -->
+                    <div id="breadcrumb" style="display: none; margin-bottom: 15px; padding: 10px 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div id="breadcrumbPath" style="font-size: 0.9em; color: #495057; display: flex; align-items: center; gap: 6px;">
+                                <!-- パンくずリストがここに表示される -->
+                            </div>
+                            <button onclick="navigateUp()" style="padding: 4px 10px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: background 0.2s;"
+                                    onmouseover="this.style.background='#f8f9fa'"
+                                    onmouseout="this.style.background='white'">
+                                ← 戻る
+                            </button>
                         </div>
-                        <button class="btn btn-secondary" onclick="navigateUp()" style="padding: 4px 12px; font-size: 0.85em;">← 戻る</button>
                     </div>
 
                     <div id="filesLoading" class="loading" style="display: none;">
@@ -4992,8 +4969,8 @@
                         <input type="text" id="fileFilter" placeholder="🔍 ファイル名で検索..." value="${filterText}"
                                style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
                         <button onclick="clearAllBookmarks()"
-                                style="padding: 8px 12px; background: #f57c00; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
-                                onmouseover="this.style.background='#ef6c00'" onmouseout="this.style.background='#f57c00'">
+                                style="padding: 8px 12px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                                onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
                             🗑️ 再生履歴をリセット
                         </button>
                         <div style="padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 0.85em; color: #495057;">
@@ -5007,16 +4984,16 @@
                             <span>すべて選択</span>
                         </label>
                         <button id="deleteSelectedBtn" onclick="deleteSelectedFiles()" disabled
-                                style="padding: 8px 16px; background: #e57373; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
-                                onmouseover="if(!this.disabled) this.style.background='#ef5350'" onmouseout="if(!this.disabled) this.style.background='#e57373'">
+                                style="padding: 8px 16px; background: white; color: #dc3545; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                                onmouseover="if(!this.disabled) this.style.background='#fff5f5'" onmouseout="if(!this.disabled) this.style.background='white'">
                             🗑️ 選択したファイルを削除
                         </button>
                         <button id="downloadSelectedBtn" onclick="downloadSelectedFiles()" disabled
-                                style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; transition: all 0.2s; white-space: nowrap;"
-                                onmouseover="if(!this.disabled) this.style.background='#5568d3'" onmouseout="if(!this.disabled) this.style.background='#667eea'">
+                                style="padding: 8px 16px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                                onmouseover="if(!this.disabled) this.style.background='#f8f9fa'" onmouseout="if(!this.disabled) this.style.background='white'">
                             📦 選択したファイルをZIPダウンロード
                         </button>
-                        <span id="selectedCount" style="padding: 8px 12px; background: #e3f2fd; border-radius: 6px; font-size: 0.85em; color: #1976d2; display: none;">
+                        <span id="selectedCount" style="padding: 8px 12px; background: #f8f9fa; border-radius: 4px; font-size: 0.85em; color: #495057; display: none;">
                             <strong id="selectedCountNum">0</strong>件選択中
                         </span>
                     </div>
@@ -5053,22 +5030,19 @@
             // フォルダ内にいる場合は「一個上のフォルダに移動」行を追加
             if (currentFolderId !== null) {
                 html += `
-                    <tr style="border-bottom: 1px solid #e9ecef; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);"
-                        onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='translateX(4px)'"
-                        onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='translateX(0)'"
+                    <tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6; cursor: pointer; transition: background 0.2s;"
+                        onmouseover="this.style.background='#e9ecef'"
+                        onmouseout="this.style.background='#f8f9fa'"
                         onclick="navigateUp()">
                         <td style="padding: 12px; text-align: center;"></td>
                         <td class="artwork-column" style="padding: 12px; text-align: center;">
-                            <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, #8B9DC3 0%, #6c757d 100%); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.2s;">
-                                ↰
+                            <div style="width: 40px; height: 40px; border-radius: 6px; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto;">
+                                ⬆️
                             </div>
                         </td>
                         <td style="padding: 12px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div style="font-weight: 600; color: #495057; font-size: 1em;">
-                                    上へ戻る
-                                </div>
-                                <span style="padding: 3px 10px; background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%); color: #6c757d; border-radius: 14px; font-size: 0.7em; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">親フォルダ</span>
+                            <div style="font-weight: 600; color: #495057; font-size: 0.95em;">
+                                .. (上の階層へ)
                             </div>
                         </td>
                         <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
@@ -5082,49 +5056,38 @@
             // 現在のフォルダ内のサブフォルダを表示
             const currentFolders = allFolders.filter(f => f.parent_id === currentFolderId);
             currentFolders.forEach((folder) => {
-                const baseColor = folder.color || '#667eea';
-                // グラデーション用に明るい色を計算
-                const lighterColor = folder.color ? folder.color + 'dd' : '#7c8ffc';
-
                 html += `
-                    <tr style="border-bottom: 1px solid #e9ecef; cursor: pointer; transition: all 0.2s ease;"
-                        onmouseover="this.style.background='#f8f9fa'; this.style.transform='translateX(4px)'"
-                        onmouseout="this.style.background='white'; this.style.transform='translateX(0)'"
+                    <tr style="background: #fafbfc; border-bottom: 1px solid #dee2e6; cursor: pointer; transition: background 0.2s;"
+                        onmouseover="this.style.background='#f1f3f5'"
+                        onmouseout="this.style.background='#fafbfc'"
                         onclick="navigateToFolder(${folder.id})">
                         <td style="padding: 12px; text-align: center;"></td>
                         <td class="artwork-column" style="padding: 12px; text-align: center;">
-                            <div style="width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, ${baseColor} 0%, ${lighterColor} 100%); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto; box-shadow: 0 3px 12px rgba(102, 126, 234, 0.25); transition: all 0.3s ease; position: relative; overflow: hidden;"
-                                 onmouseover="this.style.transform='scale(1.08) rotate(2deg)'; this.style.boxShadow='0 5px 20px rgba(102, 126, 234, 0.35)'"
-                                 onmouseout="this.style.transform='scale(1) rotate(0deg)'; this.style.boxShadow='0 3px 12px rgba(102, 126, 234, 0.25)'">
-                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);"></div>
-                                <span style="position: relative; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));">📁</span>
-                            </div>
+                            <img src="img/folder.png" alt="Folder"
+                                 style="width: 40px; height: 40px; border-radius: 4px; object-fit: cover;">
                         </td>
                         <td style="padding: 12px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div style="font-weight: 600; color: #212529; font-size: 1em;">
-                                    ${folder.name}
-                                </div>
-                                <span style="padding: 3px 10px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); color: #1976d2; border-radius: 14px; font-size: 0.7em; font-weight: 600; box-shadow: 0 1px 3px rgba(25, 118, 210, 0.15);">フォルダ</span>
+                            <div style="font-weight: 600; color: #212529; font-size: 0.95em;">
+                                ${folder.name}
                             </div>
                         </td>
                         <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
                         <td style="padding: 12px; text-align: right; color: #adb5bd;">—</td>
                         <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
                         <td style="padding: 12px; text-align: center;">
-                            <div class="file-actions-desktop">
+                            <div class="file-actions-desktop" style="display: flex; gap: 6px; justify-content: center;">
                                 <button onclick='event.stopPropagation(); editFolder(${folder.id})'
                                         title="フォルダ編集"
-                                        style="padding: 6px 10px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
-                                        onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'"
-                                        onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                        style="padding: 6px 12px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 13px; color: #495057;"
+                                        onmouseover="this.style.background='#f8f9fa'"
+                                        onmouseout="this.style.background='white'">
                                     ✏️
                                 </button>
                                 <button onclick='event.stopPropagation(); deleteFolder(${folder.id}, "${folder.name.replace(/'/g, "\\'")}")'
                                         title="フォルダ削除"
-                                        style="padding: 6px 10px; background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%); border: 1px solid #ffcccc; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
-                                        onmouseover="this.style.background='linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 2px 4px rgba(220,53,69,0.2)'"
-                                        onmouseout="this.style.background='linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                        style="padding: 6px 12px; background: white; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 13px; color: #dc3545;"
+                                        onmouseover="this.style.background='#fff5f5'"
+                                        onmouseout="this.style.background='white'">
                                     🗑️
                                 </button>
                             </div>
@@ -5247,9 +5210,9 @@
                                     data-file-name="${file.name.replace(/"/g, '&quot;')}"
                                     data-has-bookmark="${hasBookmark}"
                                     onclick='toggleFileMenu(event, ${idx}, "${file.path.replace(/'/g, "\\'")}", "${file.name.replace(/'/g, "\\'")}", ${hasBookmark})'
-                                    style="padding: 8px 12px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-size: 18px; font-weight: bold; color: #495057;"
-                                    onmouseover="this.style.background='linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)'; this.style.transform='scale(1.05)'"
-                                    onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'; this.style.transform='scale(1)'">
+                                    style="padding: 8px 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; transition: all 0.15s; font-size: 18px; font-weight: bold; color: #495057;"
+                                    onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd'"
+                                    onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6'">
                                 ⋮
                             </button>
                         </td>
@@ -7034,11 +6997,11 @@
         function playAudioByIndex(index) {
             const file = currentDisplayedFiles[index];
             if (file) {
-                playAudio(file.path, file.name, file.program_info);
+                playAudio(file.path, file.name, file);
             }
         }
 
-        async function playAudio(filepath, filename, programInfo = null) {
+        async function playAudio(filepath, filename, fileData = null) {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
@@ -7077,8 +7040,8 @@
             // Media Session API でメタデータを設定（iOS Safari等のネイティブプレイヤー対応）
             if ('mediaSession' in navigator) {
                 // 番組情報があればそれを使用、なければデフォルト値
-                const artist = programInfo?.station || 'radiko録音';
-                const album = programInfo?.start_time ? `${programInfo.start_time.substring(0, 10).replace(/-/g, '/')}放送` : 'ラジオ録音';
+                const artist = fileData?.station_name || 'radiko録音';
+                const album = fileData?.start_time ? `${fileData.start_time.substring(0, 10).replace(/-/g, '/')}放送` : 'ラジオ録音';
 
                 // アートワークの配列を準備
                 const artworkArray = [];
