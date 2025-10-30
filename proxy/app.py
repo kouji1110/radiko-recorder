@@ -502,9 +502,9 @@ def execute_recording_http():
         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
 
         # 開始ログ
-        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] コマンド実行開始..."})}\n\n'
-        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 元のタイトル: {title}"})}\n\n'
-        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] サニタイズ後: {safe_title}"})}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] コマンド実行開始..."}, ensure_ascii=False)}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 元のタイトル: {title}"}, ensure_ascii=False)}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] サニタイズ後: {safe_title}"}, ensure_ascii=False)}\n\n'
 
         # myradikoスクリプトのパス
         script_path = SCRIPT_PATH
@@ -524,7 +524,7 @@ def execute_recording_http():
 
         cmd_str = ' '.join([f'"{arg}"' if ' ' in arg else arg for arg in cmd])
         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {cmd_str}"})}\n\n'
+        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {cmd_str}"}, ensure_ascii=False)}\n\n'
 
         try:
             # プロセスを起動（バッファなしで即座に出力）
@@ -552,7 +552,9 @@ def execute_recording_http():
                             line = line.rstrip()
                             if line:
                                 timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                                yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                                # JSON安全な文字列を生成
+                                message = f"[{timestamp}] {line}"
+                                yield f'data: {json.dumps({"type": "log", "message": message}, ensure_ascii=False)}\n\n'
                                 if '403 Forbidden' in line:
                                     error_403_detected = True
                     break
@@ -564,7 +566,9 @@ def execute_recording_http():
                     line = line.rstrip()
                     if line:
                         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] {line}"})}\n\n'
+                        # JSON安全な文字列を生成
+                        message = f"[{timestamp}] {line}"
+                        yield f'data: {json.dumps({"type": "log", "message": message}, ensure_ascii=False)}\n\n'
                         if '403 Forbidden' in line:
                             error_403_detected = True
                 else:
@@ -574,7 +578,7 @@ def execute_recording_http():
                     # 30秒間出力がない場合、ハートビートを送信
                     if time.time() - last_output_time > 30:
                         timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 処理中..."})}\n\n'
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] 処理中..."}, ensure_ascii=False)}\n\n'
                         last_output_time = time.time()
 
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
@@ -604,8 +608,8 @@ def execute_recording_http():
                 # コマンドは成功したがファイルが見つからない場合
                 if not file_exists:
                     logger.error(f'❌ Command succeeded but file not found: {file_path}')
-                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラー: コマンドは成功しましたが、ファイルが見つかりません"})}\n\n'
-                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 期待されたファイル: {filename}"})}\n\n'
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラー: コマンドは成功しましたが、ファイルが見つかりません"}, ensure_ascii=False)}\n\n'
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 期待されたファイル: {filename}"}, ensure_ascii=False)}\n\n'
                 else:
                     # 成功 & ファイル存在 → DBに登録
                     try:
@@ -637,28 +641,28 @@ def execute_recording_http():
 
                         # メタデータとアートワークを埋め込む
                         timestamp_embed = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータを埋め込み中..."})}\n\n'
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータを埋め込み中..."}, ensure_ascii=False)}\n\n'
                         embed_metadata_after_recording(file_path, title, station)
                         timestamp_embed = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータ埋め込み完了"})}\n\n'
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp_embed}] メタデータ埋め込み完了"}, ensure_ascii=False)}\n\n'
 
-                        yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 録音完了！", "file": relative_path})}\n\n'
+                        yield f'data: {json.dumps({"type": "success", "message": f"[{timestamp}] 録音完了！", "file": relative_path}, ensure_ascii=False)}\n\n'
                     except Exception as e:
                         logger.error(f'❌ Failed to register file in DB: {str(e)}')
-                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"})}\n\n'
+                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"}, ensure_ascii=False)}\n\n'
             else:
                 # コマンドが失敗した場合
                 logger.error(f'❌ Recording command failed with returncode: {process.returncode}')
-                yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 録音失敗 (終了コード: {process.returncode})"})}\n\n'
+                yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] 録音失敗 (終了コード: {process.returncode})"}, ensure_ascii=False)}\n\n'
 
                 # 403エラーの場合は追加説明
                 if error_403_detected:
-                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] ⚠️ 403 Forbiddenエラー: radikoのタイムシフト期間外（7日以上前）の可能性があります"})}\n\n'
+                    yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] ⚠️ 403 Forbiddenエラー: radikoのタイムシフト期間外（7日以上前）の可能性があります"}, ensure_ascii=False)}\n\n'
 
                 # それでもファイルが存在する場合（部分的に成功）
                 if file_exists:
                     logger.warning(f'⚠️ File exists despite error: {file_path}')
-                    yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ⚠️ エラーがありましたが、ファイルは作成されています"})}\n\n'
+                    yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ⚠️ エラーがありましたが、ファイルは作成されています"}, ensure_ascii=False)}\n\n'
 
                     # DBに登録（エラーがあったことを記録）
                     try:
@@ -682,14 +686,14 @@ def execute_recording_http():
                             file_modified=datetime.fromtimestamp(file_stat.st_mtime).isoformat()
                         )
                         logger.info(f'✅ File registered in DB despite error: {relative_path}')
-                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ファイルをDBに登録しました"})}\n\n'
+                        yield f'data: {json.dumps({"type": "log", "message": f"[{timestamp}] ファイルをDBに登録しました"}, ensure_ascii=False)}\n\n'
                     except Exception as e:
                         logger.error(f'❌ Failed to register file in DB: {str(e)}')
-                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"})}\n\n'
+                        yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] DB登録エラー: {str(e)}"}, ensure_ascii=False)}\n\n'
 
         except Exception as e:
             timestamp = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-            yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラー: {str(e)}"})}\n\n'
+            yield f'data: {json.dumps({"type": "error", "message": f"[{timestamp}] エラー: {str(e)}"}, ensure_ascii=False)}\n\n'
 
     return Response(
         stream_with_context(generate_log()),
