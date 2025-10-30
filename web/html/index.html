@@ -93,10 +93,15 @@
         }
 
         .settings-grid {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .settings-grid .setting-group:nth-child(2) {
+            grid-column: 1 / -1;
         }
 
         .setting-group {
@@ -600,6 +605,158 @@
             }
         }
 
+        /* タイムライン表示用CSS */
+        #timelineView {
+            background: #f8f9fa;
+            min-height: 600px;
+            overflow-x: auto;
+            overflow-y: auto;
+        }
+
+        #timelineContainer {
+            display: grid;
+            gap: 0;
+            background: white;
+            min-width: max-content;
+            width: max-content;
+        }
+
+        .timeline-time-column {
+            position: sticky;
+            left: 0;
+            background: #2c3e50;
+            color: white;
+            z-index: 10;
+            border-right: 2px solid #34495e;
+        }
+
+        .timeline-time-cell {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9em;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .timeline-station-header {
+            position: sticky;
+            top: 0;
+            background: #ecf0f1;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #2c3e50;
+            border-bottom: 2px solid #bdc3c7;
+            z-index: 5;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timeline-station-column {
+            border-right: 1px solid #dee2e6;
+            position: relative;
+        }
+
+        .timeline-program-cell {
+            border-bottom: 1px solid #ecf0f1;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .timeline-program-card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 6px 8px;
+            margin: 2px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: box-shadow 0.2s, height 0.3s;
+            cursor: pointer;
+        }
+
+        .timeline-program-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+
+        .timeline-program-card.hover-expanded {
+            z-index: 100;
+            height: auto !important;
+            overflow: visible;
+        }
+
+        .timeline-program-card.expanded {
+            z-index: 200;
+            transform: scale(1.5);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            background: white;
+            max-width: 300px;
+            padding: 10px 12px;
+        }
+
+        .timeline-program-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 2px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .timeline-program-card.narrow .timeline-program-title {
+            -webkit-line-clamp: 1;
+            font-size: 0.75em;
+            line-height: 1.2;
+        }
+
+        .timeline-program-card.expanded .timeline-program-title {
+            -webkit-line-clamp: unset;
+            white-space: normal;
+            font-size: 1em;
+        }
+
+        .timeline-program-time {
+            font-size: 0.75em;
+            color: #6c757d;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .timeline-program-card.narrow .timeline-program-time {
+            font-size: 0.7em;
+        }
+
+        .timeline-expand-hint {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.7em;
+            color: #3498db;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-program-card.narrow:hover .timeline-expand-hint {
+            opacity: 1;
+        }
+
         footer {
             background: #f8f9fa;
             padding: 6px;
@@ -731,7 +888,7 @@
             display: none !important;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 480px) {
             body {
                 padding: 0;
             }
@@ -882,26 +1039,9 @@
                 margin-top: 12px !important;
             }
 
-            /* スマホ用放送局選択を表示 */
-            #stationSelector {
-                display: block !important;
-                position: sticky !important;
-                top: 52px !important;
-                z-index: 100 !important;
-                background: #f8f9fa !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-            }
+            /* スマホ用放送局選択を表示 - DISABLED */
 
-            /* 番組カードのスマホ対応 */
-            .program-list {
-                grid-template-columns: 1fr !important;
-                gap: 10px;
-            }
-
-            /* スマホでは放送局ヘッダーを非表示（選択済みのため） */
-            .station-header {
-                display: none;
-            }
+            /* 番組カードのスマホ対応 - DISABLED */
 
             /* モバイルではスクロールコンテナの高さ制限を解除 */
             .station-programs {
@@ -1530,9 +1670,9 @@
                 </div>
 
                 <div class="setting-group">
-                    <label for="searchKeyword">検索:</label>
+                    <label for="searchKeyword">絞り込み:</label>
                     <div style="position: relative; display: inline-block;">
-                        <input type="text" id="searchKeyword" placeholder="番組名で検索" style="width: 150px; padding-right: 25px;">
+                        <input type="text" id="searchKeyword" placeholder="番組名でフィルタ" style="width: 150px; padding-right: 25px;">
                         <button id="clearSearchBtn" onclick="clearSearchKeyword()"
                                 style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #999; cursor: pointer; padding: 2px 6px; font-size: 1.1em; display: none;"
                                 onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">
@@ -1540,33 +1680,18 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="setting-group">
-                    <button onclick="toggleAdvancedSettings()"
-                            style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: all 0.2s;"
-                            onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">
-                        ⚙️ <span id="advancedToggleText">詳細設定を表示</span>
-                    </button>
-                </div>
             </div>
 
-            <div id="advancedSettings" style="display: none; padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 10px 0; border-left: 4px solid #6c757d;">
-                <div style="font-weight: 600; color: #495057; margin-bottom: 12px; font-size: 0.95em;">⚙️ 詳細設定</div>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                    <div class="setting-group" style="margin: 0;">
-                        <label for="proxyUrl">プロキシURL:</label>
-                        <input type="text" id="proxyUrl" value="" placeholder="空欄でOK" style="width: 80px;">
-                    </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="fetchBtn" class="btn btn-primary">番組表を更新</button>
+                <button id="searchAllBtn" class="btn btn-primary">全エリアから検索</button>
 
-                    <div class="setting-group" style="margin: 0;">
-                        <label for="scriptPath">スクリプトパス:</label>
-                        <input type="text" id="scriptPath" value="/app/script/myradiko" placeholder="パス" style="width: 250px;">
-                    </div>
+                <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.9em; font-weight: 600; color: #495057;">表示モード:</span>
+                    <button id="listViewBtn" onclick="switchViewMode('list')" class="btn" style="background: #27ae60; color: white; min-width: 100px;">📋 リスト</button>
+                    <button id="timelineViewBtn" onclick="switchViewMode('timeline')" class="btn" style="background: #95a5a6; color: white; min-width: 120px;">📺 タイムライン</button>
                 </div>
             </div>
-
-            <button id="fetchBtn" class="btn btn-primary">番組表を更新</button>
-            <button id="searchAllBtn" class="btn btn-primary" style="margin-left: 8px;">全エリアから検索</button>
         </div>
 
             <div class="content">
@@ -1577,6 +1702,19 @@
                 <div id="error" class="error" style="display: none;"></div>
                 <div id="searchInfo" style="padding: 8px; font-size: 0.85em; color: #6c757d; display: none;"></div>
 
+                <!-- 全エリア検索結果表示中のインジケーター -->
+                <div id="searchResultsIndicator" style="display: none; padding: 12px; background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.1em;">🔍</span>
+                            <span style="font-weight: 600; color: #0056b3;">全エリア検索結果を表示中</span>
+                        </div>
+                        <button onclick="returnToAreaPrograms()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85em; white-space: nowrap;">
+                            ← 番組表に戻る
+                        </button>
+                    </div>
+                </div>
+
                 <!-- スマホ用の放送局選択 -->
                 <div id="stationSelector" style="display: none; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
                     <label for="mobileStationSelect" style="font-size: 0.85em; font-weight: 600; color: #495057; display: block; margin-bottom: 6px;">📻 放送局を選択:</label>
@@ -1585,7 +1723,13 @@
                     </select>
                 </div>
 
+                <!-- リスト表示 -->
                 <div id="programList" class="program-list"></div>
+
+                <!-- タイムライン表示 -->
+                <div id="timelineView" style="display: none; overflow-x: auto; overflow-y: auto;">
+                    <div id="timelineContainer"></div>
+                </div>
             </div>
         </div>
 
@@ -1675,6 +1819,24 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
                         <h2 style="margin: 0; font-size: 1.3em; color: #212529;">🔧 管理メニュー</h2>
                         <button onclick="logoutAdmin()" style="padding: 6px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">ログアウト</button>
+                    </div>
+
+                    <!-- 詳細設定 -->
+                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px; background: #f8f9fa;">
+                        <h3 style="margin: 0 0 15px 0; font-size: 1.1em; color: #212529;">⚙️ 詳細設定</h3>
+                        <div style="display: grid; gap: 15px;">
+                            <div>
+                                <label for="proxyUrl" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">プロキシURL</label>
+                                <input type="text" id="proxyUrl" value="" placeholder="空欄でOK（デフォルト: /api）" style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85em;">radikoプロキシサーバーのURL。通常は変更不要です。</p>
+                            </div>
+
+                            <div>
+                                <label for="scriptPath" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">myradikoスクリプトパス</label>
+                                <input type="text" id="scriptPath" value="/app/script/myradiko" placeholder="/app/script/myradiko" style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+                                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85em;">myradiko録音スクリプトのパス。環境に応じて変更してください。</p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- DB番組表一括更新 -->
@@ -2458,6 +2620,8 @@
         let currentCommand = '';
         let currentProgramData = null;
         let allProgramsData = [];
+        let areaPrograms = null; // エリア番組表を保存（全エリア検索から戻るため）
+        let currentAreaId = null; // 現在のエリアID
         let eventSource = null;
         let currentEditingCron = { original: '', commandPart: '' };
         let currentStationMap = null; // スマホ用: 現在の放送局マップを保持
@@ -2650,8 +2814,11 @@
             if (tabName === 'search') {
                 document.querySelectorAll('.tab')[0].classList.add('active');
                 document.getElementById('searchTab').classList.add('active');
-                // 番組検索タブを開いた時に本日の番組を自動表示
-                initializeSearchTab();
+                // 番組検索タブを開いた時に本日の番組を自動表示（初回のみ）
+                if (!document.getElementById('searchTab').dataset.initialized) {
+                    initializeSearchTab();
+                    document.getElementById('searchTab').dataset.initialized = 'true';
+                }
             } else if (tabName === 'files') {
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('filesTab').classList.add('active');
@@ -2750,12 +2917,6 @@
             const savedTab = localStorage.getItem('currentTab');
             if (savedTab) {
                 switchTab(savedTab);
-            }
-
-            // 詳細設定の開閉状態を復元
-            const advancedSettingsOpen = localStorage.getItem('advancedSettingsOpen');
-            if (advancedSettingsOpen === 'true') {
-                toggleAdvancedSettings();
             }
 
             // 日本時間で今日の日付を取得（朝5時を日付の変わり目とする）
@@ -2877,6 +3038,20 @@
                 clearBtn.style.display = this.value ? 'block' : 'none';
             }
 
+            // タイムラインボタンの有効/無効を切り替え
+            const timelineBtn = document.getElementById('timelineViewBtn');
+            if (this.value.trim()) {
+                // フィルタリング中はタイムラインボタンを無効化
+                timelineBtn.disabled = true;
+                timelineBtn.style.opacity = '0.5';
+                timelineBtn.style.cursor = 'not-allowed';
+            } else {
+                // フィルタリング解除時は有効化
+                timelineBtn.disabled = false;
+                timelineBtn.style.opacity = '1';
+                timelineBtn.style.cursor = 'pointer';
+            }
+
             if (allProgramsData.length > 0) {
                 displayPrograms(allProgramsData);
             }
@@ -2892,9 +3067,29 @@
                 clearBtn.style.display = 'none';
             }
 
+            // タイムラインボタンを有効化
+            const timelineBtn = document.getElementById('timelineViewBtn');
+            timelineBtn.disabled = false;
+            timelineBtn.style.opacity = '1';
+            timelineBtn.style.cursor = 'pointer';
+
             // フィルタリングを更新
             if (allProgramsData.length > 0) {
                 displayPrograms(allProgramsData);
+            }
+        }
+
+        // 全エリア検索結果から元の番組表に戻る
+        function returnToAreaPrograms() {
+            // 検索結果インジケーターを非表示
+            document.getElementById('searchResultsIndicator').style.display = 'none';
+
+            // 保存されたエリア番組表がある場合は復元
+            if (areaPrograms && areaPrograms.length > 0) {
+                displayPrograms(areaPrograms);
+            } else {
+                // 保存されたデータがない場合は再取得
+                fetchPrograms(false);
             }
         }
 
@@ -2912,11 +3107,21 @@
             const error = document.getElementById('error');
             const programList = document.getElementById('programList');
             const fetchBtn = document.getElementById('fetchBtn');
+            const timelineView = document.getElementById('timelineView');
 
             loading.style.display = 'block';
             error.style.display = 'none';
             programList.innerHTML = '';
             fetchBtn.disabled = true;
+
+            // ローディング中はタイムラインを非表示
+            const isTimelineMode = timelineView.style.display !== 'none';
+            if (isTimelineMode) {
+                timelineView.style.display = 'none';
+            }
+
+            // 全エリア検索結果インジケーターを非表示（通常の番組表取得時）
+            document.getElementById('searchResultsIndicator').style.display = 'none';
 
             try {
                 // DB APIから番組表を取得
@@ -2956,7 +3161,16 @@
                 // 時刻順にソート
                 allPrograms.sort((a, b) => a.ft - b.ft);
 
+                // エリア番組表を保存
+                areaPrograms = allPrograms;
+                currentAreaId = areaId;
+
                 displayPrograms(allPrograms);
+
+                // タイムラインモードだった場合は再表示
+                if (isTimelineMode) {
+                    timelineView.style.display = 'block';
+                }
 
             } catch (err) {
                 showError(`エラーが発生しました: ${err.message}`);
@@ -3085,11 +3299,297 @@
 
                 displayStations(stationMap, programList);
             });
+
+            // タイムラインビューが表示中の場合は更新
+            const timelineView = document.getElementById('timelineView');
+            if (timelineView && timelineView.style.display !== 'none') {
+                renderTimelineView(allProgramsData);
+            }
+        }
+
+        // タイムラインカード拡大トグル
+        let expandedCard = null;
+
+        function toggleCardExpansion(card) {
+            // 既に別のカードが拡大されている場合は元に戻す
+            if (expandedCard && expandedCard !== card) {
+                expandedCard.classList.remove('expanded');
+            }
+
+            // このカードをトグル
+            card.classList.toggle('expanded');
+
+            if (card.classList.contains('expanded')) {
+                expandedCard = card;
+                // 拡大時は外側クリックで閉じる
+                setTimeout(() => {
+                    document.addEventListener('click', closeExpandedCard);
+                }, 10);
+            } else {
+                expandedCard = null;
+                document.removeEventListener('click', closeExpandedCard);
+            }
+        }
+
+        function closeExpandedCard(e) {
+            if (expandedCard && !expandedCard.contains(e.target)) {
+                expandedCard.classList.remove('expanded');
+                expandedCard = null;
+                document.removeEventListener('click', closeExpandedCard);
+            }
+        }
+
+        // タイムライン表示モード切り替え
+        function switchViewMode(mode) {
+            const listView = document.getElementById('programList');
+            const timelineView = document.getElementById('timelineView');
+            const listBtn = document.getElementById('listViewBtn');
+            const timelineBtn = document.getElementById('timelineViewBtn');
+            const searchKeyword = document.getElementById('searchKeyword');
+            const searchAllBtn = document.getElementById('searchAllBtn');
+
+            // フィルタリング中はタイムラインモードに切り替えできない
+            if (mode === 'timeline' && searchKeyword.value.trim()) {
+                alert('フィルタリング中はタイムライン表示できません。\n絞り込みキーワードをクリアしてください。');
+                return;
+            }
+
+            if (mode === 'timeline') {
+                listView.style.display = 'none';
+                timelineView.style.display = 'block';
+                listBtn.style.background = '#95a5a6';
+                timelineBtn.style.background = '#27ae60';
+
+                // タイムラインモード時は検索機能を無効化
+                searchKeyword.disabled = true;
+                searchKeyword.style.opacity = '0.5';
+                searchAllBtn.disabled = true;
+                searchAllBtn.style.opacity = '0.5';
+
+                // 検索結果インジケーターを非表示（タイムラインは検索非対応）
+                document.getElementById('searchResultsIndicator').style.display = 'none';
+
+                // タイムラインビューをレンダリング
+                if (allProgramsData && allProgramsData.length > 0) {
+                    renderTimelineView(allProgramsData);
+                }
+            } else {
+                listView.style.display = 'grid';
+                timelineView.style.display = 'none';
+                listBtn.style.background = '#27ae60';
+                timelineBtn.style.background = '#95a5a6';
+
+                // リストモード時は検索機能を有効化
+                searchKeyword.disabled = false;
+                searchKeyword.style.opacity = '1';
+                searchAllBtn.disabled = false;
+                searchAllBtn.style.opacity = '1';
+            }
+        }
+
+        // タイムラインビューをレンダリング
+        function renderTimelineView(programs) {
+            const timelineContainer = document.getElementById('timelineContainer');
+            timelineContainer.innerHTML = '';
+
+            if (programs.length === 0) {
+                timelineContainer.innerHTML = '<p style="padding: 40px; text-align: center; color: #6c757d;">番組データがありません</p>';
+                return;
+            }
+
+            // 検索フィルタリング
+            const searchKeyword = document.getElementById('searchKeyword').value.trim().toLowerCase();
+            let filteredPrograms = programs;
+
+            if (searchKeyword) {
+                filteredPrograms = programs.filter(prog =>
+                    prog.title.toLowerCase().includes(searchKeyword) ||
+                    (prog.pfm && prog.pfm.toLowerCase().includes(searchKeyword)) ||
+                    (prog.desc && prog.desc.toLowerCase().includes(searchKeyword))
+                );
+            }
+
+            if (filteredPrograms.length === 0) {
+                timelineContainer.innerHTML = `<p style="padding: 40px; text-align: center; color: #6c757d;">「${searchKeyword}」に一致する番組が見つかりませんでした</p>`;
+                return;
+            }
+
+            // 放送局ごとにグループ化
+            const stationMap = new Map();
+            filteredPrograms.forEach(prog => {
+                if (!stationMap.has(prog.stationId)) {
+                    stationMap.set(prog.stationId, {
+                        name: prog.stationName,
+                        id: prog.stationId,
+                        programs: []
+                    });
+                }
+                stationMap.get(prog.stationId).programs.push(prog);
+            });
+
+            // グリッドの列数を設定（時刻列 + 放送局列）
+            const stationCount = stationMap.size;
+            timelineContainer.style.gridTemplateColumns = `80px repeat(${stationCount}, 200px)`;
+
+            // 時間範囲を計算（5:00-29:00）
+            const startHour = 5;
+            const endHour = 29; // 翌日5時
+            const hours = [];
+            for (let h = startHour; h <= endHour; h++) {
+                hours.push(h);
+            }
+
+            // 時刻軸カラムを作成
+            const timeColumn = document.createElement('div');
+            timeColumn.className = 'timeline-time-column';
+
+            // ヘッダー（空）
+            const timeHeader = document.createElement('div');
+            timeHeader.className = 'timeline-station-header';
+            timeHeader.style.background = '#2c3e50';
+            timeHeader.textContent = '時刻';
+            timeColumn.appendChild(timeHeader);
+
+            // 時刻セルを追加
+            hours.forEach(hour => {
+                const timeCell = document.createElement('div');
+                timeCell.className = 'timeline-time-cell';
+                const displayHour = hour >= 24 ? hour - 24 : hour;
+                timeCell.textContent = `${String(displayHour).padStart(2, '0')}:00`;
+                timeColumn.appendChild(timeCell);
+            });
+
+            timelineContainer.appendChild(timeColumn);
+
+            // 各放送局のカラムを作成
+            Array.from(stationMap.values()).forEach(station => {
+                const stationColumn = document.createElement('div');
+                stationColumn.style.position = 'relative';
+
+                // 放送局ヘッダー
+                const stationHeader = document.createElement('div');
+                stationHeader.className = 'timeline-station-header';
+                stationHeader.textContent = station.name;
+                stationHeader.title = `${station.name} (${station.id})`;
+                stationColumn.appendChild(stationHeader);
+
+                // 各時間帯のセル
+                hours.forEach(hour => {
+                    const hourCell = document.createElement('div');
+                    hourCell.style.height = '60px';
+                    hourCell.style.position = 'relative';
+                    hourCell.style.borderBottom = '1px solid #e9ecef';
+                    hourCell.style.background = '#fafafa';
+                    stationColumn.appendChild(hourCell);
+                });
+
+                // 番組カードを配置
+                station.programs.forEach(prog => {
+                    const startTime = new Date(prog.ft);
+                    const endTime = new Date(prog.to);
+
+                    // 開始時刻を5時基準に変換
+                    let progStartHour = startTime.getHours();
+                    const progStartMinute = startTime.getMinutes();
+
+                    // 0-4時の番組は24-28時として扱う
+                    if (progStartHour < 5) {
+                        progStartHour += 24;
+                    }
+
+                    // 5時からの相対位置を計算
+                    const minutesFromStart = (progStartHour - startHour) * 60 + progStartMinute;
+                    const topPosition = minutesFromStart; // 1分 = 1px
+
+                    // 番組の長さを計算
+                    const durationMinutes = (endTime - startTime) / 1000 / 60;
+                    const height = Math.max(durationMinutes, 15); // 最小15px
+
+                    // 表示範囲内のみ表示
+                    if (progStartHour >= startHour && progStartHour < endHour) {
+                        const programCard = document.createElement('div');
+                        programCard.className = 'timeline-program-card';
+
+                        // 高さが30px未満の場合はnarrowクラスを追加
+                        if (height < 30) {
+                            programCard.classList.add('narrow');
+                        }
+
+                        programCard.style.top = `${topPosition + 52}px`; // ヘッダー分オフセット
+                        programCard.style.height = `${height - 4}px`;
+                        programCard.style.cursor = 'pointer';
+
+                        const startTimeStr = `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`;
+                        const endTimeStr = `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`;
+
+                        programCard.innerHTML = `
+                            <div class="timeline-program-time">
+                                ${startTimeStr}-${endTimeStr}
+                            </div>
+                            <div class="timeline-program-title">
+                                ${prog.title}
+                            </div>
+                            ${height < 30 ? '<span class="timeline-expand-hint">🔍</span>' : ''}
+                        `;
+
+                        // クリックイベント - 詳細表示
+                        programCard.onclick = (e) => {
+                            e.stopPropagation();
+                            showProgramDetail(prog);
+                        };
+
+                        // ホバー時にオーバーフローを検出して拡大
+                        let hoverTimer;
+                        programCard.addEventListener('mouseenter', () => {
+                            hoverTimer = setTimeout(() => {
+                                // スクロール高さと表示高さを比較
+                                if (programCard.scrollHeight > programCard.clientHeight) {
+                                    programCard.classList.add('hover-expanded');
+                                }
+                            }, 800); // 0.8秒後に判定
+                        });
+
+                        programCard.addEventListener('mouseleave', () => {
+                            clearTimeout(hoverTimer);
+                            programCard.classList.remove('hover-expanded');
+                        });
+
+                        // 右クリックまたは長押しで拡大表示（狭いカードの場合）
+                        if (height < 30) {
+                            let longPressTimer;
+
+                            programCard.addEventListener('contextmenu', (e) => {
+                                e.preventDefault();
+                                toggleCardExpansion(programCard);
+                            });
+
+                            programCard.addEventListener('touchstart', (e) => {
+                                longPressTimer = setTimeout(() => {
+                                    toggleCardExpansion(programCard);
+                                }, 500);
+                            });
+
+                            programCard.addEventListener('touchend', () => {
+                                clearTimeout(longPressTimer);
+                            });
+
+                            programCard.addEventListener('touchmove', () => {
+                                clearTimeout(longPressTimer);
+                            });
+                        }
+
+                        stationColumn.appendChild(programCard);
+                    }
+                });
+
+                timelineContainer.appendChild(stationColumn);
+            });
         }
 
         function displayStations(stationMap, programList) {
-            // スマホ用: 放送局選択のオプションを生成
-            const isMobile = window.innerWidth <= 768;
+            // PC表示を優先: 常にPC表示にする（モバイル対応は一旦無効化）
+            // const isMobile = window.innerWidth <= 768;
+            const isMobile = false; // 強制的にPC表示
             const mobileStationSelect = document.getElementById('mobileStationSelect');
 
             if (isMobile && mobileStationSelect) {
@@ -3179,28 +3679,32 @@
 
                     // 終了済み番組：ダウンロードボタン
                     if (isPastProgram) {
-                        buttonsHtml += `<button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>`;
+                        buttonsHtml += `<button class="btn-action btn-download" onclick='event.stopPropagation(); showDownloadCommandByIndex(${prog._index})'>DL</button>`;
                     }
 
                     // 未来の番組または放送中の番組：予約ボタン
                     if (!isPastProgram) {
-                        buttonsHtml += `<button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>予約</button>`;
+                        buttonsHtml += `<button class="btn-action btn-at" onclick='event.stopPropagation(); showAtCommandByIndex(${prog._index})'>予約</button>`;
                     }
 
                     // 定期録音ボタン（常に表示）
-                    buttonsHtml += `<button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>定期</button>`;
+                    buttonsHtml += `<button class="btn-action btn-cron" onclick='event.stopPropagation(); showCronCommandByIndex(${prog._index})'>定期</button>`;
 
                     // radikoボタン（常に表示）
-                    buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
+                    buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
 
                     card.innerHTML = `
                         <div class="program-time">${startTime} - ${endTime}</div>
-                        <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
+                        <div class="program-title" style="color: #2c3e50; font-weight: 500;">${prog.title}</div>
                         ${prog.pfm ? `<div class="program-detail">${prog.pfm}</div>` : ''}
                         <div class="program-actions">
                             ${buttonsHtml}
                         </div>
                     `;
+
+                    // カード全体をクリック可能に
+                    card.style.cursor = 'pointer';
+                    card.onclick = () => showProgramDetailByIndex(prog._index);
 
                     programsContainer.appendChild(card);
                 });
@@ -3269,28 +3773,32 @@
 
                 // 終了済み番組：ダウンロードボタン
                 if (isPastProgram) {
-                    buttonsHtml += `<button class="btn-action btn-download" onclick='showDownloadCommandByIndex(${prog._index})'>DL</button>`;
+                    buttonsHtml += `<button class="btn-action btn-download" onclick='event.stopPropagation(); showDownloadCommandByIndex(${prog._index})'>DL</button>`;
                 }
 
                 // 未来の番組または放送中の番組：予約ボタン
                 if (!isPastProgram) {
-                    buttonsHtml += `<button class="btn-action btn-at" onclick='showAtCommandByIndex(${prog._index})'>予約</button>`;
+                    buttonsHtml += `<button class="btn-action btn-at" onclick='event.stopPropagation(); showAtCommandByIndex(${prog._index})'>予約</button>`;
                 }
 
                 // 定期録音ボタン（常に表示）
-                buttonsHtml += `<button class="btn-action btn-cron" onclick='showCronCommandByIndex(${prog._index})'>定期</button>`;
+                buttonsHtml += `<button class="btn-action btn-cron" onclick='event.stopPropagation(); showCronCommandByIndex(${prog._index})'>定期</button>`;
 
                 // radikoボタン（常に表示）
-                buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
+                buttonsHtml += `<a href="${radikoUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="background: white; border: 1px solid #ddd; padding: 3px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; line-height: 1; border-radius: 4px; width: 24px; height: 24px;" title="radikoで聴く"><img src="img/radiko.png" alt="radiko" style="width: 18px; height: 18px; display: block;"></a>`;
 
                 card.innerHTML = `
                     <div class="program-time">${startTime} - ${endTime}</div>
-                    <div class="program-title" onclick='showProgramDetailByIndex(${prog._index})' style="cursor: pointer; color: #007bff;">${prog.title}</div>
+                    <div class="program-title" style="color: #2c3e50; font-weight: 500;">${prog.title}</div>
                     ${prog.pfm ? `<div class="program-detail">${prog.pfm}</div>` : ''}
                     <div class="program-actions">
                         ${buttonsHtml}
                     </div>
                 `;
+
+                // カード全体をクリック可能に
+                card.style.cursor = 'pointer';
+                card.onclick = () => showProgramDetailByIndex(prog._index);
 
                 programsContainer.appendChild(card);
             });
@@ -3344,13 +3852,17 @@
         }
 
         function showProgramDetail(prog) {
-            const startTime = `${String(prog.ft.getHours()).padStart(2, '0')}:${String(prog.ft.getMinutes()).padStart(2, '0')}`;
-            const endTime = `${String(prog.to.getHours()).padStart(2, '0')}:${String(prog.to.getMinutes()).padStart(2, '0')}`;
-            const dateStr = `${prog.ft.getFullYear()}/${prog.ft.getMonth() + 1}/${prog.ft.getDate()}`;
-            const duration = Math.round((prog.to - prog.ft) / 60000); // 分単位
+            // ftとtoをDateオブジェクトに変換（文字列の場合）
+            const ftDate = typeof prog.ft === 'string' ? new Date(prog.ft) : prog.ft;
+            const toDate = typeof prog.to === 'string' ? new Date(prog.to) : prog.to;
+
+            const startTime = `${String(ftDate.getHours()).padStart(2, '0')}:${String(ftDate.getMinutes()).padStart(2, '0')}`;
+            const endTime = `${String(toDate.getHours()).padStart(2, '0')}:${String(toDate.getMinutes()).padStart(2, '0')}`;
+            const dateStr = `${ftDate.getFullYear()}/${ftDate.getMonth() + 1}/${ftDate.getDate()}`;
+            const duration = Math.round((toDate - ftDate) / 60000); // 分単位
 
             // radikoの番組ページURL（秒まで含む14桁形式）
-            const radikoTime = formatRadikoUrl(prog.ft);
+            const radikoTime = formatRadikoUrl(ftDate);
             const radikoUrl = `https://radiko.jp/#!/ts/${prog.stationId}/${radikoTime}`;
 
             // 番組説明をクリーンアップ
@@ -3359,55 +3871,66 @@
             let detailHtml = `
                 <div style="line-height: 1.7;">
                     <!-- タイトル -->
-                    <h3 style="font-size: 1.4em; font-weight: 600; color: #212529; margin: 0 0 16px 0; line-height: 1.4;">${prog.title}</h3>
+                    <h2 style="font-size: 1.6em; font-weight: 700; color: #2c3e50; margin: 0 0 20px 0; line-height: 1.4; letter-spacing: -0.02em;">${prog.title}</h2>
 
-                    <!-- 基本情報 -->
-                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin-bottom: 20px; font-size: 0.95em; color: #495057;">
-                        <div style="font-weight: 500;">放送局</div>
-                        <div>${prog.stationName}</div>
-                        <div style="font-weight: 500;">放送日時</div>
-                        <div>${dateStr} ${startTime} - ${endTime} (${duration}分)</div>
+                    <!-- 基本情報バー -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #e9ecef; font-size: 0.9em; color: #6c757d;">
+                        <div>
+                            <span style="font-weight: 600;">${dateStr}</span>
+                            <span style="margin: 0 8px;">|</span>
+                            <span>${startTime}〜${endTime}</span>
+                        </div>
+                        <div>
+                            <span style="font-weight: 600;">放送時間</span>
+                            <span style="margin-left: 8px;">${duration}分</span>
+                        </div>
                     </div>
 
-                    <!-- radikoボタン -->
-                    <div style="margin-bottom: 24px;">
+                    <!-- 放送局情報 -->
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-weight: 600; color: #2c3e50; font-size: 1.05em;">📻 ${prog.stationName}</div>
                         <a href="${radikoUrl}" target="_blank" rel="noopener noreferrer"
-                           style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-size: 0.95em; font-weight: 500; transition: background 0.2s;"
-                           onmouseover="this.style.background='#5568d3'"
-                           onmouseout="this.style.background='#667eea'">
-                            📻 radikoで聴く
+                           style="margin-left: auto; padding: 8px 16px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; font-size: 0.85em; font-weight: 600; transition: background 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                           onmouseover="this.style.background='#2980b9'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 6px rgba(0,0,0,0.15)'"
+                           onmouseout="this.style.background='#3498db'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'">
+                            radikoで聴く
                         </a>
                     </div>
             `;
 
-            if (prog.pfm) {
-                const cleanPfm = cleanupDescription(prog.pfm);
-                detailHtml += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">出演者</div>
-                        <div style="color: #212529; font-size: 0.95em; line-height: 1.8; white-space: pre-line;">${cleanPfm}</div>
-                    </div>
-                `;
-            }
-
+            // 番組概要セクション
             if (cleanDesc && cleanDesc !== '説明なし') {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cleanDesc;
 
                 detailHtml += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">番組説明</div>
-                        <div style="color: #212529; font-size: 0.95em; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    <div style="margin-bottom: 28px;">
+                        <h3 style="font-size: 1.05em; font-weight: 600; color: #2c3e50; margin: 0 0 12px 0;">番組概要</h3>
+                        <div style="color: #495057; font-size: 0.95em; line-height: 1.9; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    </div>
+                `;
+            }
+
+            if (prog.pfm) {
+                const cleanPfm = cleanupDescription(prog.pfm);
+                detailHtml += `
+                    <div style="margin-bottom: 28px;">
+                        <h3 style="font-size: 1.05em; font-weight: 600; color: #2c3e50; margin: 0 0 12px 0;">出演者</h3>
+                        <div style="color: #495057; font-size: 0.95em; line-height: 1.9; white-space: pre-line;">${cleanPfm}</div>
                     </div>
                 `;
             }
 
             if (prog.url) {
                 detailHtml += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">番組URL</div>
+                    <div style="margin-bottom: 28px;">
+                        <h3 style="font-size: 1.05em; font-weight: 600; color: #2c3e50; margin: 0 0 12px 0;">関連リンク</h3>
                         <div style="word-break: break-all;">
-                            <a href="${prog.url}" target="_blank" style="color: #667eea; text-decoration: none; font-size: 0.9em;">${prog.url}</a>
+                            <a href="${prog.url}" target="_blank" style="color: #3498db; text-decoration: none; font-size: 0.9em; font-weight: 500;"
+                               onmouseover="this.style.textDecoration='underline'"
+                               onmouseout="this.style.textDecoration='none'">
+                                🔗 番組ページを開く
+                            </a>
                         </div>
                     </div>
                 `;
@@ -3419,9 +3942,9 @@
                 tempDiv.innerHTML = cleanInfo;
 
                 detailHtml += `
-                    <div style="margin-bottom: 24px;">
-                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #6c757d;">その他情報</div>
-                        <div style="color: #495057; font-size: 0.85em; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
+                    <div style="margin-bottom: 28px;">
+                        <h3 style="font-size: 1.05em; font-weight: 600; color: #2c3e50; margin: 0 0 12px 0;">その他情報</h3>
+                        <div style="color: #6c757d; font-size: 0.9em; line-height: 1.8; white-space: pre-line;">${tempDiv.innerHTML}</div>
                     </div>
                 `;
             }
@@ -3433,6 +3956,14 @@
             commandBox.className = 'command-box'; // command-displayクラスを削除
             document.getElementById('modalTitle').textContent = '番組詳細';
             commandBox.innerHTML = detailHtml;
+
+            // ボタンを全て非表示にする
+            document.getElementById('executeBtn').style.display = 'none';
+            document.getElementById('registerCronBtn').style.display = 'none';
+            document.querySelector('.btn-copy').style.display = 'none';
+            // 全ての閉じるボタンを非表示
+            document.querySelectorAll('.modal-actions .btn-close').forEach(btn => btn.style.display = 'none');
+
             document.getElementById('modal').classList.add('active');
         }
 
@@ -4174,6 +4705,9 @@
 
                     uniquePrograms.sort((a, b) => a.ft - b.ft);
                     displayPrograms(uniquePrograms);
+
+                    // 全エリア検索結果インジケーターを表示
+                    document.getElementById('searchResultsIndicator').style.display = 'block';
                 }
 
             } catch (err) {
@@ -6781,22 +7315,6 @@
 
             // ファイル一覧を再描画
             renderFilesList();
-        }
-
-        // 詳細設定の表示/非表示切り替え
-        function toggleAdvancedSettings() {
-            const advancedSettings = document.getElementById('advancedSettings');
-            const toggleText = document.getElementById('advancedToggleText');
-
-            if (advancedSettings.style.display === 'none') {
-                advancedSettings.style.display = 'block';
-                toggleText.textContent = '詳細設定を非表示';
-                localStorage.setItem('advancedSettingsOpen', 'true');
-            } else {
-                advancedSettings.style.display = 'none';
-                toggleText.textContent = '詳細設定を表示';
-                localStorage.setItem('advancedSettingsOpen', 'false');
-            }
         }
 
         // ページ読み込み時の初期化
