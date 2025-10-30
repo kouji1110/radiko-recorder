@@ -1,17 +1,18 @@
-from flask import Flask, Response, request, jsonify, stream_with_context, send_file
+from flask import Flask, Response, request, jsonify, stream_with_context, send_file, session, redirect, url_for
 import requests
 from flask_cors import CORS
 import logging
 import subprocess
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import zipfile
 import tempfile
 import time
 import select
+from functools import wraps
 
 # DBモジュールをインポート
 import db
@@ -19,7 +20,9 @@ import fetch_programs
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 日本語などの非ASCII文字をそのまま出力
-CORS(app, resources={r"/*": {"origins": "*"}})
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'radiko-recorder-secret-key-change-in-production')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # セッション有効期限30日
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +41,50 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 logger.info('✅ APScheduler initialized')
+
+# ========================================
+# 認証設定
+# ========================================
+
+# パスワード設定（環境変数から取得、デフォルトは'radiko2025'）
+AUTH_PASSWORD = os.environ.get('AUTH_PASSWORD', 'radiko2025')
+
+def login_required(f):
+    """ログインが必要なエンドポイント用のデコレータ"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return jsonify({'error': 'Unauthorized', 'message': '認証が必要です'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/auth/login', methods=['POST'])
+def login():
+    """ログインエンドポイント"""
+    data = request.get_json()
+    password = data.get('password', '')
+
+    if password == AUTH_PASSWORD:
+        session['logged_in'] = True
+        session.permanent = True  # 30日間有効
+        logger.info('✅ Login successful')
+        return jsonify({'success': True, 'message': 'ログインしました'})
+    else:
+        logger.warning('❌ Login failed: incorrect password')
+        return jsonify({'success': False, 'message': 'パスワードが間違っています'}), 401
+
+@app.route('/auth/logout', methods=['POST'])
+def logout():
+    """ログアウトエンドポイント"""
+    session.pop('logged_in', None)
+    logger.info('👋 Logout successful')
+    return jsonify({'success': True, 'message': 'ログアウトしました'})
+
+@app.route('/auth/check', methods=['GET'])
+def check_auth():
+    """認証状態確認エンドポイント"""
+    is_logged_in = session.get('logged_in', False)
+    return jsonify({'logged_in': is_logged_in})
 
 
 # ========================================

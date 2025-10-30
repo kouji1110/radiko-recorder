@@ -1296,6 +1296,9 @@
                 <li class="mobile-menu-item" data-tab="admin">
                     <button onclick="switchTabMobile('admin')">🔧 管理メニュー</button>
                 </li>
+                <li class="mobile-menu-item" style="border-top: 2px solid #dee2e6; margin-top: 10px;">
+                    <button onclick="logout()" style="color: #dc3545;">🚪 ログアウト</button>
+                </li>
             </ul>
         </nav>
 
@@ -2199,6 +2202,27 @@
     </div>
 
     <script>
+        // ========================================
+        // 認証チェック
+        // ========================================
+        (async function checkAuth() {
+            try {
+                const response = await fetch('/auth/check', {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (!data.logged_in) {
+                    // ログインしていない場合はログインページへリダイレクト
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                // エラー時もログインページへリダイレクト
+                window.location.href = '/login.html';
+            }
+        })();
+
         let currentCommand = '';
         let currentProgramData = null;
         let allProgramsData = [];
@@ -2406,6 +2430,30 @@
 
             // メニューを閉じる
             closeMobileMenu();
+        }
+
+        // ログアウト機能
+        async function logout() {
+            if (!confirm('ログアウトしますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    // ログアウト成功 - ログインページへリダイレクト
+                    window.location.href = '/login.html';
+                } else {
+                    alert('ログアウトに失敗しました');
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('ログアウトに失敗しました');
+            }
         }
 
         // 今日の日付とエリアのデフォルトを設定
