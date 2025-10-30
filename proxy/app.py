@@ -122,6 +122,20 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
         logger.info(f'🎙️ Recording started (type={job_type}, job_id={job_id})')
         logger.info(f'📝 Command: {command}')
 
+        # コマンドからfolderパラメータを抽出（第7引数）
+        # 形式: myradiko "title" "rss" "station" "start" "end" "" "folder" "" >> ...
+        folder = ''
+        try:
+            import re
+            # 7番目のクォート内の文字列を探す
+            pattern = r'"([^"]*)"'
+            matches = re.findall(pattern, command)
+            if len(matches) >= 7:
+                folder = matches[6]  # 7番目の引数（0-indexed）
+                logger.info(f'📁 Extracted folder from command: "{folder}"')
+        except Exception as e:
+            logger.warning(f'⚠️ Failed to extract folder from command: {str(e)}')
+
         # コマンドを実行
         result = subprocess.run(
             command,
@@ -145,11 +159,22 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                     start_time = metadata.get('start_time', '')
                     station = metadata.get('station', '')
 
-                    # ファイルパスを構築
-                    output_dir = os.path.join(OUTPUT_DIR, rss)
+                    # ファイル名を生成
                     filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
-                    file_path = os.path.join(output_dir, filename)
-                    relative_path = os.path.relpath(file_path, OUTPUT_DIR)
+
+                    # myradikoは常にOUTPUT_DIR/rss/に保存する（実際のファイルパス）
+                    actual_output_dir = os.path.join(OUTPUT_DIR, rss)
+                    actual_file_path = os.path.join(actual_output_dir, filename)
+
+                    # DB保存用の相対パス（仮想フォルダを含む）
+                    if folder:
+                        relative_path = f'{folder}/{rss}/{filename}'
+                        logger.info(f'📁 Using virtual folder path: {relative_path}')
+                    else:
+                        relative_path = f'{rss}/{filename}'
+
+                    # ファイル存在確認は実際のパスで行う
+                    file_path = actual_file_path
 
                     if os.path.exists(file_path):
                         file_stat = os.stat(file_path)
