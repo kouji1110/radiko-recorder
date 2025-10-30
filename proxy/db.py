@@ -350,9 +350,8 @@ def search_programs(keyword: str, area_id: Optional[str] = None,
             query += ' AND p.date <= ?'
             params.append(date_to)
 
-        # radikoタイムシフト制限: 7日以内の番組のみ
-        # end_timeが現在時刻より前、かつ7日以内
-        query += ' AND p.end_time >= datetime("now", "-7 days") AND p.end_time <= datetime("now")'
+        # 前後7日間の番組のみ（過去7日〜未来7日）
+        query += ' AND p.start_time >= datetime("now", "-7 days") AND p.start_time <= datetime("now", "+7 days")'
 
         query += ' GROUP BY p.id ORDER BY p.start_time DESC LIMIT 1000'
 
