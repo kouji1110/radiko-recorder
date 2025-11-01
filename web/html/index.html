@@ -1997,6 +1997,29 @@
                         </div>
                     </div>
 
+                    <!-- デフォルトアートワーク設定 -->
+                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🎨 デフォルトアートワーク設定</h3>
+                        <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9em;">
+                            アートワークが登録されていない番組で表示されるデフォルト画像を設定できます
+                        </p>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="flex-shrink: 0;">
+                                <img id="defaultArtworkPreview" src="" alt="Default Artwork"
+                                     style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
+                                     onerror="this.src='img/jacket.png'">
+                            </div>
+                            <div style="flex: 1;">
+                                <button onclick="openDefaultArtworkUpload()" class="btn btn-primary" style="background: #667eea;">
+                                    📤 デフォルト画像を変更
+                                </button>
+                                <div style="margin-top: 8px; font-size: 0.85em; color: #6c757d;">
+                                    推奨サイズ: 512×512px以上
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- その他メニュー -->
                     <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
                         <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🛠️ その他のメンテナンス</h3>
@@ -2837,6 +2860,8 @@
             } else if (tabName === 'admin') {
                 document.querySelectorAll('.tab')[4].classList.add('active');
                 document.getElementById('adminTab').classList.add('active');
+                // 管理タブを開いた時にデフォルトアートワークを読み込み
+                loadDefaultArtworkPreview();
             }
         }
 
@@ -7108,13 +7133,22 @@
             // 番組タイトルを抽出
             const programTitle = extractProgramTitle(filename);
 
-            // まずデフォルト画像を設定（即座に表示）
+            // UIにまずデフォルト画像を設定（即座に表示）
             const artworkImg = document.querySelector('#audioPlayerModal img[alt="Artwork"]');
             if (artworkImg) {
                 artworkImg.src = 'img/jacket.png';
             }
 
-            // モーダルを表示
+            // アートワークURLを生成（バックエンドが必ず画像を返す）
+            const artworkUrl = `${baseUrl}/artwork/${encodeURIComponent(programTitle)}`;
+            console.log('🖼️ [Artwork] Using backend URL:', artworkUrl);
+
+            // UIにアートワークを設定（非同期で読み込まれる）
+            if (artworkImg) {
+                artworkImg.src = artworkUrl;
+            }
+
+            // 先にモーダルを表示（UIをブロックしない）
             document.getElementById('audioPlayerModal').classList.add('active');
             document.body.classList.add('modal-open');
 
@@ -7149,11 +7183,17 @@
             console.log('🎤 Artist:', artist);
             console.log('💿 Album:', album);
 
-            // デフォルトアートワークでまず設定（iOSの認識のため）
-            const defaultArtworkArray = [{
-                src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==',
+            // アートワーク配列を作成（バックエンドURLを絶対URLに変換）
+            const fullArtworkUrl = artworkUrl.startsWith('http')
+                ? artworkUrl
+                : new URL(artworkUrl, window.location.href).href;
+
+            console.log('🖼️ [Artwork] Full URL for Media Session:', fullArtworkUrl);
+
+            const artworkArray = [{
+                src: fullArtworkUrl,
                 sizes: '512x512',
-                type: 'image/svg+xml'
+                type: 'image/png'
             }];
 
             // Media Session API でメタデータを設定（iOS Safari等のネイティブプレイヤー対応）
@@ -7176,14 +7216,14 @@
                         title: programTitle || filename,
                         artist: artist,
                         album: album,
-                        artworkCount: defaultArtworkArray.length
+                        artwork: artworkArray
                     });
 
                     const metadata = new MediaMetadata({
                         title: programTitle || filename,
                         artist: artist,
                         album: album,
-                        artwork: defaultArtworkArray
+                        artwork: artworkArray
                     });
 
                     console.log('🎵 [Media Session] Setting metadata...');
@@ -7303,18 +7343,6 @@
             }).catch(err => {
                 console.error('❌ [Audio] Play failed:', err);
                 // エラー時はユーザーに通知
-            });
-
-            // 再生開始後、アートワークを非同期で読み込み（UIのみ更新、Media Sessionは触らない）
-            loadArtworkForTitle(programTitle).then(artworkUrl => {
-                console.log('🖼️ [Artwork] Loaded after playback:', artworkUrl);
-                if (artworkImg && artworkUrl !== 'img/jacket.png') {
-                    artworkImg.src = artworkUrl;
-                    console.log('✅ [Artwork] Web UI image updated (after playback)');
-                }
-                // Media Sessionは再生中に更新しない（iOSの再読み込みを避けるため）
-            }).catch(err => {
-                console.error('❌ [Artwork] Failed to load:', err);
             });
         }
 
@@ -8444,6 +8472,92 @@
             modal.style.display = 'none';
         }
 
+        // デフォルトアートワークのプレビューを読み込む
+        function loadDefaultArtworkPreview() {
+            const proxyUrl = document.getElementById('proxyUrl').value;
+            const baseUrl = proxyUrl.trim() || '';
+            const preview = document.getElementById('defaultArtworkPreview');
+
+            if (preview) {
+                // キャッシュを無効化して読み込み
+                preview.src = `${baseUrl}/artwork/__DEFAULT__?t=${Date.now()}`;
+            }
+        }
+
+        // デフォルトアートワークアップロード用の関数
+        function openDefaultArtworkUpload() {
+            const modal = document.getElementById('artworkUploadModal');
+            const titleInput = document.getElementById('artworkTitle');
+            const artistInput = document.getElementById('artworkArtist');
+            const fileInput = document.getElementById('artworkFile');
+            const cropArea = document.getElementById('artworkCropArea');
+            const cropBox = document.getElementById('cropBox');
+
+            // タイトルを__DEFAULT__に固定
+            titleInput.value = '__DEFAULT__';
+            titleInput.readOnly = true;
+            titleInput.style.background = '#e9ecef';
+
+            // アーティスト欄を非表示
+            artistInput.parentElement.style.display = 'none';
+
+            // ファイル入力とプレビューをリセット
+            fileInput.value = '';
+            cropArea.style.display = 'none';
+            cropBox.style.display = 'none';
+
+            // ファイル選択時のプレビュー（既存の処理を流用）
+            fileInput.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    currentCropFile = file;
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            originalImage = img;
+
+                            // Canvasに画像を描画
+                            const canvas = document.getElementById('artworkCanvas');
+                            const maxWidth = 500;
+                            displayScale = Math.min(1, maxWidth / img.width, maxWidth / img.height);
+                            canvas.width = img.width * displayScale;
+                            canvas.height = img.height * displayScale;
+
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                            // トリミングエリアを表示
+                            cropArea.style.display = 'block';
+
+                            // 初期トリミング範囲を中央に配置（正方形）
+                            const minDimension = Math.min(canvas.width, canvas.height);
+                            cropSize = minDimension * 0.8;
+                            cropX = (canvas.width - cropSize) / 2;
+                            cropY = (canvas.height - cropSize) / 2;
+
+                            updateCropBox();
+                            cropBox.style.display = 'block';
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            modal.style.display = 'flex';
+
+            // モーダルを閉じる時にリセット
+            modal.addEventListener('click', function resetOnClose(e) {
+                if (e.target === modal || e.target.classList.contains('modal-close')) {
+                    titleInput.readOnly = false;
+                    titleInput.style.background = '';
+                    artistInput.parentElement.style.display = 'block';
+                    modal.removeEventListener('click', resetOnClose);
+                }
+            }, { once: true });
+        }
+
         // Twitter風トリミング機能
         function updateCropBox() {
             const canvas = document.getElementById('artworkCanvas');
@@ -8763,6 +8877,16 @@
                     }
                     alert(message);
                     closeArtworkUploadModal();
+
+                    // デフォルトアートワークの場合はプレビューを更新
+                    if (title === '__DEFAULT__') {
+                        const preview = document.getElementById('defaultArtworkPreview');
+                        if (preview) {
+                            // キャッシュを無効化して再読み込み
+                            preview.src = `${baseUrl}/artwork/__DEFAULT__?t=${Date.now()}`;
+                        }
+                    }
+
                     loadRecordedFiles(); // ファイル一覧を更新
                 } else {
                     alert(`❌ エラー: ${data.error || '不明なエラー'}`);
@@ -8781,21 +8905,22 @@
 
             try {
                 const artworkUrl = `${baseUrl}/artwork/${encodeURIComponent(title)}`;
-                console.log('🎨 [Artwork] Checking URL:', artworkUrl);
+                console.log('🎨 [Artwork] URL:', artworkUrl);
 
+                // バックエンドが常に画像を返す（カスタムまたはデフォルト）ので、URLをそのまま返す
                 const response = await fetch(artworkUrl, { method: 'HEAD' });
                 console.log('🎨 [Artwork] Response status:', response.status);
 
                 if (response.ok) {
-                    console.log('✅ [Artwork] Found! Returning URL:', artworkUrl);
-                    return artworkUrl; // URLを直接返す（blob不要）
+                    console.log('✅ [Artwork] Artwork available:', artworkUrl);
+                    return artworkUrl;
                 } else {
-                    console.warn('⚠️ [Artwork] Not found, using default');
-                    return 'img/jacket.png'; // デフォルト画像
+                    console.warn('⚠️ [Artwork] Request failed, using fallback');
+                    return 'img/jacket.png';
                 }
             } catch (err) {
                 console.error('❌ [Artwork] Load error:', err);
-                return 'img/jacket.png'; // デフォルト画像
+                return 'img/jacket.png';
             }
         }
 

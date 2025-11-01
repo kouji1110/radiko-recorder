@@ -195,10 +195,49 @@ def init_database():
         conn.close()
 
         logger.info(f'✅ Database initialized: {DB_PATH}')
+
+        # デフォルトアートワークを登録
+        init_default_artwork()
+
         return True
 
     except Exception as e:
         logger.error(f'❌ Database initialization error: {str(e)}')
+        return False
+
+
+def init_default_artwork():
+    """デフォルトアートワークをDBに登録（存在しない場合のみ）"""
+    try:
+        # 既にデフォルトアートワークが存在するかチェック
+        existing = get_artwork('__DEFAULT__')
+        if existing:
+            logger.info('ℹ️ Default artwork already exists')
+            return True
+
+        # img/jacket.pngを読み込んでDBに登録
+        import os
+        jacket_path = os.path.join(os.path.dirname(__file__), 'img', 'jacket.png')
+
+        if not os.path.exists(jacket_path):
+            logger.warning(f'⚠️ Default artwork file not found: {jacket_path}')
+            return False
+
+        with open(jacket_path, 'rb') as f:
+            image_data = f.read()
+
+        # __DEFAULT__というタイトルで保存
+        result = save_artwork('__DEFAULT__', image_data, 'image/png')
+
+        if result:
+            logger.info('✅ Default artwork registered successfully')
+        else:
+            logger.error('❌ Failed to register default artwork')
+
+        return result
+
+    except Exception as e:
+        logger.error(f'❌ Init default artwork error: {str(e)}')
         return False
 
 

@@ -2140,8 +2140,18 @@ def get_artwork(title):
                 as_attachment=False
             )
         else:
-            # アートワークが登録されていない場合はデフォルト画像を返す
-            return send_file('img/jacket.png', mimetype='image/png')
+            # アートワークが登録されていない場合はデフォルト(__DEFAULT__)を返す
+            default_artwork = db.get_artwork('__DEFAULT__')
+            if default_artwork:
+                from io import BytesIO
+                return send_file(
+                    BytesIO(default_artwork['image_data']),
+                    mimetype=default_artwork['mime_type'],
+                    as_attachment=False
+                )
+            else:
+                # __DEFAULT__も存在しない場合（起動直後など）はファイルから返す
+                return send_file('img/jacket.png', mimetype='image/png')
 
     except Exception as e:
         logger.error(f'Get artwork error: {str(e)}')
