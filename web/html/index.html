@@ -1194,65 +1194,53 @@
                 background: #f8f9fa !important;
             }
 
-            /* チェックボックス列（非表示） */
-            #filesList tbody tr td:nth-child(1) {
-                display: none;
+            /* アートワーク列（.artwork-columnクラスで指定） */
+            #filesList tbody tr td.artwork-column {
+                flex-shrink: 0 !important;
+                padding: 0 !important;
             }
 
-            /* アートワーク列 */
-            #filesList tbody tr td:nth-child(2) {
-                flex-shrink: 0;
-            }
-
-            #filesList tbody tr td:nth-child(2) img,
-            #filesList tbody tr td:nth-child(2) > div {
-                width: 48px;
-                height: 48px;
-                font-size: 28px;
-                display: block;
-            }
-
-            /* ファイル名列 - flexで広がる */
-            #filesList tbody tr td:nth-child(3) {
-                flex: 1;
-                min-width: 0;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            }
-
-            #filesList td:nth-child(3) > div:first-child {
-                max-width: none !important;
-                white-space: normal !important;
-                overflow: visible !important;
-                word-break: break-word;
-                line-height: 1.4;
-                font-size: 0.95em;
-                font-weight: 500;
-            }
-
-            /* 再生進捗を非表示 */
-            #filesList td:nth-child(3) > div:nth-child(2) {
-                display: none;
-            }
-
-            /* モバイル用情報を表示 */
-            #filesList td:nth-child(3) .mobile-info {
+            #filesList tbody tr td.artwork-column img,
+            #filesList tbody tr td.artwork-column > div {
+                width: 48px !important;
+                height: 48px !important;
+                font-size: 28px !important;
                 display: block !important;
             }
 
-            /* 放送日時列を非表示（モバイル用情報に含まれる） */
-            #filesList td:nth-child(4) {
-                display: none !important;
+            /* ファイル名列 - artwork列の次 */
+            #filesList tbody tr td.artwork-column + td {
+                flex: 1 !important;
+                min-width: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 4px !important;
+                padding: 0 !important;
             }
 
-            /* ファイルサイズ列を非表示（モバイル用情報に含まれる） */
-            #filesList td:nth-child(5) {
-                display: none !important;
+            /* ファイル名テキストをフル表示（スマホ） */
+            #filesList tbody tr td.artwork-column + td .file-name-text {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                word-break: normal !important;
+                line-height: 1.3 !important;
             }
 
-            /* 更新日時列を非表示 */
-            #filesList td:nth-child(6) {
+            /* 再生進捗を表示（モバイルでも見えるように） */
+            #filesList tbody tr td.artwork-column + td > div:nth-child(2) {
+                display: flex !important;
+            }
+
+            /* モバイル用情報を表示（ファイル名列の.mobile-info） */
+            #filesList tbody tr td.artwork-column + td .mobile-info {
+                display: block !important;
+            }
+
+            /* 他の全ての列を非表示（チェックボックス、放送日、サイズ、更新日時） */
+            #filesList tbody tr td:not(.artwork-column):not(.artwork-column + td):not(:last-child) {
                 display: none !important;
             }
 
@@ -1271,9 +1259,7 @@
 
             /* ファイル一覧ヘッダーのモバイル最適化 */
             #filesHeaderSection {
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 10px !important;
+                /* 横並びを維持してボタンを右側に配置 */
             }
 
             #filesHeaderSection h2 {
@@ -1717,27 +1703,53 @@
         <!-- 録音済みファイルタブ -->
         <div id="filesTab" class="tab-content">
             <div class="content">
-                <div style="padding: 15px; background: white;">
-                    <div id="filesHeaderSection" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">📁 録音済みファイル一覧</h2>
-                        <div id="filesHeaderButtons" style="display: flex; gap: 10px;">
-                            <button class="btn btn-success" onclick="showCreateFolderModal()" style="padding: 6px 16px; font-size: 0.9em; white-space: nowrap;">📂 新規フォルダ</button>
-                            <button class="btn btn-primary" onclick="loadRecordedFiles()" style="padding: 6px 16px; font-size: 0.9em; white-space: nowrap;">🔄 更新</button>
+                <div style="padding: 12px; background: white;">
+                    <div id="filesHeaderSection" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e9ecef;">
+                        <h2 style="margin: 0; font-size: 1.1em; color: #212529; font-weight: 600;">📁 録音ファイル</h2>
+                        <div style="position: relative;">
+                            <button onclick="toggleFilesMenu(event)"
+                                    style="padding: 5px 12px; background: white; color: #495057; border: 1.5px solid #dee2e6; border-radius: 6px; cursor: pointer; font-size: 1em; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
+                                ⋮
+                            </button>
+                            <!-- メニュードロップダウン -->
+                            <div id="filesMenuDropdown" style="display: none; position: absolute; right: 0; top: calc(100% + 4px); background: white; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 180px;">
+                                <div style="padding: 4px 0;">
+                                    <button onclick="loadRecordedFiles(); toggleFilesMenu();"
+                                            style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
+                                        <span>🔄</span><span>更新</span>
+                                    </button>
+                                    <button onclick="showCreateFolderModal(); toggleFilesMenu();"
+                                            style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
+                                        <span>📂</span><span>新規フォルダ</span>
+                                    </button>
+                                    <div style="height: 1px; background: #e9ecef; margin: 4px 0;"></div>
+                                    <button onclick="clearAllBookmarks(); toggleFilesMenu();"
+                                            style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
+                                        <span>🗑️</span><span>再生履歴リセット</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- パンくずリストと戻るボタン -->
-                    <div id="breadcrumb" style="display: none; margin-bottom: 15px; padding: 10px 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div id="breadcrumbPath" style="font-size: 0.9em; color: #495057; display: flex; align-items: center; gap: 6px;">
-                                <!-- パンくずリストがここに表示される -->
+                    <div id="breadcrumb" style="display: none; margin-bottom: 10px;">
+                        <button onclick="navigateUp()"
+                                style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; background: #f8f9fa; color: #495057; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s;"
+                                onmouseover="this.style.background='#e9ecef'"
+                                onmouseout="this.style.background='#f8f9fa'">
+                            <span style="font-size: 1.2em; color: #667eea;">←</span>
+                            <div style="flex: 1; text-align: left;">
+                                <div id="breadcrumbPath" style="font-size: 0.75em; color: #6c757d; margin-bottom: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                    <!-- パンくずリストがここに表示される -->
+                                </div>
+                                <div style="font-size: 0.9em; color: #212529; font-weight: 600;">上の階層へ</div>
                             </div>
-                            <button onclick="navigateUp()" style="padding: 4px 10px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; font-size: 0.85em; transition: background 0.2s;"
-                                    onmouseover="this.style.background='#f8f9fa'"
-                                    onmouseout="this.style.background='white'">
-                                ← 戻る
-                            </button>
-                        </div>
+                        </button>
                     </div>
 
                     <div id="filesLoading" class="loading" style="display: none;">
@@ -4870,6 +4882,32 @@
             return null; // 日付が見つからない場合
         }
 
+        // ファイル一覧のメニュー切り替え
+        function toggleFilesMenu(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('filesMenuDropdown');
+            if (menu.style.display === 'none' || menu.style.display === '') {
+                // メニューを表示
+                menu.style.display = 'block';
+
+                // 外側をクリックしたら閉じる
+                setTimeout(() => {
+                    document.addEventListener('click', closeFilesMenuOnClickOutside);
+                }, 0);
+            } else {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeFilesMenuOnClickOutside);
+            }
+        }
+
+        function closeFilesMenuOnClickOutside(e) {
+            const menu = document.getElementById('filesMenuDropdown');
+            if (menu && !menu.contains(e.target) && !e.target.closest('[onclick*="toggleFilesMenu"]')) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeFilesMenuOnClickOutside);
+            }
+        }
+
         async function loadRecordedFiles() {
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
@@ -5039,37 +5077,32 @@
             const totalSize = (filteredFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024 / 1024).toFixed(2);
 
             let html = `
-                <div style="margin-bottom: 15px;">
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
-                        <input type="text" id="fileFilter" placeholder="🔍 ファイル名で検索..." value="${filterText}"
-                               style="flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
-                        <button onclick="clearAllBookmarks()"
-                                style="padding: 8px 12px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
-                                onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                            🗑️ 再生履歴をリセット
-                        </button>
-                        <div style="padding: 8px 12px; background: #f8f9fa; border-radius: 6px; font-size: 0.85em; color: #495057;">
-                            <strong>${filteredFiles.length}</strong>件 / ${totalSize} GB
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                        <input type="text" id="fileFilter" placeholder="🔍 検索..." value="${filterText}"
+                               style="flex: 1; padding: 6px 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.85em;">
+                        <div style="padding: 6px 10px; background: #f8f9fa; border-radius: 4px; font-size: 0.8em; color: #495057; white-space: nowrap;">
+                            <strong>${filteredFiles.length}</strong>件
                         </div>
                     </div>
-                    <div class="file-selection-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9em;">
+                    <div class="file-selection-controls" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.85em;">
                             <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAll(this.checked)"
-                                   style="width: 16px; height: 16px; cursor: pointer;">
-                            <span>すべて選択</span>
+                                   style="width: 14px; height: 14px; cursor: pointer;">
+                            <span>全選択</span>
                         </label>
                         <button id="deleteSelectedBtn" onclick="deleteSelectedFiles()" disabled
-                                style="padding: 8px 16px; background: white; color: #dc3545; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                                style="padding: 6px 12px; background: white; color: #dc3545; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
                                 onmouseover="if(!this.disabled) this.style.background='#fff5f5'" onmouseout="if(!this.disabled) this.style.background='white'">
-                            🗑️ 選択したファイルを削除
+                            🗑️ 削除
                         </button>
                         <button id="downloadSelectedBtn" onclick="downloadSelectedFiles()" disabled
-                                style="padding: 8px 16px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
+                                style="padding: 6px 12px; background: white; color: #495057; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.8em; cursor: pointer; transition: background 0.2s; white-space: nowrap;"
                                 onmouseover="if(!this.disabled) this.style.background='#f8f9fa'" onmouseout="if(!this.disabled) this.style.background='white'">
-                            📦 選択したファイルをZIPダウンロード
+                            📦 ZIP
                         </button>
-                        <span id="selectedCount" style="padding: 8px 12px; background: #f8f9fa; border-radius: 4px; font-size: 0.85em; color: #495057; display: none;">
-                            <strong id="selectedCountNum">0</strong>件選択中
+                        <span id="selectedCount" style="padding: 6px 10px; background: #f8f9fa; border-radius: 4px; font-size: 0.8em; color: #495057; display: none;">
+                            <strong id="selectedCountNum">0</strong>件選択
                         </span>
                     </div>
                 </div>
@@ -5102,31 +5135,7 @@
                         <tbody>
             `;
 
-            // フォルダ内にいる場合は「一個上のフォルダに移動」行を追加
-            if (currentFolderId !== null) {
-                html += `
-                    <tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6; cursor: pointer; transition: background 0.2s;"
-                        onmouseover="this.style.background='#e9ecef'"
-                        onmouseout="this.style.background='#f8f9fa'"
-                        onclick="navigateUp()">
-                        <td style="padding: 12px; text-align: center;"></td>
-                        <td class="artwork-column" style="padding: 12px; text-align: center;">
-                            <div style="width: 40px; height: 40px; border-radius: 6px; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto;">
-                                ⬆️
-                            </div>
-                        </td>
-                        <td style="padding: 12px;">
-                            <div style="font-weight: 600; color: #495057; font-size: 0.95em;">
-                                .. (上の階層へ)
-                            </div>
-                        </td>
-                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
-                        <td style="padding: 12px; text-align: right; color: #adb5bd;">—</td>
-                        <td style="padding: 12px; text-align: center; color: #adb5bd;">—</td>
-                        <td style="padding: 12px; text-align: center;"></td>
-                    </tr>
-                `;
-            }
+            // パンくずリストで移動できるため、一覧内の「上の階層へ」行は不要
 
             // 現在のフォルダ内のサブフォルダを表示
             const currentFolders = allFolders.filter(f => f.parent_id === currentFolderId);
@@ -5262,7 +5271,7 @@
                             </div>
                         </td>
                         <td style="padding: 10px 12px;" onclick="event.stopPropagation(); playAudioByIndex(${startIdx + idx})" title="クリックで再生">
-                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''} cursor: pointer; transition: color 0.2s;"
+                            <div class="file-name-text" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 800px; ${hasBookmark ? 'color: #1976d2; font-weight: 500;' : ''} cursor: pointer; transition: color 0.2s;"
                                  onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='${hasBookmark ? '#1976d2' : '#212529'}'">
                                 ${file.name.replace(/\.(mp3|m4a|aac|wav)$/i, '')}
                             </div>
