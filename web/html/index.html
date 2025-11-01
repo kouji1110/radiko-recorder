@@ -9,6 +9,11 @@
     <title>録音くん - radiko録音管理システム</title>
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
+
+    <!-- Eruda デバッグコンソール（スマホ用） -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -2268,13 +2273,13 @@
 
                 <!-- 非表示のオーディオ要素（カスタムコントロール使用） -->
                 <audio id="audioPlayer" style="display: none;"
-                       preload="metadata"
+                       preload="auto"
                        ontimeupdate="updatePlaybackPosition()"
                        onloadedmetadata="loadBookmark()"
                        onvolumechange="saveVolume()"
-                       onplay="updatePlayPauseButton(); updateMediaSessionState('playing')"
-                       onpause="updatePlayPauseButton(); updateMediaSessionState('paused')"
-                       onended="updatePlayPauseButton(); updateMediaSessionState('none')">
+                       onplay="updatePlayPauseButton(); if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'playing'; } console.log('▶️ [Audio] onplay - playbackState: playing');"
+                       onpause="updatePlayPauseButton(); if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'paused'; } console.log('⏸️ [Audio] onpause - playbackState: paused');"
+                       onended="updatePlayPauseButton(); if ('mediaSession' in navigator) { navigator.mediaSession.playbackState = 'none'; } console.log('⏹️ [Audio] onended - playbackState: none');">
                     <source id="audioSource" src="" type="audio/mpeg">
                 </audio>
 
@@ -3004,6 +3009,76 @@
                 // 番組表を自動取得
                 await fetchPrograms();
             });
+
+            // audioPlayerのイベントリスナーを追加（デバッグ用）
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (audioPlayer) {
+                // play/pause/endedイベントはHTML属性で処理（playbackState更新のため）
+                // ここではデバッグログのみ
+                audioPlayer.addEventListener('play', () => {
+                    console.log('▶️ [Audio Event] play');
+                });
+                audioPlayer.addEventListener('pause', () => {
+                    console.log('⏸️ [Audio Event] pause');
+                });
+                audioPlayer.addEventListener('ended', () => {
+                    console.log('⏹️ [Audio Event] ended');
+                });
+                audioPlayer.addEventListener('error', (e) => {
+                    console.error('❌ [Audio Event] error:', e);
+                    console.error('Error details:', audioPlayer.error);
+                });
+                audioPlayer.addEventListener('stalled', () => {
+                    console.warn('⚠️ [Audio Event] stalled - playback stopped due to lack of data');
+                    console.log('📊 [Stalled Debug] paused:', audioPlayer.paused, 'readyState:', audioPlayer.readyState, 'networkState:', audioPlayer.networkState);
+
+                    // バックグラウンドでのネットワーク制限による停止の可能性
+                    // 条件に関係なく、再生を試みる
+                    if (!audioPlayer.paused) {
+                        console.log('🔄 [Audio Recovery] Attempting to resume after stall...');
+                        console.log('🔄 [Audio Recovery] Will retry in 2 seconds...');
+                        setTimeout(() => {
+                            console.log('🔄 [Audio Recovery] Retrying now...');
+                            console.log('📊 [Recovery Debug] paused:', audioPlayer.paused, 'readyState:', audioPlayer.readyState);
+
+                            // pausedでなければ再生を試みる（readyStateに関係なく）
+                            if (!audioPlayer.paused) {
+                                console.log('🔄 [Audio Recovery] Calling play()...');
+                                audioPlayer.play().then(() => {
+                                    console.log('✅ [Audio Recovery] Play succeeded');
+                                }).catch(err => {
+                                    console.error('❌ [Audio Recovery] Play failed:', err);
+                                    // play()が失敗したらload()してから再試行
+                                    console.log('🔄 [Audio Recovery] Trying load() + play()...');
+                                    audioPlayer.load();
+                                    setTimeout(() => {
+                                        audioPlayer.play().catch(err2 => {
+                                            console.error('❌ [Audio Recovery] Second attempt failed:', err2);
+                                        });
+                                    }, 500);
+                                });
+                            } else {
+                                console.log('ℹ️ [Audio Recovery] Audio is paused, skipping recovery');
+                            }
+                        }, 2000);
+                    } else {
+                        console.log('ℹ️ [Stalled] Audio is already paused, no recovery needed');
+                    }
+                });
+                audioPlayer.addEventListener('waiting', () => {
+                    console.log('⏳ [Audio Event] waiting - buffering...');
+                });
+                audioPlayer.addEventListener('playing', () => {
+                    console.log('▶️ [Audio Event] playing - playback started after pause/waiting');
+                });
+                audioPlayer.addEventListener('loadstart', () => {
+                    console.log('📥 [Audio Event] loadstart - started loading');
+                });
+                audioPlayer.addEventListener('loadeddata', () => {
+                    console.log('📦 [Audio Event] loadeddata - first frame loaded');
+                });
+                console.log('✅ Audio player event listeners initialized');
+            }
         });
 
         // 「番組表を取得」ボタンは強制更新
@@ -7011,96 +7086,164 @@
             // オーディオプレイヤーのソースを設定
             const audioPlayer = document.getElementById('audioPlayer');
             const audioSource = document.getElementById('audioSource');
+
+            // 既存の再生を停止してリセット（重要！）
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+
             const streamUrl = `${baseUrl}/stream/${filepath}`;
 
             // タイトルを表示
             document.getElementById('audioPlayerTitle').textContent = filename;
 
-            // 番組タイトルを抽出してアートワークを読み込み
+            // 番組タイトルを抽出
             const programTitle = extractProgramTitle(filename);
-            const artworkUrl = await loadArtworkForTitle(programTitle);
 
-            // アートワーク画像のsrcを更新
+            // まずデフォルト画像を設定（即座に表示）
             const artworkImg = document.querySelector('#audioPlayerModal img[alt="Artwork"]');
             if (artworkImg) {
-                artworkImg.src = artworkUrl;
+                artworkImg.src = 'img/jacket.png';
             }
 
             // モーダルを表示
             document.getElementById('audioPlayerModal').classList.add('active');
             document.body.classList.add('modal-open');
 
-            // ソースを設定して読み込み
-            audioSource.src = streamUrl;
-            audioPlayer.load();
+            // fileDataの中身を確認（デバッグ用）
+            console.log('📦 [FileData] Full object:', fileData);
+            console.log('📦 [FileData] program_info:', fileData?.program_info);
 
-            // 音量を復元
-            loadVolume();
+            // 出演者情報を取得（番組表データから）
+            const performer = fileData?.program_info?.program_performer || fileData?.program_performer || null;
+            console.log('🎤 [Performer] Found:', performer);
+
+            // 番組情報があればそれを使用、なければデフォルト値
+            const stationName = fileData?.station_name || 'radiko録音';
+
+            // start_timeのフォーマット: YYYYMMDDHHmmss → YYYY/MM/DD
+            let formattedDate = 'ラジオ録音';
+            if (fileData?.start_time) {
+                const st = fileData.start_time;
+                // YYYYMMDDの形式から YYYY/MM/DD に変換
+                if (st.length >= 8) {
+                    formattedDate = `${st.substring(0, 4)}/${st.substring(4, 6)}/${st.substring(6, 8)}放送`;
+                }
+            }
+
+            // メタデータの構成を決定
+            // performer情報があれば使用
+            const artist = performer || stationName;
+            const album = performer ? `${stationName} - ${formattedDate}` : formattedDate;
+
+            console.log('🎵 [Media Session] Setting up...');
+            console.log('📝 Title:', programTitle || filename);
+            console.log('🎤 Artist:', artist);
+            console.log('💿 Album:', album);
+
+            // デフォルトアートワークでまず設定（iOSの認識のため）
+            const defaultArtworkArray = [{
+                src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==',
+                sizes: '512x512',
+                type: 'image/svg+xml'
+            }];
 
             // Media Session API でメタデータを設定（iOS Safari等のネイティブプレイヤー対応）
+            // 重要: 再生開始"前"に設定し、再生中は変更しない
             if ('mediaSession' in navigator) {
-                // 番組情報があればそれを使用、なければデフォルト値
-                const artist = fileData?.station_name || 'radiko録音';
-                const album = fileData?.start_time ? `${fileData.start_time.substring(0, 10).replace(/-/g, '/')}放送` : 'ラジオ録音';
+                try {
+                    // まず既存のhandlersをクリア（重複登録を防ぐ）
+                    console.log('🧹 [Media Session] Clearing old handlers before setting new ones...');
+                    const actions = ['play', 'pause', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack'];
+                    actions.forEach(action => {
+                        try {
+                            navigator.mediaSession.setActionHandler(action, null);
+                        } catch (e) {
+                            // サポートされていないactionはスキップ
+                        }
+                    });
 
-                // アートワークの配列を準備
-                const artworkArray = [];
+                    console.log('🎵 [Media Session] Creating MediaMetadata...');
+                    console.log('📋 Metadata:', {
+                        title: programTitle || filename,
+                        artist: artist,
+                        album: album,
+                        artworkCount: defaultArtworkArray.length
+                    });
 
-                // 読み込んだアートワークがあれば追加
-                if (artworkUrl && !artworkUrl.includes('jacket.png')) {
-                    artworkArray.push({ src: artworkUrl, sizes: '512x512', type: 'image/jpeg' });
+                    const metadata = new MediaMetadata({
+                        title: programTitle || filename,
+                        artist: artist,
+                        album: album,
+                        artwork: defaultArtworkArray
+                    });
+
+                    console.log('🎵 [Media Session] Setting metadata...');
+                    navigator.mediaSession.metadata = metadata;
+                    console.log('✅ [Media Session] Metadata set successfully');
+
+                    // Media Session のアクションハンドラーを設定
+                    console.log('🎮 [Media Session] Setting action handlers...');
+                    navigator.mediaSession.setActionHandler('play', () => {
+                        console.log('🎮 [Action] play handler called');
+                        audioPlayer.play();
+                    });
+                    navigator.mediaSession.setActionHandler('pause', () => {
+                        console.log('🎮 [Action] pause handler called');
+                        audioPlayer.pause();
+                    });
+                    navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                        console.log('🎮 [Action] seekbackward handler called');
+                        skipAudio(-10);
+                    });
+                    navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                        console.log('🎮 [Action] seekforward handler called');
+                        skipAudio(10);
+                    });
+                    navigator.mediaSession.setActionHandler('seekto', (details) => {
+                        console.log('🎮 [Action] seekto handler called:', details.seekTime);
+                        if (details.seekTime) {
+                            audioPlayer.currentTime = details.seekTime;
+                        }
+                    });
+
+                    // 次/前トラックのハンドラー（複数ファイル再生時）
+                    navigator.mediaSession.setActionHandler('nexttrack', () => {
+                        console.log('🎮 [Action] nexttrack handler called');
+                        const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
+                        if (currentIndex >= 0 && currentIndex < currentDisplayedFiles.length - 1) {
+                            playAudioByIndex(currentIndex + 1);
+                        }
+                    });
+                    navigator.mediaSession.setActionHandler('previoustrack', () => {
+                        console.log('🎮 [Action] previoustrack handler called');
+                        const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
+                        if (currentIndex > 0) {
+                            playAudioByIndex(currentIndex - 1);
+                        }
+                    });
+
+                    // 初期状態を設定
+                    navigator.mediaSession.playbackState = 'none';
+                    console.log('✅ [Media Session] All action handlers set successfully');
+                } catch (err) {
+                    console.error('❌ [Media Session] Setup error:', err);
+                    console.error('❌ Error stack:', err.stack);
                 }
-
-                // フォールバック用のSVGアイコンを追加
-                artworkArray.push({
-                    src: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImdyYWQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NjdlZWE7c3RvcC1vcGFjaXR5OjEiIC8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojNzY0YmEyO3N0b3Atb3BhY2l0eToxIiAvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJ1cmwoI2dyYWQpIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMjAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIj7wn461PC90ZXh0Pjwvc3ZnPg==',
-                    sizes: '512x512',
-                    type: 'image/svg+xml'
-                });
-
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: programTitle || filename,
-                    artist: artist,
-                    album: album,
-                    artwork: artworkArray
-                });
-
-                // Media Session のアクションハンドラーを設定
-                navigator.mediaSession.setActionHandler('play', () => {
-                    audioPlayer.play();
-                });
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    audioPlayer.pause();
-                });
-                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-                    skipAudio(-10);
-                });
-                navigator.mediaSession.setActionHandler('seekforward', (details) => {
-                    skipAudio(10);
-                });
-                navigator.mediaSession.setActionHandler('seekto', (details) => {
-                    if (details.seekTime) {
-                        audioPlayer.currentTime = details.seekTime;
-                    }
-                });
-
-                // 次/前トラックのハンドラー（複数ファイル再生時）
-                navigator.mediaSession.setActionHandler('nexttrack', () => {
-                    const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
-                    if (currentIndex >= 0 && currentIndex < currentDisplayedFiles.length - 1) {
-                        playAudioByIndex(currentIndex + 1);
-                    }
-                });
-                navigator.mediaSession.setActionHandler('previoustrack', () => {
-                    const currentIndex = currentDisplayedFiles.findIndex(f => f.path === currentAudioFilePath);
-                    if (currentIndex > 0) {
-                        playAudioByIndex(currentIndex - 1);
-                    }
-                });
-
-                // 初期状態を設定
-                navigator.mediaSession.playbackState = 'none';
+            } else {
+                console.warn('⚠️ [Media Session] API not available');
             }
+
+            // 現在の音量を保存（srcを変更するとリセットされるため）
+            const currentVolume = audioPlayer.volume;
+            console.log('🔊 [Volume] Saving current volume before src change:', currentVolume);
+
+            // ソースを直接audio要素に設定（source要素は使わない）
+            console.log('🎵 [Audio] Setting source:', streamUrl);
+            audioPlayer.src = streamUrl;
+
+            // 音量を即座に復元（srcリセット対策）
+            audioPlayer.volume = currentVolume;
+            console.log('🔊 [Volume] Restored volume after src change:', audioPlayer.volume);
 
             // キーボードショートカットを設定（左右矢印キー）
             // 既存のリスナーがあれば削除
@@ -7129,15 +7272,41 @@
             // リスナーを追加
             document.addEventListener('keydown', audioKeyboardListener);
 
-            // loadが完了したら自動再生
-            audioPlayer.addEventListener('canplay', function playWhenReady() {
-                audioPlayer.play().catch(err => {
-                    console.error('Auto-play failed:', err);
-                    // 自動再生が失敗してもエラーは表示しない（ユーザーが手動で再生できる）
-                });
-                // イベントリスナーを削除（一度だけ実行）
-                audioPlayer.removeEventListener('canplay', playWhenReady);
-            }, { once: true });
+            // ブックマーク位置を事前に設定（play()を呼ぶ前に実行）
+            const savedTime = localStorage.getItem(`bookmark_${currentAudioFilePath}`);
+            if (savedTime) {
+                const time = parseFloat(savedTime);
+                console.log('📖 [Bookmark] Will restore position:', time);
+                // currentTimeはplay()の後に設定（メタデータ読み込み後）
+                audioPlayer.addEventListener('loadedmetadata', function restorePosition() {
+                    console.log('📖 [Bookmark] Restoring position after metadata loaded:', time);
+                    audioPlayer.currentTime = time;
+                    audioPlayer.removeEventListener('loadedmetadata', restorePosition);
+                }, { once: true });
+            } else {
+                console.log('📖 [Bookmark] No saved position, starting from beginning');
+            }
+
+            // ユーザータップのコンテキスト内で直接play()を呼ぶ（iOSバックグラウンド再生のため重要）
+            console.log('▶️ [Audio] Calling play() directly in user gesture context');
+            audioPlayer.play().then(() => {
+                console.log('✅ [Audio] Playback started successfully (user-initiated)');
+            }).catch(err => {
+                console.error('❌ [Audio] Play failed:', err);
+                // エラー時はユーザーに通知
+            });
+
+            // 再生開始後、アートワークを非同期で読み込み（UIのみ更新、Media Sessionは触らない）
+            loadArtworkForTitle(programTitle).then(artworkUrl => {
+                console.log('🖼️ [Artwork] Loaded after playback:', artworkUrl);
+                if (artworkImg && artworkUrl !== 'img/jacket.png') {
+                    artworkImg.src = artworkUrl;
+                    console.log('✅ [Artwork] Web UI image updated (after playback)');
+                }
+                // Media Sessionは再生中に更新しない（iOSの再読み込みを避けるため）
+            }).catch(err => {
+                console.error('❌ [Artwork] Failed to load:', err);
+            });
         }
 
         // Media Session状態を更新する関数
@@ -7152,16 +7321,22 @@
         document.addEventListener('visibilitychange', () => {
             const audioPlayer = document.getElementById('audioPlayer');
             if (document.hidden) {
-                // バックグラウンドに入った時、再生中なら状態を維持
-                if (!audioPlayer.paused && 'mediaSession' in navigator) {
-                    navigator.mediaSession.playbackState = 'playing';
-                    console.log('Page hidden, maintaining playback state');
-                }
+                // バックグラウンドに入った時
+                console.log('📱 [Visibility] Page hidden (background)');
+                console.log('🔊 [Audio State] paused:', audioPlayer.paused, 'currentTime:', audioPlayer.currentTime, 'readyState:', audioPlayer.readyState);
+                // playbackStateは触らない（HTML属性のonplay/onpauseに任せる）
+                console.log('ℹ️ [Visibility] Letting audio continue naturally');
             } else {
                 // フォアグラウンドに戻った時
-                if (!audioPlayer.paused && 'mediaSession' in navigator) {
-                    navigator.mediaSession.playbackState = 'playing';
-                    console.log('Page visible, confirming playback state');
+                console.log('📱 [Visibility] Page visible (foreground)');
+                console.log('🔊 [Audio State] paused:', audioPlayer.paused, 'currentTime:', audioPlayer.currentTime, 'readyState:', audioPlayer.readyState);
+
+                // フォアグラウンドに戻った時、readyStateが低い場合のみ再生を試みる
+                if (!audioPlayer.paused && audioPlayer.readyState < 3) {
+                    console.log('🔄 [Visibility Recovery] readyState low, attempting to resume...');
+                    audioPlayer.play().catch(err => {
+                        console.error('❌ [Visibility Recovery] Play failed:', err);
+                    });
                 }
             }
         });
@@ -7170,6 +7345,11 @@
         function closeAudioPlayer() {
             const audioPlayer = document.getElementById('audioPlayer');
 
+            console.log('🔒 [Close] Saving playback position before close...');
+            console.log('📍 Current file:', currentAudioFilePath);
+            console.log('⏱️ Current time:', audioPlayer.currentTime);
+            console.log('⏱️ Duration:', audioPlayer.duration);
+
             // 閉じる前に最後の位置を自動保存
             if (currentAudioFilePath && audioPlayer.currentTime > 3) {
                 const duration = audioPlayer.duration;
@@ -7177,11 +7357,17 @@
                 if (!isNaN(duration) && duration - audioPlayer.currentTime > 3) {
                     localStorage.setItem(`bookmark_${currentAudioFilePath}`, audioPlayer.currentTime.toString());
                     localStorage.setItem(`duration_${currentAudioFilePath}`, duration.toString());
+                    console.log('✅ [Bookmark] Saved:', audioPlayer.currentTime, '/', duration);
                 } else if (!isNaN(duration) && duration - audioPlayer.currentTime < 3) {
                     // 最後まで再生した場合は削除
                     localStorage.removeItem(`bookmark_${currentAudioFilePath}`);
                     localStorage.removeItem(`duration_${currentAudioFilePath}`);
+                    console.log('🗑️ [Bookmark] Removed (finished)');
+                } else {
+                    console.log('ℹ️ [Bookmark] Not saved (duration check failed)');
                 }
+            } else {
+                console.log('ℹ️ [Bookmark] Not saved (time < 3s or no file)');
             }
 
             // キーボードイベントリスナーを削除
@@ -7191,7 +7377,34 @@
             }
 
             audioPlayer.pause();
-            audioPlayer.currentTime = 0;
+            // currentTimeは0にしない（次回開いた時のために位置を保持）
+            // audioPlayer.currentTime = 0;
+
+            // Media Sessionをクリア（重要！次回の再生のために完全にリセット）
+            if ('mediaSession' in navigator) {
+                console.log('🧹 [Media Session] Clearing all settings...');
+                try {
+                    // metadataをnullに
+                    navigator.mediaSession.metadata = null;
+
+                    // すべてのaction handlersをクリア
+                    const actions = ['play', 'pause', 'seekbackward', 'seekforward', 'seekto', 'previoustrack', 'nexttrack'];
+                    actions.forEach(action => {
+                        try {
+                            navigator.mediaSession.setActionHandler(action, null);
+                        } catch (e) {
+                            // サポートされていないactionはスキップ
+                        }
+                    });
+
+                    // playback stateをnoneに
+                    navigator.mediaSession.playbackState = 'none';
+                    console.log('✅ [Media Session] Cleared successfully');
+                } catch (err) {
+                    console.error('❌ [Media Session] Clear error:', err);
+                }
+            }
+
             document.getElementById('audioPlayerModal').classList.remove('active');
             document.body.classList.remove('modal-open');
             // 再生速度をリセット
@@ -7371,14 +7584,27 @@
 
         // ブックマークを読み込み
         function loadBookmark() {
-            if (!currentAudioFilePath) return;
+            console.log('📖 [Bookmark] loadBookmark() called');
+            console.log('📍 currentAudioFilePath:', currentAudioFilePath);
+
+            if (!currentAudioFilePath) {
+                console.log('⚠️ [Bookmark] No currentAudioFilePath, skipping');
+                return;
+            }
 
             const savedTime = localStorage.getItem(`bookmark_${currentAudioFilePath}`);
+            console.log('💾 [Bookmark] localStorage key:', `bookmark_${currentAudioFilePath}`);
+            console.log('💾 [Bookmark] savedTime:', savedTime);
+
             if (savedTime) {
                 const audioPlayer = document.getElementById('audioPlayer');
                 const time = parseFloat(savedTime);
+                console.log('⏱️ [Bookmark] Restoring to:', time);
                 // 再生位置を復元
                 audioPlayer.currentTime = time;
+                console.log('✅ [Bookmark] Restored! audioPlayer.currentTime =', audioPlayer.currentTime);
+            } else {
+                console.log('ℹ️ [Bookmark] No saved time found');
             }
         }
 
@@ -7505,6 +7731,9 @@
             const today = new Date();
             const dateStr = today.toISOString().slice(0, 10);
             document.getElementById('targetDate').value = dateStr;
+
+            // 音量をlocalStorageから復元
+            loadVolume();
         });
 
         // ==================== 管理メニュー機能 ====================
@@ -8539,16 +8768,24 @@
             const proxyUrl = document.getElementById('proxyUrl').value;
             const baseUrl = proxyUrl.trim() || '';
 
+            console.log('🎨 [Artwork] Loading artwork for title:', title);
+
             try {
-                const response = await fetch(`${baseUrl}/artwork/${encodeURIComponent(title)}`);
+                const artworkUrl = `${baseUrl}/artwork/${encodeURIComponent(title)}`;
+                console.log('🎨 [Artwork] Checking URL:', artworkUrl);
+
+                const response = await fetch(artworkUrl, { method: 'HEAD' });
+                console.log('🎨 [Artwork] Response status:', response.status);
+
                 if (response.ok) {
-                    const blob = await response.blob();
-                    return URL.createObjectURL(blob);
+                    console.log('✅ [Artwork] Found! Returning URL:', artworkUrl);
+                    return artworkUrl; // URLを直接返す（blob不要）
                 } else {
+                    console.warn('⚠️ [Artwork] Not found, using default');
                     return 'img/jacket.png'; // デフォルト画像
                 }
             } catch (err) {
-                console.error('Load artwork error:', err);
+                console.error('❌ [Artwork] Load error:', err);
                 return 'img/jacket.png'; // デフォルト画像
             }
         }
