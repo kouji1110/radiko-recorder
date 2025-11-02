@@ -8582,8 +8582,16 @@
             const canvas = document.getElementById('artworkCanvas');
             const cropBox = document.getElementById('cropBox');
 
-            // クロップボックスのドラッグ移動
-            cropBox.addEventListener('mousedown', (e) => {
+            // マウスとタッチの座標を取得するヘルパー関数
+            function getEventCoords(e) {
+                if (e.touches && e.touches.length > 0) {
+                    return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+                }
+                return { clientX: e.clientX, clientY: e.clientY };
+            }
+
+            // ドラッグ開始ハンドラ（マウスとタッチ共通）
+            function handleStart(e) {
                 // ハンドルクリックの場合はリサイズモードに
                 if (e.target.hasAttribute('data-handle')) {
                     isResizing = true;
@@ -8598,22 +8606,29 @@
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
 
-                dragStartX = (e.clientX - rect.left) * scaleX;
-                dragStartY = (e.clientY - rect.top) * scaleY;
+                const coords = getEventCoords(e);
+                dragStartX = (coords.clientX - rect.left) * scaleX;
+                dragStartY = (coords.clientY - rect.top) * scaleY;
 
                 e.preventDefault();
-            });
+            }
 
-            // マウス移動ハンドラ
-            document.addEventListener('mousemove', (e) => {
+            // クロップボックスのドラッグ移動（マウス）
+            cropBox.addEventListener('mousedown', handleStart);
+            // タッチ対応
+            cropBox.addEventListener('touchstart', handleStart, { passive: false });
+
+            // 移動ハンドラ（マウスとタッチ共通）
+            function handleMove(e) {
                 if (!isDragging && !isResizing) return;
 
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
 
-                const currentX = (e.clientX - rect.left) * scaleX;
-                const currentY = (e.clientY - rect.top) * scaleY;
+                const coords = getEventCoords(e);
+                const currentX = (coords.clientX - rect.left) * scaleX;
+                const currentY = (coords.clientY - rect.top) * scaleY;
 
                 if (isDragging) {
                     // ボックス移動
@@ -8694,14 +8709,23 @@
                 }
 
                 e.preventDefault();
-            });
+            }
 
-            // マウスアップハンドラ
-            document.addEventListener('mouseup', () => {
+            // 終了ハンドラ（マウスとタッチ共通）
+            function handleEnd() {
                 isDragging = false;
                 isResizing = false;
                 resizeHandle = null;
-            });
+            }
+
+            // マウス移動・終了ハンドラ
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+
+            // タッチ移動・終了ハンドラ
+            document.addEventListener('touchmove', handleMove, { passive: false });
+            document.addEventListener('touchend', handleEnd);
+            document.addEventListener('touchcancel', handleEnd);
         }
 
         function applyAndWaitForCrop() {
