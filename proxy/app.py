@@ -1129,6 +1129,15 @@ def add_cron():
             logger.info(f"📝 Schedule: minute={parsed['minute']}, hour={parsed['hour']}, dow={parsed['dayOfWeek']} -> {apscheduler_dow}")
             logger.info(f"📝 Command: {parsed['command'][:100]}")
 
+            # メタデータを構築
+            metadata = {
+                'title': parsed['title'],
+                'rss': parsed['station'],
+                'station': parsed['station'],
+                'start_time': parsed['startTime'],
+                'end_time': parsed['endTime']
+            }
+
             scheduler.add_job(
                 func=execute_recording,
                 trigger='cron',
@@ -1137,7 +1146,7 @@ def add_cron():
                 day='*',
                 month='*',
                 day_of_week=apscheduler_dow,
-                args=[parsed['command'], job_id, 'cron'],
+                args=[parsed['command'], job_id, 'cron', metadata],
                 id=f"cron_{job_id}",
                 replace_existing=True
             )
