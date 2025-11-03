@@ -5557,6 +5557,17 @@
             cronList.innerHTML = '';
 
             try {
+                // フォルダ一覧を先に取得（フォルダ名表示のため）
+                try {
+                    const foldersResponse = await fetch(`${baseUrl}/folders`);
+                    if (foldersResponse.ok) {
+                        const foldersData = await foldersResponse.json();
+                        allFolders = foldersData.folders || [];
+                    }
+                } catch (err) {
+                    console.warn('Failed to load folders:', err);
+                }
+
                 const response = await fetch(`${baseUrl}/cron/list`);
                 if (!response.ok) {
                     cronLoading.style.display = 'none';
@@ -5606,6 +5617,16 @@
                     const endTime = job.endTime ? `${job.endTime.slice(0,2)}:${job.endTime.slice(2,4)}` : '';
                     const timeRange = startTime && endTime ? `${startTime}-${endTime}` : '';
 
+                    // フォルダ情報を取得
+                    let folderInfo = '';
+                    if (job.virtual_folder_id) {
+                        const folder = allFolders.find(f => f.id === job.virtual_folder_id);
+                        if (folder) {
+                            const icon = folder.icon || '📁';
+                            folderInfo = `<span style="color: ${folder.color || '#667eea'};">📁 ${folder.name}</span>`;
+                        }
+                    }
+
                     const isMobile = window.innerWidth <= 768;
 
                     if (isMobile) {
@@ -5626,6 +5647,11 @@
                                         <div style="display: flex; align-items: center; gap: 4px;">
                                             <span>🕒</span>
                                             <span>${timeRange}</span>
+                                        </div>
+                                    ` : ''}
+                                    ${folderInfo ? `
+                                        <div style="display: flex; align-items: center; gap: 4px;">
+                                            ${folderInfo}
                                         </div>
                                     ` : ''}
                                     <div style="display: flex; align-items: center; gap: 4px; color: #6c757d; font-size: 0.8em;">
@@ -5657,6 +5683,7 @@
                                     <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.8em; color: #6c757d;">
                                         ${station ? `<span>🏢 ${station}</span>` : ''}
                                         ${timeRange ? `<span>📡 ${timeRange}</span>` : ''}
+                                        ${folderInfo ? `<span>${folderInfo}</span>` : ''}
                                         <span>⏰ ${cronInfo.description.replace('実行タイミング: ', '')}</span>
                                     </div>
                                 </div>
@@ -6280,6 +6307,14 @@
             // フォルダ一覧を読み込む
             await loadFoldersForCronEdit();
 
+            // フォルダ選択を設定
+            const folderSelect = document.getElementById('editCronFolder');
+            if (folderSelect && jobData.virtual_folder_id) {
+                folderSelect.value = jobData.virtual_folder_id;
+            } else if (folderSelect) {
+                folderSelect.value = '';
+            }
+
             // モーダルを表示
             document.getElementById('cronEditModal').classList.add('active');
         }
@@ -6338,8 +6373,12 @@
 
                 const endDateCalc = '\`date +\\%Y\\%m\\%d\`';
 
-                // cronコマンドを生成
-                const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "" "" >> /tmp/myradiko_output.log 2>&1`;
+                // フォルダIDを取得
+                const folderSelect = document.getElementById('editCronFolder');
+                const folderId = folderSelect ? folderSelect.value : '';
+
+                // cronコマンドを生成（第7引数にフォルダID）
+                const fullCommand = `${minute} ${hour} * * ${dayOfWeek} ${scriptPath} "${title}" "${station}" "${station}" "${startDateCalc}${startHHMM}" "${endDateCalc}${endHHMM}" "" "${folderId}" "" >> /tmp/myradiko_output.log 2>&1`;
                 document.getElementById('editCommandPreview').value = fullCommand;
             }
         }

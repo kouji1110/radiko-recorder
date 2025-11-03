@@ -199,10 +199,40 @@ def init_database():
         # デフォルトアートワークを登録
         init_default_artwork()
 
+        # マイグレーション：cron_jobsテーブルにvirtual_folder_idを追加
+        migrate_cron_jobs_add_folder_id()
+
         return True
 
     except Exception as e:
         logger.error(f'❌ Database initialization error: {str(e)}')
+        return False
+
+
+def migrate_cron_jobs_add_folder_id():
+    """cron_jobsテーブルにvirtual_folder_idカラムを追加（マイグレーション）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # カラムが既に存在するかチェック
+        cursor.execute("PRAGMA table_info(cron_jobs)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if 'virtual_folder_id' not in columns:
+            cursor.execute('''
+                ALTER TABLE cron_jobs ADD COLUMN virtual_folder_id INTEGER
+            ''')
+            conn.commit()
+            logger.info('✅ Migration: Added virtual_folder_id to cron_jobs table')
+        else:
+            logger.info('ℹ️ Migration: virtual_folder_id already exists in cron_jobs table')
+
+        conn.close()
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Migration error: {str(e)}')
         return False
 
 
@@ -550,22 +580,22 @@ def cleanup_old_data(days_to_keep: int = 15):
 # ========================================
 
 def save_cron_job(minute: str, hour: str, day_of_month: str, month: str, day_of_week: str,
-                  command: str, title: str = '', station: str = '', start_time: str = '', end_time: str = ''):
+                  command: str, title: str = '', station: str = '', start_time: str = '', end_time: str = '', virtual_folder_id: int = None):
     """cron予約をDBに保存"""
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT INTO cron_jobs (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time))
+            INSERT INTO cron_jobs (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time, virtual_folder_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (minute, hour, day_of_month, month, day_of_week, command, title, station, start_time, end_time, virtual_folder_id))
 
         job_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
-        logger.info(f'✅ Cron job saved: {job_id}')
+        logger.info(f'✅ Cron job saved: {job_id} (folder_id={virtual_folder_id})')
         return job_id
 
     except Exception as e:
@@ -598,7 +628,8 @@ def get_all_cron_jobs():
                 'station': row['station'],
                 'start_time': row['start_time'],
                 'end_time': row['end_time'],
-                'created_at': row['created_at']
+                'created_at': row['created_at'],
+                'virtual_folder_id': row['virtual_folder_id'] if 'virtual_folder_id' in row.keys() else None
             })
 
         return jobs
@@ -920,7 +951,8 @@ def get_all_recorded_files(limit: int = 1000, offset: int = 0):
                 'duration': row['duration'],
                 'file_modified': row['file_modified'],
                 'created_at': row['created_at'],
-                'updated_at': row['updated_at']
+                'updated_at': row['updated_at'],
+                'virtual_folder_id': row['virtual_folder_id'] if 'virtual_folder_id' in row.keys() else None
             }
 
             # 番組表データがあれば追加
