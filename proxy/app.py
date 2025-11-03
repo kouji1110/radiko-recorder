@@ -121,6 +121,8 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
     try:
         logger.info(f'🎙️ Recording started (type={job_type}, job_id={job_id})')
         logger.info(f'📝 Command: {command}')
+        logger.info(f'📋 Metadata received: {metadata}')
+        logger.info(f'📋 Metadata type: {type(metadata)}, bool: {bool(metadata)}')
 
         # コマンドからフォルダIDパラメータを抽出（第7引数）
         # 形式: myradiko "title" "rss" "station" "start" "end" "" "folder_id" "" >> ...
@@ -163,6 +165,13 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                     rss = metadata.get('rss', '')
                     start_time = metadata.get('start_time', '')
                     station = metadata.get('station', '')
+
+                    # start_timeが4桁（HHMM）の場合、今日の日付を前置
+                    if len(start_time) == 4:
+                        from datetime import datetime
+                        today_date = datetime.now().strftime('%Y%m%d')
+                        start_time = today_date + start_time
+                        logger.info(f'📅 Expanded start_time from HHMM to YYYYMMDDHHMM: {start_time}')
 
                     # ファイル名を生成
                     filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
