@@ -608,6 +608,11 @@
                 flex: 1;
                 min-width: 100%;
             }
+
+            /* モバイルでは音量調整バーを非表示 */
+            #volumeControlContainer {
+                display: none !important;
+            }
         }
 
         /* タイムライン表示用CSS */
@@ -6674,15 +6679,17 @@
                     });
 
                     console.log('🎵 [Media Session] Creating MediaMetadata...');
+                    // ファイル名から拡張子を除去
+                    const filenameWithoutExt = filename.replace(/\.(mp3|m4a|aac|wav)$/i, '');
                     console.log('📋 Metadata:', {
-                        title: programTitle || filename,
+                        title: filenameWithoutExt,
                         artist: artist,
                         album: album,
                         artwork: artworkArray
                     });
 
                     const metadata = new MediaMetadata({
-                        title: programTitle || filename,
+                        title: filenameWithoutExt,
                         artist: artist,
                         album: album,
                         artwork: artworkArray
