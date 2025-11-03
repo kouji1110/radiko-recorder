@@ -1034,7 +1034,8 @@ def list_cron():
                 'title': job['title'],
                 'station': job['station'],
                 'startTime': job['start_time'],
-                'endTime': job['end_time']
+                'endTime': job['end_time'],
+                'virtual_folder_id': job.get('virtual_folder_id')
             })
 
         return jsonify({'cron_jobs': cron_jobs})
@@ -1112,6 +1113,23 @@ def add_cron():
         # cronコマンドをパース
         parsed = parse_cron_command(cron_command)
 
+        # コマンドからフォルダIDを抽出（第7引数）
+        virtual_folder_id = None
+        try:
+            import re
+            pattern = r'"([^"]*)"'
+            matches = re.findall(pattern, parsed['command'])
+            if len(matches) >= 7:
+                folder_id_str = matches[6]  # 7番目の引数（0-indexed）
+                if folder_id_str and folder_id_str != '':
+                    try:
+                        virtual_folder_id = int(folder_id_str)
+                        logger.info(f'📁 Extracted folder_id from cron command: {virtual_folder_id}')
+                    except (ValueError, TypeError):
+                        logger.warning(f'⚠️ Invalid folder ID in cron command: {folder_id_str}')
+        except Exception as e:
+            logger.warning(f'⚠️ Failed to extract folder from cron command: {str(e)}')
+
         # DBに保存
         job_id = db.save_cron_job(
             minute=parsed['minute'],
@@ -1123,7 +1141,8 @@ def add_cron():
             title=parsed['title'],
             station=parsed['station'],
             start_time=parsed['startTime'],
-            end_time=parsed['endTime']
+            end_time=parsed['endTime'],
+            virtual_folder_id=virtual_folder_id
         )
 
         if not job_id:

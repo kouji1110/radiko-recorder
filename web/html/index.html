@@ -2398,11 +2398,11 @@
                         <div style="background: white; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.85em;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                 <span style="color: #6c757d;">開始:</span>
-                                <span id="editStartTime" style="font-weight: 600; color: #00b894;">未設定</span>
+                                <span id="audioEditStartTime" style="font-weight: 600; color: #00b894;">未設定</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                 <span style="color: #6c757d;">終了:</span>
-                                <span id="editEndTime" style="font-weight: 600; color: #0984e3;">未設定</span>
+                                <span id="audioEditEndTime" style="font-weight: 600; color: #0984e3;">未設定</span>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="color: #6c757d;">範囲:</span>
@@ -6260,6 +6260,8 @@
 
         // cronジョブを編集
         async function editCronJob(index, jobData) {
+            console.log('📝 [editCronJob] jobData:', jobData);
+
             // jobDataはパースされたオブジェクト
             if (typeof jobData === 'string') {
                 // 旧形式の場合はパースする
@@ -6291,11 +6293,20 @@
             document.getElementById('editDayOfWeek').value = jobData.dayOfWeek;
 
             // 録音時間を設定
+            console.log('⏰ [editCronJob] startTime:', jobData.startTime, 'endTime:', jobData.endTime);
             if (jobData.startTime) {
-                document.getElementById('editStartTime').value = `${jobData.startTime.slice(0,2)}:${jobData.startTime.slice(2,4)}`;
+                const startTimeFormatted = `${jobData.startTime.slice(0,2)}:${jobData.startTime.slice(2,4)}`;
+                console.log('⏰ [editCronJob] Setting startTime input to:', startTimeFormatted);
+                document.getElementById('editStartTime').value = startTimeFormatted;
+            } else {
+                document.getElementById('editStartTime').value = '';
             }
             if (jobData.endTime) {
-                document.getElementById('editEndTime').value = `${jobData.endTime.slice(0,2)}:${jobData.endTime.slice(2,4)}`;
+                const endTimeFormatted = `${jobData.endTime.slice(0,2)}:${jobData.endTime.slice(2,4)}`;
+                console.log('⏰ [editCronJob] Setting endTime input to:', endTimeFormatted);
+                document.getElementById('editEndTime').value = endTimeFormatted;
+            } else {
+                document.getElementById('editEndTime').value = '';
             }
 
             currentEditingCron.original = jobData.raw;
@@ -7511,7 +7522,7 @@
         function markStartTime() {
             const audioPlayer = document.getElementById('audioPlayer');
             editStartTime = audioPlayer.currentTime;
-            document.getElementById('editStartTime').textContent = formatTime(editStartTime);
+            document.getElementById('audioEditStartTime').textContent = formatTime(editStartTime);
             updateEditDuration();
         }
 
@@ -7519,7 +7530,7 @@
         function markEndTime() {
             const audioPlayer = document.getElementById('audioPlayer');
             editEndTime = audioPlayer.currentTime;
-            document.getElementById('editEndTime').textContent = formatTime(editEndTime);
+            document.getElementById('audioEditEndTime').textContent = formatTime(editEndTime);
             updateEditDuration();
         }
 
@@ -7575,8 +7586,8 @@
                     // 編集位置をリセット
                     editStartTime = null;
                     editEndTime = null;
-                    document.getElementById('editStartTime').textContent = '未設定';
-                    document.getElementById('editEndTime').textContent = '未設定';
+                    document.getElementById('audioEditStartTime').textContent = '未設定';
+                    document.getElementById('audioEditEndTime').textContent = '未設定';
                     document.getElementById('editDuration').textContent = '--';
                 } else {
                     alert(`❌ エラー: ${data.error || '編集に失敗しました'}`);
