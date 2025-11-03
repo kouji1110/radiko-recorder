@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>録音くん - radiko録音管理システム</title>
+    <title>録音くん - 録音ファイル一覧</title>
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
 
@@ -1528,7 +1528,7 @@
         <header>
             <div>
                 <h1>📻 録音くん</h1>
-                <p>全国47都道府県のラジオ番組を検索・録音予約</p>
+                <p>お気に入りの番組をいつでもお楽しみください</p>
             </div>
             <button class="menu-toggle" onclick="toggleMobileMenu()">☰</button>
         </header>
@@ -1541,167 +1541,19 @@
                 <button class="mobile-menu-close" onclick="closeMobileMenu()">×</button>
             </div>
             <ul class="mobile-menu-items">
-                <li class="mobile-menu-item active" data-tab="search">
-                    <button onclick="switchTabMobile('search')">📻 番組検索</button>
-                </li>
-                <li class="mobile-menu-item" data-tab="files">
-                    <button onclick="switchTabMobile('files')">📁 録音済みファイル</button>
-                </li>
-                <li class="mobile-menu-item" data-tab="at">
-                    <button onclick="switchTabMobile('at')">⏱️ 番組予約管理</button>
-                </li>
-                <li class="mobile-menu-item" data-tab="cron">
-                    <button onclick="switchTabMobile('cron')">⏰ 定期録音管理</button>
-                </li>
-                <li class="mobile-menu-item" data-tab="admin">
-                    <button onclick="switchTabMobile('admin')">🔧 管理メニュー</button>
-                </li>
-                <li class="mobile-menu-item" style="border-top: 2px solid #dee2e6; margin-top: 10px;">
-                    <button onclick="logout()" style="color: #dc3545;">🚪 ログアウト</button>
+                <li class="mobile-menu-item active" data-tab="files">
+                    <button onclick="switchTabMobile('files')">📁 録音ファイル一覧</button>
                 </li>
             </ul>
         </nav>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('search')">📻 番組検索</button>
-            <button class="tab" onclick="switchTab('files')">📁 録音済みファイル</button>
-            <button class="tab" onclick="switchTab('at')">⏱️ 番組予約管理</button>
-            <button class="tab" onclick="switchTab('cron')">⏰ 定期録音管理</button>
-            <button class="tab" onclick="switchTab('admin')">🔧 管理メニュー</button>
+            <button class="tab active" onclick="switchTab('files')">📁 録音ファイル一覧</button>
         </div>
 
-        <!-- 番組検索タブ -->
-        <div id="searchTab" class="tab-content active">
-            <div class="settings">
-            <div class="settings-grid">
-                <div class="setting-group">
-                    <label for="areaId">エリアを選択:</label>
-                    <select id="areaId">
-                        <option value="JP1">北海道</option>
-                        <option value="JP2">青森県</option>
-                        <option value="JP3">岩手県</option>
-                        <option value="JP4">宮城県</option>
-                        <option value="JP5">秋田県</option>
-                        <option value="JP6">山形県</option>
-                        <option value="JP7">福島県</option>
-                        <option value="JP8">茨城県</option>
-                        <option value="JP9">栃木県</option>
-                        <option value="JP10">群馬県</option>
-                        <option value="JP11">埼玉県</option>
-                        <option value="JP12">千葉県</option>
-                        <option value="JP13">東京都</option>
-                        <option value="JP14">神奈川県</option>
-                        <option value="JP15">新潟県</option>
-                        <option value="JP16">富山県</option>
-                        <option value="JP17">石川県</option>
-                        <option value="JP18">福井県</option>
-                        <option value="JP19">山梨県</option>
-                        <option value="JP20">長野県</option>
-                        <option value="JP21">岐阜県</option>
-                        <option value="JP22">静岡県</option>
-                        <option value="JP23">愛知県</option>
-                        <option value="JP24">三重県</option>
-                        <option value="JP25">滋賀県</option>
-                        <option value="JP26">京都府</option>
-                        <option value="JP27">大阪府</option>
-                        <option value="JP28">兵庫県</option>
-                        <option value="JP29">奈良県</option>
-                        <option value="JP30">和歌山県</option>
-                        <option value="JP31">鳥取県</option>
-                        <option value="JP32">島根県</option>
-                        <option value="JP33">岡山県</option>
-                        <option value="JP34">広島県</option>
-                        <option value="JP35">山口県</option>
-                        <option value="JP36">徳島県</option>
-                        <option value="JP37">香川県</option>
-                        <option value="JP38">愛媛県</option>
-                        <option value="JP39">高知県</option>
-                        <option value="JP40">福岡県</option>
-                        <option value="JP41">佐賀県</option>
-                        <option value="JP42">長崎県</option>
-                        <option value="JP43">熊本県</option>
-                        <option value="JP44">大分県</option>
-                        <option value="JP45">宮崎県</option>
-                        <option value="JP46">鹿児島県</option>
-                        <option value="JP47">沖縄県</option>
-                    </select>
-                </div>
-
-                <div class="setting-group">
-                    <div id="dateButtons" style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        <!-- 日付ボタンはJavaScriptで動的に生成 -->
-                    </div>
-                    <!-- スマホ用の日付ピッカー -->
-                    <input type="date" id="datePicker" style="display: none; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.9em;">
-                    <input type="hidden" id="targetDate" value="">
-                </div>
-
-                <div class="setting-group">
-                    <label for="searchKeyword">絞り込み:</label>
-                    <div style="position: relative; display: inline-block;">
-                        <input type="text" id="searchKeyword" placeholder="番組名でフィルタ" style="width: 150px; padding-right: 25px;">
-                        <button id="clearSearchBtn" onclick="clearSearchKeyword()"
-                                style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #999; cursor: pointer; padding: 2px 6px; font-size: 1.1em; display: none;"
-                                onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">
-                            ×
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <button id="fetchBtn" class="btn btn-primary">番組表を更新</button>
-                <button id="searchAllBtn" class="btn btn-primary">全エリアから検索</button>
-
-                <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-                    <span style="font-size: 0.9em; font-weight: 600; color: #495057;">表示モード:</span>
-                    <button id="listViewBtn" onclick="switchViewMode('list')" class="btn" style="background: #27ae60; color: white; min-width: 100px;">📋 リスト</button>
-                    <button id="timelineViewBtn" onclick="switchViewMode('timeline')" class="btn" style="background: #95a5a6; color: white; min-width: 120px;">📺 タイムライン</button>
-                </div>
-            </div>
-        </div>
-
-            <div class="content">
-                <div id="loading" class="loading" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>番組表を読み込み中...</p>
-                </div>
-                <div id="error" class="error" style="display: none;"></div>
-                <div id="searchInfo" style="padding: 8px; font-size: 0.85em; color: #6c757d; display: none;"></div>
-
-                <!-- 全エリア検索結果表示中のインジケーター -->
-                <div id="searchResultsIndicator" style="display: none; padding: 12px; background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.1em;">🔍</span>
-                            <span style="font-weight: 600; color: #0056b3;">全エリア検索結果を表示中</span>
-                        </div>
-                        <button onclick="returnToAreaPrograms()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85em; white-space: nowrap;">
-                            ← 番組表に戻る
-                        </button>
-                    </div>
-                </div>
-
-                <!-- スマホ用の放送局選択 -->
-                <div id="stationSelector" style="display: none; padding: 10px; background: #f8f9fa; border-bottom: 2px solid #dee2e6; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <label for="mobileStationSelect" style="font-size: 0.85em; font-weight: 600; color: #495057; display: block; margin-bottom: 6px;">📻 放送局を選択:</label>
-                    <select id="mobileStationSelect" style="width: 100%; padding: 10px; font-size: 0.9em; border: 1px solid #dee2e6; border-radius: 4px;">
-                        <option value="">-- 放送局を選択してください --</option>
-                    </select>
-                </div>
-
-                <!-- リスト表示 -->
-                <div id="programList" class="program-list"></div>
-
-                <!-- タイムライン表示 -->
-                <div id="timelineView" style="display: none; overflow-x: auto; overflow-y: auto;">
-                    <div id="timelineContainer"></div>
-                </div>
-            </div>
-        </div>
 
         <!-- 録音済みファイルタブ -->
-        <div id="filesTab" class="tab-content">
+        <div id="filesTab" class="tab-content active">
             <div class="content">
                 <div style="padding: 12px; background: white;">
                     <div id="filesHeaderSection" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e9ecef;">
@@ -1761,459 +1613,6 @@
             </div>
         </div>
 
-        <!-- cron管理タブ -->
-        <div id="cronTab" class="tab-content">
-            <div class="content">
-                <div style="padding: 15px; background: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏰ 定期録音管理</h2>
-                        <button class="btn btn-primary" onclick="loadCronJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
-                    </div>
-                    <div id="cronLoading" class="loading" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>cron一覧を読み込み中...</p>
-                    </div>
-                    <div id="cronList"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- at予約タブ -->
-        <div id="atTab" class="tab-content">
-            <div class="content">
-                <div style="padding: 15px; background: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">⏱️ 番組予約管理</h2>
-                        <button class="btn btn-primary" onclick="loadAtJobs()" style="padding: 6px 16px; font-size: 0.9em;">🔄 更新</button>
-                    </div>
-                    <div id="atLoading" class="loading" style="display: none;">
-                        <div class="spinner"></div>
-                        <p>at予約一覧を読み込み中...</p>
-                    </div>
-                    <div id="atList"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 管理メニュータブ -->
-        <div id="adminTab" class="tab-content">
-            <div class="content">
-                <!-- パスワード認証画面 -->
-                <div id="adminAuth" style="padding: 40px; background: white; text-align: center;">
-                    <h2 style="margin-bottom: 20px; color: #212529;">🔐 管理メニュー</h2>
-                    <p style="margin-bottom: 20px; color: #6c757d;">管理者パスワードを入力してください</p>
-                    <div style="max-width: 300px; margin: 0 auto;">
-                        <input type="password" id="adminPassword" placeholder="パスワード"
-                               style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; margin-bottom: 15px;"
-                               onkeypress="if(event.key==='Enter') authenticateAdmin()">
-                        <button onclick="authenticateAdmin()"
-                                style="width: 100%; padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em;">
-                            ログイン
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 管理メニュー本体（認証後に表示） -->
-                <div id="adminPanel" style="display: none; padding: 15px; background: white;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">
-                        <h2 style="margin: 0; font-size: 1.3em; color: #212529;">🔧 管理メニュー</h2>
-                        <button onclick="logoutAdmin()" style="padding: 6px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">ログアウト</button>
-                    </div>
-
-                    <!-- 詳細設定 -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px; background: #f8f9fa;">
-                        <h3 style="margin: 0 0 15px 0; font-size: 1.1em; color: #212529;">⚙️ 詳細設定</h3>
-                        <div style="display: grid; gap: 15px;">
-                            <div>
-                                <label for="proxyUrl" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">プロキシURL</label>
-                                <input type="text" id="proxyUrl" value="" placeholder="空欄でOK（デフォルト: /api）" style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85em;">radikoプロキシサーバーのURL。通常は変更不要です。</p>
-                            </div>
-
-                            <div>
-                                <label for="scriptPath" style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">myradikoスクリプトパス</label>
-                                <input type="text" id="scriptPath" value="/app/script/myradiko" placeholder="/app/script/myradiko" style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.85em;">myradiko録音スクリプトのパス。環境に応じて変更してください。</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- DB番組表一括更新 -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">📊 DB番組表一括更新</h3>
-                        <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">全エリアの番組表をデータベースに取得・更新します（深夜バッチ処理相当）</p>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <select id="updateDays" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <option value="1">今日のみ</option>
-                                <option value="2">2日分 (今日+明日)</option>
-                                <option value="3" selected>3日分</option>
-                                <option value="7">7日分</option>
-                            </select>
-                            <button onclick="updateAllPrograms()" class="btn btn-primary" style="background: #007bff;">
-                                🔄 一括更新開始 (進捗表示)
-                            </button>
-                        </div>
-                        <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 0.85em;">
-                            ⚠️ 進捗を表示するにはブラウザを開いたままにしてください。<br>
-                            バックグラウンドで実行する場合は、深夜3時の自動実行をお待ちください。
-                        </p>
-                        <div id="updateProgress" style="margin-top: 10px; display: none;">
-                            <!-- プログレスバー -->
-                            <div style="margin-bottom: 10px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                    <span id="updateProgressText" style="font-weight: 600; color: #495057; font-size: 0.9em;">準備中...</span>
-                                    <span id="updateProgressPercent" style="font-weight: 600; color: #007bff; font-size: 0.9em;">0%</span>
-                                </div>
-                                <div style="width: 100%; height: 24px; background: #e9ecef; border-radius: 12px; overflow: hidden; position: relative;">
-                                    <div id="updateProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #007bff, #0056b3); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center;">
-                                        <span id="updateProgressBarText" style="color: white; font-size: 0.8em; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.3);"></span>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 5px; font-size: 0.85em; color: #6c757d;" id="updateProgressDetail">待機中...</div>
-                            </div>
-                            <!-- 統計情報 -->
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
-                                <div style="background: #d4edda; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #c3e6cb;">
-                                    <div style="font-size: 0.75em; color: #155724; font-weight: 600;">✅ 成功</div>
-                                    <div style="font-size: 1.2em; font-weight: bold; color: #155724;" id="updateSuccessCount">0</div>
-                                </div>
-                                <div style="background: #f8d7da; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #f5c6cb;">
-                                    <div style="font-size: 0.75em; color: #721c24; font-weight: 600;">❌ エラー</div>
-                                    <div style="font-size: 1.2em; font-weight: bold; color: #721c24;" id="updateErrorCount">0</div>
-                                </div>
-                                <div style="background: #fff3cd; padding: 8px; border-radius: 4px; text-align: center; border: 1px solid #ffeaa7;">
-                                    <div style="font-size: 0.75em; color: #856404; font-weight: 600;">⚠️ 警告</div>
-                                    <div style="font-size: 1.2em; font-weight: bold; color: #856404;" id="updateWarningCount">0</div>
-                                </div>
-                            </div>
-                            <!-- ログ表示 -->
-                            <details open style="margin-bottom: 10px;">
-                                <summary style="cursor: pointer; padding: 8px; background: #e9ecef; border-radius: 4px; font-weight: 600; user-select: none;">
-                                    📋 詳細ログ
-                                </summary>
-                                <div style="background: #212529; color: #e9ecef; padding: 12px; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.8em; max-height: 300px; overflow-y: auto; margin-top: 5px; line-height: 1.6;" id="updateLog"></div>
-                            </details>
-                        </div>
-                    </div>
-
-                    <!-- 手動コマンド実行 -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">⚡ 手動myradikoコマンド実行</h3>
-                        <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">番組表を経由せずに直接録音コマンドを実行します</p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                            <div style="grid-column: 1 / -1;">
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">番組名</label>
-                                <input type="text" id="manualTitle" placeholder="例: ラジオニュース" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">エリア</label>
-                                <select id="manualArea" onchange="updateManualStations()" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                    <option value="">エリアを選択</option>
-                                    <option value="JP13">東京都</option>
-                                    <option value="JP14">神奈川県</option>
-                                    <option value="JP27">大阪府</option>
-                                    <option value="JP1">北海道</option>
-                                    <option value="JP2">青森県</option>
-                                    <option value="JP3">岩手県</option>
-                                    <option value="JP4">宮城県</option>
-                                    <option value="JP5">秋田県</option>
-                                    <option value="JP6">山形県</option>
-                                    <option value="JP7">福島県</option>
-                                    <option value="JP8">茨城県</option>
-                                    <option value="JP9">栃木県</option>
-                                    <option value="JP10">群馬県</option>
-                                    <option value="JP11">埼玉県</option>
-                                    <option value="JP12">千葉県</option>
-                                    <option value="JP15">新潟県</option>
-                                    <option value="JP16">富山県</option>
-                                    <option value="JP17">石川県</option>
-                                    <option value="JP18">福井県</option>
-                                    <option value="JP19">山梨県</option>
-                                    <option value="JP20">長野県</option>
-                                    <option value="JP21">岐阜県</option>
-                                    <option value="JP22">静岡県</option>
-                                    <option value="JP23">愛知県</option>
-                                    <option value="JP24">三重県</option>
-                                    <option value="JP25">滋賀県</option>
-                                    <option value="JP26">京都府</option>
-                                    <option value="JP28">兵庫県</option>
-                                    <option value="JP29">奈良県</option>
-                                    <option value="JP30">和歌山県</option>
-                                    <option value="JP31">鳥取県</option>
-                                    <option value="JP32">島根県</option>
-                                    <option value="JP33">岡山県</option>
-                                    <option value="JP34">広島県</option>
-                                    <option value="JP35">山口県</option>
-                                    <option value="JP36">徳島県</option>
-                                    <option value="JP37">香川県</option>
-                                    <option value="JP38">愛媛県</option>
-                                    <option value="JP39">高知県</option>
-                                    <option value="JP40">福岡県</option>
-                                    <option value="JP41">佐賀県</option>
-                                    <option value="JP42">長崎県</option>
-                                    <option value="JP43">熊本県</option>
-                                    <option value="JP44">大分県</option>
-                                    <option value="JP45">宮崎県</option>
-                                    <option value="JP46">鹿児島県</option>
-                                    <option value="JP47">沖縄県</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">放送局</label>
-                                <select id="manualStation" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                    <option value="">まずエリアを選択してください</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">コマンド実行時刻（予約実行時間）</label>
-                                <input type="datetime-local" id="manualExecuteTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <small style="color: #6c757d; font-size: 0.8em;">at コマンドでこの時刻に実行されます</small>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">録音開始日時</label>
-                                <input type="datetime-local" id="manualStart" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <small style="color: #6c757d; font-size: 0.8em;">実際に録音が開始される時刻</small>
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em;">録音終了日時</label>
-                                <input type="datetime-local" id="manualEnd" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <small style="color: #6c757d; font-size: 0.8em;">日付を跨ぐ場合も指定可能</small>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 10px; margin-top: 10px;">
-                            <button onclick="executeManualCommand()" class="btn btn-primary" style="background: #dc3545; color: white;">
-                                ▶️ 即座に実行
-                            </button>
-                            <button onclick="scheduleManualCommand()" class="btn" style="background: #007bff; color: white;">
-                                ⏰ at予約（コマンド実行時刻に実行）
-                            </button>
-                            <button onclick="copyManualCommand()" class="btn" style="background: #6c757d; color: white;">
-                                📋 コマンドをコピー
-                            </button>
-                        </div>
-                        <div id="manualCommandPreview" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; font-family: monospace; font-size: 0.85em; display: none; white-space: pre-wrap;"></div>
-                        <div id="manualOutput" style="margin-top: 10px; display: none;">
-                            <div style="background: #212529; color: #0f0; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; white-space: pre-wrap;" id="manualLog"></div>
-                        </div>
-                    </div>
-
-                    <!-- デフォルトアートワーク設定 -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🎨 デフォルトアートワーク設定</h3>
-                        <p style="margin: 0 0 15px 0; color: #6c757d; font-size: 0.9em;">
-                            アートワークが登録されていない番組で表示されるデフォルト画像を設定できます
-                        </p>
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="flex-shrink: 0;">
-                                <img id="defaultArtworkPreview" src="" alt="Default Artwork"
-                                     style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
-                                     onerror="this.src='img/jacket.png'">
-                            </div>
-                            <div style="flex: 1;">
-                                <button onclick="openDefaultArtworkUpload()" class="btn btn-primary" style="background: #667eea;">
-                                    📤 デフォルト画像を変更
-                                </button>
-                                <div style="margin-top: 8px; font-size: 0.85em; color: #6c757d;">
-                                    推奨サイズ: 512×512px以上
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- その他メニュー -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🛠️ その他のメンテナンス</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button onclick="cleanupOldData()" class="btn" style="background: #ffc107; color: #212529;">
-                                🗑️ 古いDB データ削除
-                            </button>
-                            <button onclick="checkDiskSpace()" class="btn" style="background: #6c757d; color: white;">
-                                💾 ディスク容量確認
-                            </button>
-                            <button onclick="viewDbStatus()" class="btn" style="background: #20c997; color: white;">
-                                📈 DB統計情報
-                            </button>
-                        </div>
-                        <div id="maintenanceOutput" style="margin-top: 10px; display: none;">
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 300px; overflow-y: auto; white-space: pre-wrap;" id="maintenanceLog"></div>
-                        </div>
-                    </div>
-
-                    <!-- DB管理 -->
-                    <div style="margin-bottom: 25px; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 1.1em; color: #212529;">🗄️ データベース管理</h3>
-                        <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">録音ファイルレコードの整合性チェックと管理</p>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <button onclick="cleanupOrphanedRecords()" class="btn" style="background: #e74c3c; color: white;">
-                                🧹 孤立レコード削除
-                            </button>
-                            <button onclick="checkOrphanedFiles()" class="btn" style="background: #3498db; color: white;">
-                                🔍 孤立ファイル検出
-                            </button>
-                            <button onclick="showDbRecords()" class="btn" style="background: #9b59b6; color: white;">
-                                📋 レコード一覧表示
-                            </button>
-                            <button onclick="batchUpdateMetadata()" class="btn" style="background: #27ae60; color: white;">
-                                🎵 メタデータ一括更新
-                            </button>
-                        </div>
-                        <div id="dbManagementOutput" style="margin-top: 10px; display: none;">
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 0.85em; max-height: 400px; overflow-y: auto; white-space: pre-wrap;" id="dbManagementLog"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- at予約編集モーダル -->
-        <div id="atEditModal" class="modal" style="display: none;">
-            <div class="modal-content" style="max-width: 600px;">
-                <div class="modal-header">
-                    <h3 style="margin: 0; color: #212529;">📝 予約内容の編集</h3>
-                    <button onclick="closeAtEditModal()" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #6c757d;">&times;</button>
-                </div>
-                <div class="modal-body" style="padding: 20px;">
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">番組名</label>
-                        <input type="text" id="editAtTitle" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">エリア</label>
-                            <select id="editAtArea" onchange="updateEditAtStations()" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <option value="">エリアを選択</option>
-                                <option value="JP13">東京都</option>
-                                <option value="JP14">神奈川県</option>
-                                <option value="JP27">大阪府</option>
-                                <option value="JP28">兵庫県</option>
-                                <option value="JP1">北海道</option>
-                                <option value="JP2">青森県</option>
-                                <option value="JP3">岩手県</option>
-                                <option value="JP4">宮城県</option>
-                                <option value="JP5">秋田県</option>
-                                <option value="JP6">山形県</option>
-                                <option value="JP7">福島県</option>
-                                <option value="JP8">茨城県</option>
-                                <option value="JP9">栃木県</option>
-                                <option value="JP10">群馬県</option>
-                                <option value="JP11">埼玉県</option>
-                                <option value="JP12">千葉県</option>
-                                <option value="JP15">新潟県</option>
-                                <option value="JP16">富山県</option>
-                                <option value="JP17">石川県</option>
-                                <option value="JP18">福井県</option>
-                                <option value="JP19">山梨県</option>
-                                <option value="JP20">長野県</option>
-                                <option value="JP21">岐阜県</option>
-                                <option value="JP22">静岡県</option>
-                                <option value="JP23">愛知県</option>
-                                <option value="JP24">三重県</option>
-                                <option value="JP25">滋賀県</option>
-                                <option value="JP26">京都府</option>
-                                <option value="JP29">奈良県</option>
-                                <option value="JP30">和歌山県</option>
-                                <option value="JP31">鳥取県</option>
-                                <option value="JP32">島根県</option>
-                                <option value="JP33">岡山県</option>
-                                <option value="JP34">広島県</option>
-                                <option value="JP35">山口県</option>
-                                <option value="JP36">徳島県</option>
-                                <option value="JP37">香川県</option>
-                                <option value="JP38">愛媛県</option>
-                                <option value="JP39">高知県</option>
-                                <option value="JP40">福岡県</option>
-                                <option value="JP41">佐賀県</option>
-                                <option value="JP42">長崎県</option>
-                                <option value="JP43">熊本県</option>
-                                <option value="JP44">大分県</option>
-                                <option value="JP45">宮崎県</option>
-                                <option value="JP46">鹿児島県</option>
-                                <option value="JP47">沖縄県</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">放送局</label>
-                            <select id="editAtStation" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                                <option value="">まずエリアを選択</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">録音開始日時</label>
-                        <input type="datetime-local" id="editAtStartTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                        <small style="color: #6c757d; font-size: 0.85em;">実際に録音が開始される時刻</small>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">録音終了日時</label>
-                        <input type="datetime-local" id="editAtEndTime" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                        <small style="color: #6c757d; font-size: 0.85em;">日付を跨ぐ場合も指定可能</small>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">コマンド実行時刻（予約実行時間）</label>
-                        <div style="display: flex; gap: 8px; align-items: flex-start;">
-                            <input type="datetime-local" id="editAtExecuteTime" style="flex: 1; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                            <button onclick="setExecuteTimeToEndPlus5()" style="padding: 8px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-size: 0.9em;">
-                                終了+5分
-                            </button>
-                        </div>
-                        <small style="color: #6c757d; font-size: 0.85em;">atコマンドでこの時刻に実行されます</small>
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #495057;">📁 保存先フォルダ</label>
-                        <select id="editAtFolder" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
-                            <option value="">📁 ルートフォルダ（フォルダ指定なし）</option>
-                        </select>
-                        <small style="color: #6c757d; font-size: 0.85em;">録音後、ファイルを指定したフォルダに自動的に移動します</small>
-                    </div>
-                    <input type="hidden" id="editAtJobId">
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-action btn-execute" onclick="saveAtEdit()">
-                        <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">💾</span>
-                        <span style="font-size: 0.85em;">保存</span>
-                    </button>
-                    <button class="btn btn-action btn-close" onclick="closeAtEditModal()">
-                        <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">✕</span>
-                        <span style="font-size: 0.85em;">キャンセル</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <footer>
-            <p>&copy; 2025 録音くん | Powered by radiko API</p>
-        </footer>
-    </div>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">コマンド</h2>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="command-box" id="commandBox"></div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-action btn-execute" id="executeBtn" onclick="executeCommand()" style="display: none;">
-                    <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">▶️</span>
-                    <span style="font-size: 0.85em;">実行</span>
-                </button>
-                <button class="btn btn-action" id="registerCronBtn" style="display: none;">
-                    <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">⏰</span>
-                    <span style="font-size: 0.85em;">cron登録</span>
-                </button>
-                <button class="btn btn-action btn-copy" onclick="copyCommand(event)">
-                    <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">📋</span>
-                    <span style="font-size: 0.85em;">コピー</span>
-                </button>
-                <button class="btn btn-action btn-close" onclick="closeModal()">
-                    <span style="font-size: 1.3em; display: block; margin-bottom: 2px;">✕</span>
-                    <span style="font-size: 0.85em;">閉じる</span>
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- cronログモーダル -->
     <div id="cronLogModal" class="modal">
@@ -2661,7 +2060,7 @@
 
         // フォルダ選択UIを生成
         async function generateFolderSelectHtml() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -2830,42 +2229,22 @@
 
         // タブ切り替え
         function switchTab(tabName) {
-            // 全てのタブとコンテンツを非アクティブに
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            // filesタブのみ対応
+            if (tabName === 'files') {
+                // 全てのタブとコンテンツを非アクティブに
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            // 現在のタブをlocalStorageに保存
-            localStorage.setItem('currentTab', tabName);
+                // filesタブをアクティブに
+                const filesTab = document.querySelector('.tab[onclick*="files"]');
+                const filesContent = document.getElementById('filesTab');
 
-            // 選択されたタブをアクティブに
-            if (tabName === 'search') {
-                document.querySelectorAll('.tab')[0].classList.add('active');
-                document.getElementById('searchTab').classList.add('active');
-                // 番組検索タブを開いた時に本日の番組を自動表示（初回のみ）
-                if (!document.getElementById('searchTab').dataset.initialized) {
-                    initializeSearchTab();
-                    document.getElementById('searchTab').dataset.initialized = 'true';
+                if (filesTab) filesTab.classList.add('active');
+                if (filesContent) {
+                    filesContent.classList.add('active');
+                    // ファイルタブを開いた時に自動読み込み
+                    loadRecordedFiles();
                 }
-            } else if (tabName === 'files') {
-                document.querySelectorAll('.tab')[1].classList.add('active');
-                document.getElementById('filesTab').classList.add('active');
-                // ファイルタブを開いた時に自動読み込み
-                loadRecordedFiles();
-            } else if (tabName === 'at') {
-                document.querySelectorAll('.tab')[2].classList.add('active');
-                document.getElementById('atTab').classList.add('active');
-                // at予約タブを開いた時に自動読み込み
-                loadAtJobs();
-            } else if (tabName === 'cron') {
-                document.querySelectorAll('.tab')[3].classList.add('active');
-                document.getElementById('cronTab').classList.add('active');
-                // cronタブを開いた時に自動読み込み
-                loadCronJobs();
-            } else if (tabName === 'admin') {
-                document.querySelectorAll('.tab')[4].classList.add('active');
-                document.getElementById('adminTab').classList.add('active');
-                // 管理タブを開いた時にデフォルトアートワークを読み込み
-                loadDefaultArtworkPreview();
             }
         }
 
@@ -2942,11 +2321,8 @@
 
             console.log('✅ キャッシュシステム: サーバー側DB使用')
 
-            // 保存されているタブを復元
-            const savedTab = localStorage.getItem('currentTab');
-            if (savedTab) {
-                switchTab(savedTab);
-            }
+            // 録音ファイルタブを表示
+            switchTab('files');
 
             // 日本時間で今日の日付を取得（朝5時を日付の変わり目とする）
             const now = new Date();
@@ -2957,18 +2333,23 @@
                 today.setDate(today.getDate() - 1);
             }
 
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
+            // 番組検索タブ用の日付設定（listen.htmlでは不要）
+            const targetDateInput = document.getElementById('targetDate');
+            if (targetDateInput) {
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
 
-            document.getElementById('targetDate').value = dateStr;
+                targetDateInput.value = dateStr;
+            }
 
             // 過去7日間 + 今日 + 未来7日間の日付ボタンを生成（計15日間）
             const dateButtonsContainer = document.getElementById('dateButtons');
-            const dayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+            if (dateButtonsContainer) {
+                const dayLabels = ['日', '月', '火', '水', '木', '金', '土'];
 
-            for (let i = -7; i <= 7; i++) {
+                for (let i = -7; i <= 7; i++) {
                 const date = new Date(today);
                 date.setDate(date.getDate() + i);
 
@@ -3022,34 +2403,47 @@
                         button.click();
                     }, 100);
                 }
+                }
+
+                // エリアのデフォルトを大阪に設定
+                const areaIdForDefault = document.getElementById('areaId');
+                if (areaIdForDefault) {
+                    areaIdForDefault.value = 'JP27';
+                }
+
+                // スマホ用date pickerの初期値と範囲を設定
+                const datePicker = document.getElementById('datePicker');
+                if (datePicker) {
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    datePicker.value = dateStr;
+
+                    // 選択可能な日付範囲を設定（過去7日～未来7日）
+                    const minDate = new Date(today);
+                    minDate.setDate(minDate.getDate() - 7);
+                    const maxDate = new Date(today);
+                    maxDate.setDate(maxDate.getDate() + 7);
+
+                    const minDateStr = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-${String(minDate.getDate()).padStart(2, '0')}`;
+                    const maxDateStr = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
+
+                    datePicker.min = minDateStr;
+                    datePicker.max = maxDateStr;
+
+                    datePicker.addEventListener('change', async function() {
+                        // 選択された日付を隠しフィールドに設定
+                        const targetDateInput2 = document.getElementById('targetDate');
+                        if (targetDateInput2) {
+                            targetDateInput2.value = this.value;
+                        }
+
+                        // 番組表を自動取得
+                        await fetchPrograms();
+                    });
+                }
             }
-
-            // エリアのデフォルトを大阪に設定
-            document.getElementById('areaId').value = 'JP27';
-
-            // スマホ用date pickerの初期値と範囲を設定
-            const datePicker = document.getElementById('datePicker');
-            datePicker.value = dateStr;
-
-            // 選択可能な日付範囲を設定（過去7日～未来7日）
-            const minDate = new Date(today);
-            minDate.setDate(minDate.getDate() - 7);
-            const maxDate = new Date(today);
-            maxDate.setDate(maxDate.getDate() + 7);
-
-            const minDateStr = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-${String(minDate.getDate()).padStart(2, '0')}`;
-            const maxDateStr = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
-
-            datePicker.min = minDateStr;
-            datePicker.max = maxDateStr;
-
-            datePicker.addEventListener('change', async function() {
-                // 選択された日付を隠しフィールドに設定
-                document.getElementById('targetDate').value = this.value;
-
-                // 番組表を自動取得
-                await fetchPrograms();
-            });
 
             // audioPlayerのイベントリスナーを追加（デバッグ用）
             const audioPlayer = document.getElementById('audioPlayer');
@@ -3122,39 +2516,53 @@
             }
         });
 
-        // 「番組表を取得」ボタンは強制更新
-        document.getElementById('fetchBtn').addEventListener('click', () => fetchPrograms(true));
-        document.getElementById('searchAllBtn').addEventListener('click', searchAllAreas);
+        // 「番組表を取得」ボタンは強制更新（番組検索タブ用 - listen.htmlでは不要）
+        const fetchBtn = document.getElementById('fetchBtn');
+        if (fetchBtn) {
+            fetchBtn.addEventListener('click', () => fetchPrograms(true));
+        }
+        const searchAllBtn = document.getElementById('searchAllBtn');
+        if (searchAllBtn) {
+            searchAllBtn.addEventListener('click', searchAllAreas);
+        }
 
-        // エリア選択変更時に自動取得（キャッシュ利用）
-        document.getElementById('areaId').addEventListener('change', () => fetchPrograms(false));
+        // エリア選択変更時に自動取得（番組検索タブ用 - listen.htmlでは不要）
+        const areaIdSelect = document.getElementById('areaId');
+        if (areaIdSelect) {
+            areaIdSelect.addEventListener('change', () => fetchPrograms(false));
+        }
 
-        // 検索キーワード入力時にリアルタイムフィルタリング
-        document.getElementById('searchKeyword').addEventListener('input', function() {
-            // クリアボタンの表示/非表示を切り替え
-            const clearBtn = document.getElementById('clearSearchBtn');
-            if (clearBtn) {
-                clearBtn.style.display = this.value ? 'block' : 'none';
-            }
+        // 検索キーワード入力時にリアルタイムフィルタリング（番組検索タブ用 - listen.htmlでは不要）
+        const searchKeywordInput = document.getElementById('searchKeyword');
+        if (searchKeywordInput) {
+            searchKeywordInput.addEventListener('input', function() {
+                // クリアボタンの表示/非表示を切り替え
+                const clearBtn = document.getElementById('clearSearchBtn');
+                if (clearBtn) {
+                    clearBtn.style.display = this.value ? 'block' : 'none';
+                }
 
-            // タイムラインボタンの有効/無効を切り替え
-            const timelineBtn = document.getElementById('timelineViewBtn');
-            if (this.value.trim()) {
-                // フィルタリング中はタイムラインボタンを無効化
-                timelineBtn.disabled = true;
-                timelineBtn.style.opacity = '0.5';
-                timelineBtn.style.cursor = 'not-allowed';
-            } else {
-                // フィルタリング解除時は有効化
-                timelineBtn.disabled = false;
-                timelineBtn.style.opacity = '1';
-                timelineBtn.style.cursor = 'pointer';
-            }
+                // タイムラインボタンの有効/無効を切り替え
+                const timelineBtn = document.getElementById('timelineViewBtn');
+                if (timelineBtn) {
+                    if (this.value.trim()) {
+                        // フィルタリング中はタイムラインボタンを無効化
+                        timelineBtn.disabled = true;
+                        timelineBtn.style.opacity = '0.5';
+                        timelineBtn.style.cursor = 'not-allowed';
+                    } else {
+                        // フィルタリング解除時は有効化
+                        timelineBtn.disabled = false;
+                        timelineBtn.style.opacity = '1';
+                        timelineBtn.style.cursor = 'pointer';
+                    }
+                }
 
-            if (allProgramsData.length > 0) {
-                displayPrograms(allProgramsData);
-            }
-        });
+                if (allProgramsData.length > 0) {
+                    displayPrograms(allProgramsData);
+                }
+            });
+        }
 
         // 検索キーワードをクリア
         function clearSearchKeyword() {
@@ -3194,7 +2602,7 @@
 
         async function fetchPrograms(forceRefresh = false) {
             const areaId = document.getElementById('areaId').value;
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const targetDate = document.getElementById('targetDate').value;
 
             if (!areaId) {
@@ -4244,7 +3652,7 @@
             let commandBoxContent = command;
 
             if (fileCheck && fileCheck.exists) {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
 
@@ -4354,7 +3762,7 @@
             let commandBoxContent = command;
 
             if (fileCheck && fileCheck.exists) {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${fileCheck.path}`;
 
@@ -4494,7 +3902,7 @@
             executeBtn.disabled = true;
             executeBtn.innerHTML = '<span style="font-size: 1.3em; display: block; margin-bottom: 2px;">⏳</span><span style="font-size: 0.85em;">実行中...</span>';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // at予約の場合
@@ -4735,7 +4143,7 @@
 
             // ダウンロードボタンを追加（成功時）
             if (file && type === 'success') {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
                 const downloadUrl = `${baseUrl}/download/${file}`;
                 const filename = file.split('/').pop();
@@ -4784,7 +4192,7 @@
 
         async function searchAllAreas() {
             const searchKeyword = document.getElementById('searchKeyword').value.trim();
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
 
             if (!searchKeyword) {
                 showError('検索キーワードを入力してください');
@@ -4938,8 +4346,8 @@
         }
 
         async function loadRecordedFiles() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
-            const baseUrl = proxyUrl.trim() || '';
+            // proxyUrl要素は番組検索タブにあるため、デフォルト値を使用
+            const baseUrl = '/api';
 
             const filesLoading = document.getElementById('filesLoading');
             const filesList = document.getElementById('filesList');
@@ -5001,7 +4409,7 @@
         }
 
         async function scanExistingFiles() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             const confirmed = confirm('既存の録音ファイルをスキャンしてDBに登録します。\n\n処理には時間がかかる場合があります。\n続行しますか？');
@@ -5045,7 +4453,7 @@
 
         function renderFilesList() {
             const filesList = document.getElementById('filesList');
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // 検索入力フィールドのフォーカス状態を保存
@@ -5412,7 +4820,7 @@
 
         async function loadAudioDurations() {
             const loadingElements = document.querySelectorAll('.duration-loading');
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             const formatTimeDisplay = (seconds) => {
@@ -5476,7 +4884,7 @@
 
         // ファイルの存在確認
         async function checkFileExists(prog) {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             const startStr = formatRadikoTime(new Date(prog.ft));
@@ -5551,7 +4959,7 @@
 
         // cron一覧を読み込む
         async function loadCronJobs() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             const cronLoading = document.getElementById('cronLoading');
@@ -5724,7 +5132,7 @@
 
         // cronジョブを追加
         async function addCronJob(command) {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -5777,7 +5185,7 @@
 
         // cronジョブを削除
         async function removeCronJob(jobId) {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             console.log('removeCronJob called with jobId:', jobId);
@@ -5868,7 +5276,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -5904,7 +5312,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -5952,7 +5360,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // PC/モバイル判定
@@ -6166,7 +5574,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -6215,7 +5623,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -6409,7 +5817,7 @@
             }
 
             // 古いcronを削除して新しいcronを追加
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // 編集中のジョブIDを取得
@@ -6465,7 +5873,7 @@
 
         // cronログを読み込む
         async function loadCronLogs() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const logContent = document.getElementById('cronLogContent');
 
@@ -6571,7 +5979,7 @@
             atList.innerHTML = '';
 
             try {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
 
                 const response = await fetch(`${baseUrl}/at/list`);
@@ -6765,7 +6173,7 @@
             }
 
             try {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
 
                 const response = await fetch(`${baseUrl}/at/cancel/${jobId}`, {
@@ -6789,7 +6197,7 @@
         // at予約を編集
         async function editAtJob(jobId) {
             try {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
 
                 // at予約の詳細を取得
@@ -6893,7 +6301,7 @@
 
         // at予約編集：フォルダ一覧を読み込む
         async function loadFoldersForAtEdit() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const folderSelect = document.getElementById('editAtFolder');
 
@@ -6921,7 +6329,7 @@
 
         // cron編集：フォルダ一覧を読み込む
         async function loadFoldersForCronEdit() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const folderSelect = document.getElementById('editCronFolder');
 
@@ -6951,7 +6359,7 @@
         // 放送局IDからエリアを検出する関数
         async function detectAreaFromStation(stationId) {
             try {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
 
                 // 全エリアリスト
@@ -7015,7 +6423,7 @@
             stationSelect.innerHTML = '<option value="">読み込み中...</option>';
 
             try {
-                const proxyUrl = document.getElementById('proxyUrl').value;
+                const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
                 const baseUrl = proxyUrl.trim() || '';
                 const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
@@ -7088,7 +6496,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -7165,7 +6573,7 @@
         }
 
         async function playAudio(filepath, filename, fileData = null) {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // 現在のファイルパスを保存
@@ -7566,7 +6974,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -7825,12 +7233,15 @@
             renderFilesList();
         }
 
-        // ページ読み込み時の初期化
+        // ページ読み込み時の初期化（番組検索タブ用 - listen.htmlでは不要）
         document.addEventListener('DOMContentLoaded', function() {
             // 本日の日付を設定
-            const today = new Date();
-            const dateStr = today.toISOString().slice(0, 10);
-            document.getElementById('targetDate').value = dateStr;
+            const targetDateInit = document.getElementById('targetDate');
+            if (targetDateInit) {
+                const today = new Date();
+                const dateStr = today.toISOString().slice(0, 10);
+                targetDateInit.value = dateStr;
+            }
 
             // 音量をlocalStorageから復元
             loadVolume();
@@ -7891,7 +7302,7 @@
             const errorCount = document.getElementById('updateErrorCount');
             const warningCount = document.getElementById('updateWarningCount');
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             // Server-Sent Events (SSE) で進捗をリアルタイム受信
@@ -7993,7 +7404,7 @@
 
             stationSelect.innerHTML = '<option value="">読み込み中...</option>';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8105,7 +7516,7 @@
             manualOutput.style.display = 'block';
             manualLog.textContent = '▶️ コマンドを実行中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const scriptPath = document.getElementById('scriptPath').value;
 
@@ -8166,7 +7577,7 @@
             manualOutput.style.display = 'block';
             manualLog.textContent = '⏰ at予約を登録中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const scriptPath = document.getElementById('scriptPath').value;
 
@@ -8208,7 +7619,7 @@
             maintenanceOutput.style.display = 'block';
             maintenanceLog.textContent = '🗑️ 古いデータを削除中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8237,7 +7648,7 @@
             maintenanceOutput.style.display = 'block';
             maintenanceLog.textContent = '💾 ディスク容量を確認中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8263,7 +7674,7 @@
             maintenanceOutput.style.display = 'block';
             maintenanceLog.textContent = '📈 DB統計情報を取得中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8298,7 +7709,7 @@
             dbOutput.style.display = 'block';
             dbLog.textContent = '🧹 孤立レコードをスキャン中...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8351,7 +7762,7 @@
             dbOutput.style.display = 'block';
             dbLog.textContent = '📋 レコード一覧を取得中...\n\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8399,7 +7810,7 @@
             dbOutput.style.display = 'block';
             dbLog.textContent = '🎵 メタデータ一括更新を開始...\n';
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -8537,7 +7948,7 @@
 
         // デフォルトアートワークのプレビューを読み込む
         function loadDefaultArtworkPreview() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
             const preview = document.getElementById('defaultArtworkPreview');
 
@@ -9004,7 +8415,7 @@
         }
 
         async function uploadArtwork() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             const title = document.getElementById('artworkTitle').value.trim();
@@ -9083,7 +8494,7 @@
         }
 
         async function loadArtworkForTitle(title) {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             console.log('🎨 [Artwork] Loading artwork for title:', title);
@@ -9119,7 +8530,7 @@
         let editingFolderId = null;
 
         async function loadFolders() {
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -9256,7 +8667,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -9296,7 +8707,7 @@
                 return;
             }
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {
@@ -9392,7 +8803,7 @@
         async function moveToSelectedFolder(folderId) {
             if (!movingFilePath) return;
 
-            const proxyUrl = document.getElementById('proxyUrl').value;
+            const proxyUrl = '/api'; // proxyUrl要素は削除されたためデフォルト値を使用
             const baseUrl = proxyUrl.trim() || '';
 
             try {

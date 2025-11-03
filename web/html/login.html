@@ -186,8 +186,9 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // ログイン成功 - メインページへリダイレクト
-                    window.location.href = '/';
+                    // ログイン成功 - 元のページまたはメインページへリダイレクト
+                    const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
+                    window.location.href = redirectTo;
                 } else {
                     showError(data.message || 'ログインに失敗しました');
                     loginBtn.disabled = false;
@@ -215,8 +216,9 @@
                 const data = await response.json();
 
                 if (data.logged_in) {
-                    // すでにログイン済み - メインページへリダイレクト
-                    window.location.href = '/';
+                    // すでにログイン済み - 元のページまたはメインページへリダイレクト
+                    const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/';
+                    window.location.href = redirectTo;
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
