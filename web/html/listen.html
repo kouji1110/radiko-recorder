@@ -1582,6 +1582,11 @@
                                             onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
                                         <span>📂</span><span>新規フォルダ</span>
                                     </button>
+                                    <button onclick="showUploadModal(); toggleFilesMenu();"
+                                            style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
+                                        <span>📤</span><span>ファイルをアップロード</span>
+                                    </button>
                                     <div style="height: 1px; background: #e9ecef; margin: 4px 0;"></div>
                                     <button onclick="clearAllBookmarks(); toggleFilesMenu();"
                                             style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
@@ -1693,6 +1698,81 @@
             </div>
             <div class="modal-actions">
                 <button class="btn btn-action btn-close" onclick="closeMoveFileModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ファイルアップロードモーダル -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📤 ファイルをアップロード</h2>
+                <button class="modal-close" onclick="hideUploadModal()">&times;</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <div style="padding: 10px; background: #e7f3ff; border-left: 4px solid #667eea; border-radius: 4px; font-size: 0.85em; color: #495057;">
+                    <strong>📝 アップロード可能なファイル:</strong> mp3, m4a, aac, wav<br>
+                    <strong>📏 最大ファイルサイズ:</strong> 500MB
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                    ファイル <span style="color: #dc3545;">*</span>
+                </label>
+                <input type="file" id="uploadFileInput" accept=".mp3,.m4a,.aac,.wav,audio/mpeg,audio/mp4,audio/aac,audio/wav"
+                       style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                    タイトル <span style="color: #dc3545;">*</span>
+                </label>
+                <input type="text" id="uploadTitle" placeholder="例: ポッドキャスト第1回"
+                       style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+                <div style="font-size: 0.8em; color: #6c757d; margin-top: 4px;">
+                    ファイル名として使用されます（半角英数字・記号は自動変換）
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                    放送局（オプション）
+                </label>
+                <input type="text" id="uploadStation" placeholder="例: TBS"
+                       style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+                <div style="font-size: 0.8em; color: #6c757d; margin-top: 4px;">
+                    未入力の場合は「MANUAL」フォルダに保存されます
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                    放送日（オプション）
+                </label>
+                <input type="date" id="uploadBroadcastDate"
+                       style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+                <div style="font-size: 0.8em; color: #6c757d; margin-top: 4px;">
+                    未入力の場合は今日の日付が使用されます
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                    フォルダ（オプション）
+                </label>
+                <select id="uploadFolderId"
+                        style="width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.95em;">
+                    <option value="">フォルダを選択...</option>
+                </select>
+            </div>
+            <div id="uploadProgress" style="display: none; margin-bottom: 15px;">
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 4px; text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 10px;"></div>
+                    <div style="font-size: 0.9em; color: #495057;">アップロード中...</div>
+                </div>
+            </div>
+            <div id="uploadResult" style="display: none; margin-bottom: 15px;">
+                <!-- 結果がここに表示される -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-action btn-primary" onclick="uploadFile()">アップロード</button>
+                <button class="btn btn-action btn-close" onclick="hideUploadModal()">キャンセル</button>
             </div>
         </div>
     </div>
@@ -8831,6 +8911,182 @@
             } catch (err) {
                 console.error('Move file error:', err);
                 alert(`エラーが発生しました: ${err.message}`);
+            }
+        }
+
+        // ==================== ファイルアップロード機能 ====================
+
+        /**
+         * アップロードモーダルを表示
+         */
+        function showUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+            loadFolderOptionsForUpload();
+            // フォームをリセット
+            document.getElementById('uploadFileInput').value = '';
+            document.getElementById('uploadTitle').value = '';
+            document.getElementById('uploadStation').value = '';
+            document.getElementById('uploadBroadcastDate').value = '';
+            document.getElementById('uploadFolderId').value = '';
+            document.getElementById('uploadProgress').style.display = 'none';
+            document.getElementById('uploadResult').style.display = 'none';
+        }
+
+        /**
+         * アップロードモーダルを非表示
+         */
+        function hideUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+        }
+
+        /**
+         * アップロード用のフォルダオプションを読み込み
+         */
+        async function loadFolderOptionsForUpload() {
+            try {
+                const response = await fetch('/api/folders');
+                const data = await response.json();
+                const folders = data.folders || [];
+
+                const selectElement = document.getElementById('uploadFolderId');
+                selectElement.innerHTML = '<option value="">フォルダを選択...</option>';
+
+                folders.forEach(folder => {
+                    const option = document.createElement('option');
+                    option.value = folder.id;
+                    option.textContent = `${folder.icon || '📁'} ${folder.name}`;
+                    selectElement.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Failed to load folders for upload:', err);
+            }
+        }
+
+        /**
+         * ファイルをアップロード
+         */
+        async function uploadFile() {
+            const fileInput = document.getElementById('uploadFileInput');
+            const title = document.getElementById('uploadTitle').value.trim();
+            const station = document.getElementById('uploadStation').value.trim();
+            const broadcastDate = document.getElementById('uploadBroadcastDate').value;
+            const folderId = document.getElementById('uploadFolderId').value;
+
+            // バリデーション
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('ファイルを選択してください');
+                return;
+            }
+
+            if (!title) {
+                alert('タイトルを入力してください');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const maxSize = 500 * 1024 * 1024; // 500MB
+
+            if (file.size > maxSize) {
+                alert('ファイルサイズが大きすぎます（最大500MB）');
+                return;
+            }
+
+            // 拡張子チェック
+            const allowedExtensions = ['.mp3', '.m4a', '.aac', '.wav'];
+            const fileName = file.name.toLowerCase();
+            const isAllowed = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+            if (!isAllowed) {
+                alert('対応していないファイル形式です。mp3, m4a, aac, wavのいずれかを選択してください。');
+                return;
+            }
+
+            // FormDataを作成
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', title);
+            if (station) formData.append('station', station);
+            if (broadcastDate) formData.append('broadcast_date', broadcastDate);
+            if (folderId) formData.append('folder_id', folderId);
+
+            // UIを更新
+            document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('uploadResult').style.display = 'none';
+
+            console.log('📤 Uploading file:', {
+                name: file.name,
+                size: file.size,
+                title,
+                station,
+                broadcastDate,
+                folderId
+            });
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // プログレス非表示
+                document.getElementById('uploadProgress').style.display = 'none';
+
+                if (response.ok && data.success) {
+                    // 成功メッセージ表示
+                    const resultDiv = document.getElementById('uploadResult');
+                    resultDiv.innerHTML = `
+                        <div style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
+                            <strong>✅ アップロード成功</strong><br>
+                            <div style="margin-top: 8px; font-size: 0.9em;">
+                                ファイル: ${data.filename}<br>
+                                保存先: ${data.file_path}
+                            </div>
+                        </div>
+                    `;
+                    resultDiv.style.display = 'block';
+
+                    console.log('✅ Upload successful:', data);
+
+                    // 3秒後にモーダルを閉じてファイル一覧を更新
+                    setTimeout(() => {
+                        hideUploadModal();
+                        loadRecordedFiles();
+                    }, 3000);
+                } else {
+                    // エラーメッセージ表示
+                    const errorMsg = data.error || '不明なエラーが発生しました';
+                    const resultDiv = document.getElementById('uploadResult');
+                    resultDiv.innerHTML = `
+                        <div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
+                            <strong>❌ アップロード失敗</strong><br>
+                            <div style="margin-top: 8px; font-size: 0.9em;">
+                                ${errorMsg}
+                            </div>
+                        </div>
+                    `;
+                    resultDiv.style.display = 'block';
+
+                    console.error('❌ Upload failed:', errorMsg);
+                }
+            } catch (err) {
+                // プログレス非表示
+                document.getElementById('uploadProgress').style.display = 'none';
+
+                // エラーメッセージ表示
+                const resultDiv = document.getElementById('uploadResult');
+                resultDiv.innerHTML = `
+                    <div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
+                        <strong>❌ 通信エラー</strong><br>
+                        <div style="margin-top: 8px; font-size: 0.9em;">
+                            ${err.message}
+                        </div>
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+
+                console.error('Upload error:', err);
             }
         }
     </script>

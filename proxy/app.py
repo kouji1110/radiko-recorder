@@ -23,6 +23,8 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 日本語などの非ASCII文字をそのまま出力
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'radiko-recorder-secret-key-change-in-production')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # セッション有効期限30日
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB
+app.config['UPLOAD_FOLDER'] = '/app/output/radio/MANUAL'
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 # ログ設定
@@ -2567,6 +2569,155 @@ def get_folder_files(folder_id):
     except Exception as e:
         logger.error(f'Get folder files error: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/upload', methods=['POST', 'OPTIONS'])
+def upload_file():
+    """音声ファイルをアップロード"""
+    # CORSプリフライト対応
+    if request.method == 'OPTIONS':
+        response = Response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    try:
+        # ファイルの存在確認
+        if 'file' not in request.files:
+            return jsonify({'error': 'ファイルが選択されていません'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'ファイル名が空です'}), 400
+
+        # メタデータ取得
+        title = request.form.get('title', '').strip()
+        station = request.form.get('station', '').strip()
+        broadcast_date = request.form.get('broadcast_date', '').strip()
+        folder_id = request.form.get('folder_id', '').strip()
+
+        if not title:
+            return jsonify({'error': 'タイトルは必須です'}), 400
+
+        logger.info(f'📤 Upload request: {file.filename}, title={title}, station={station}')
+
+        # ファイル拡張子チェック
+        allowed_extensions = {'.mp3', '.m4a', '.aac', '.wav'}
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'対応していないファイル形式です: {file_ext}'}), 400
+
+        # MIMEタイプチェック
+        allowed_mimetypes = {
+            'audio/mpeg', 'audio/mp3', 'audio/x-m4a', 'audio/m4a',
+            'audio/aac', 'audio/x-aac', 'audio/wav', 'audio/x-wav'
+        }
+        if file.content_type not in allowed_mimetypes:
+            logger.warning(f'⚠️ Unexpected MIME type: {file.content_type}')
+
+        # ファイル名をサニタイズ
+        safe_title = sanitize_filename(title)
+
+        # 保存先ディレクトリを決定
+        if station:
+            save_dir = os.path.join(OUTPUT_DIR, station)
+        else:
+            save_dir = app.config['UPLOAD_FOLDER']
+        os.makedirs(save_dir, exist_ok=True)
+
+        # ファイル名を生成
+        if broadcast_date:
+            # YYYY-MM-DD → YYYY.MM.DD
+            formatted_date = broadcast_date.replace('-', '.')
+            filename = f'{safe_title}({formatted_date}){file_ext}'
+        else:
+            filename = f'{safe_title}{file_ext}'
+
+        # 重複チェック
+        save_path = os.path.join(save_dir, filename)
+        counter = 1
+        while os.path.exists(save_path):
+            if broadcast_date:
+                filename = f'{safe_title}({formatted_date})({counter}){file_ext}'
+            else:
+                filename = f'{safe_title}({counter}){file_ext}'
+            save_path = os.path.join(save_dir, filename)
+            counter += 1
+
+        # ファイル保存
+        logger.info(f'💾 Saving file: {save_path}')
+        file.save(save_path)
+
+        # ファイルサイズ取得
+        file_size = os.path.getsize(save_path)
+        logger.info(f'✅ File saved: {filename} ({file_size} bytes)')
+
+        # 相対パス（DB登録用）
+        if station:
+            relative_path = f'{station}/{filename}'
+        else:
+            relative_path = f'MANUAL/{filename}'
+
+        # 仮想フォルダID
+        virtual_folder_id = None
+        if folder_id:
+            try:
+                virtual_folder_id = int(folder_id)
+            except (ValueError, TypeError):
+                logger.warning(f'⚠️ Invalid folder_id: {folder_id}')
+
+        # broadcast_dateをISO形式に変換
+        iso_broadcast_date = None
+        iso_start_time = None
+        if broadcast_date:
+            iso_broadcast_date = broadcast_date  # YYYY-MM-DD
+            # デフォルトで正午12:00として扱う
+            iso_start_time = f'{broadcast_date}T12:00:00'
+
+        # DBに登録
+        db.register_recorded_file(
+            file_path=relative_path,
+            file_name=filename,
+            program_id=None,
+            program_title=title,
+            station_id=station if station else 'MANUAL',
+            station_name=station if station else '手動アップロード',
+            broadcast_date=iso_broadcast_date,
+            start_time=iso_start_time,
+            end_time=None,
+            file_size=file_size,
+            duration=None,
+            file_modified=datetime.fromtimestamp(os.path.getmtime(save_path)).isoformat(),
+            virtual_folder_id=virtual_folder_id
+        )
+        logger.info(f'✅ DB registration completed: {relative_path}')
+
+        # メタデータ埋め込み（バックグラウンドで実行）
+        def embed_metadata_async():
+            try:
+                embed_metadata_after_recording(save_path, title, station if station else '手動アップロード')
+                logger.info(f'✅ Metadata embedded: {filename}')
+            except Exception as e:
+                logger.error(f'❌ Metadata embedding failed: {str(e)}')
+
+        threading.Thread(target=embed_metadata_async, daemon=False).start()
+
+        return jsonify({
+            'success': True,
+            'message': 'アップロードが完了しました',
+            'file': {
+                'name': filename,
+                'path': relative_path,
+                'size': file_size
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f'❌ Upload error: {str(e)}')
+        import traceback
+        logger.error(f'❌ Traceback: {traceback.format_exc()}')
+        return jsonify({'error': f'アップロードに失敗しました: {str(e)}'}), 500
 
 
 if __name__ == '__main__':

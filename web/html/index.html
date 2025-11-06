@@ -1730,6 +1730,11 @@
                                             onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
                                         <span>📂</span><span>新規フォルダ</span>
                                     </button>
+                                    <button onclick="showUploadModal(); toggleFilesMenu();"
+                                            style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
+                                            onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='none'">
+                                        <span>📤</span><span>ファイルをアップロード</span>
+                                    </button>
                                     <div style="height: 1px; background: #e9ecef; margin: 4px 0;"></div>
                                     <button onclick="clearAllBookmarks(); toggleFilesMenu();"
                                             style="width: 100%; text-align: left; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9em; color: #212529; transition: background 0.2s; display: flex; align-items: center; gap: 8px;"
@@ -9422,6 +9427,221 @@
                 alert(`エラーが発生しました: ${err.message}`);
             }
         }
+
+        // ==========================================
+        // ファイルアップロード機能
+        // ==========================================
+
+        function showUploadModal() {
+            const modal = document.getElementById('uploadModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                // フォルダ選択肢をロード
+                loadFolderOptionsForUpload();
+            }
+        }
+
+        function hideUploadModal() {
+            const modal = document.getElementById('uploadModal');
+            if (modal) {
+                modal.style.display = 'none';
+                // フォームをリセット
+                document.getElementById('uploadForm').reset();
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('uploadResult').innerHTML = '';
+            }
+        }
+
+        async function loadFolderOptionsForUpload() {
+            try {
+                const response = await fetch('/api/folders');
+                const data = await response.json();
+
+                const select = document.getElementById('uploadFolderId');
+                select.innerHTML = '<option value="">フォルダを選択（任意）</option>';
+
+                if (data.folders && data.folders.length > 0) {
+                    data.folders.forEach(folder => {
+                        const option = document.createElement('option');
+                        option.value = folder.id;
+                        option.textContent = `${folder.icon || '📁'} ${folder.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load folders:', error);
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('uploadFileInput');
+            const title = document.getElementById('uploadTitle').value.trim();
+            const station = document.getElementById('uploadStation').value.trim();
+            const broadcastDate = document.getElementById('uploadBroadcastDate').value;
+            const folderId = document.getElementById('uploadFolderId').value;
+
+            // バリデーション
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('ファイルを選択してください');
+                return;
+            }
+
+            if (!title) {
+                alert('タイトルを入力してください');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const maxSize = 500 * 1024 * 1024; // 500MB
+
+            if (file.size > maxSize) {
+                alert(`ファイルサイズが大きすぎます (最大500MB)\n選択: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+                return;
+            }
+
+            // アップロード開始
+            const progressDiv = document.getElementById('uploadProgress');
+            const resultDiv = document.getElementById('uploadResult');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            progressDiv.style.display = 'block';
+            resultDiv.innerHTML = '';
+            uploadBtn.disabled = true;
+
+            try {
+                // FormData作成
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('title', title);
+                if (station) formData.append('station', station);
+                if (broadcastDate) formData.append('broadcast_date', broadcastDate);
+                if (folderId) formData.append('folder_id', folderId);
+
+                // アップロード実行
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML = `
+                        <div style="padding: 12px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; color: #155724; margin-top: 12px;">
+                            <strong>✅ アップロード完了</strong><br>
+                            ファイル: ${data.file.name}<br>
+                            サイズ: ${(data.file.size / 1024 / 1024).toFixed(2)}MB
+                        </div>
+                    `;
+
+                    // ファイル一覧を更新
+                    setTimeout(() => {
+                        loadRecordedFiles();
+                        hideUploadModal();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'アップロードに失敗しました');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                resultDiv.innerHTML = `
+                    <div style="padding: 12px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; color: #721c24; margin-top: 12px;">
+                        <strong>❌ エラー</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            } finally {
+                progressDiv.style.display = 'none';
+                uploadBtn.disabled = false;
+            }
+        }
     </script>
+
+    <!-- アップロードモーダル -->
+    <div id="uploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h3 style="margin: 0 0 20px 0; font-size: 1.3em; color: #212529;">📤 ファイルをアップロード</h3>
+
+            <form id="uploadForm" onsubmit="event.preventDefault(); uploadFile();">
+                <!-- ファイル選択 -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #495057; font-size: 0.9em;">
+                        ファイル <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="file" id="uploadFileInput" accept="audio/mpeg,audio/mp3,audio/m4a,audio/aac,audio/wav,.mp3,.m4a,.aac,.wav"
+                           style="width: 100%; padding: 8px; border: 1.5px solid #ced4da; border-radius: 6px; font-size: 0.9em;"
+                           required>
+                    <div style="margin-top: 4px; font-size: 0.8em; color: #6c757d;">
+                        対応形式: MP3, M4A, AAC, WAV（最大500MB）
+                    </div>
+                </div>
+
+                <!-- タイトル -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #495057; font-size: 0.9em;">
+                        タイトル <span style="color: #dc3545;">*</span>
+                    </label>
+                    <input type="text" id="uploadTitle" placeholder="例: ラジオ深夜便"
+                           style="width: 100%; padding: 8px 12px; border: 1.5px solid #ced4da; border-radius: 6px; font-size: 0.9em;"
+                           required>
+                </div>
+
+                <!-- 放送局 -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #495057; font-size: 0.9em;">
+                        放送局（任意）
+                    </label>
+                    <input type="text" id="uploadStation" placeholder="例: TBS, QRR"
+                           style="width: 100%; padding: 8px 12px; border: 1.5px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
+                    <div style="margin-top: 4px; font-size: 0.8em; color: #6c757d;">
+                        未入力の場合は「MANUAL」フォルダに保存されます
+                    </div>
+                </div>
+
+                <!-- 放送日 -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #495057; font-size: 0.9em;">
+                        放送日（任意）
+                    </label>
+                    <input type="date" id="uploadBroadcastDate"
+                           style="width: 100%; padding: 8px 12px; border: 1.5px solid #ced4da; border-radius: 6px; font-size: 0.9em;">
+                </div>
+
+                <!-- フォルダ -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 6px; font-weight: 600; color: #495057; font-size: 0.9em;">
+                        保存先フォルダ（任意）
+                    </label>
+                    <select id="uploadFolderId"
+                            style="width: 100%; padding: 8px 12px; border: 1.5px solid #ced4da; border-radius: 6px; font-size: 0.9em; background: white;">
+                        <option value="">フォルダを選択（任意）</option>
+                    </select>
+                </div>
+
+                <!-- プログレス -->
+                <div id="uploadProgress" style="display: none; margin-bottom: 16px;">
+                    <div style="padding: 12px; background: #e7f3ff; border: 1px solid #b8daff; border-radius: 6px; color: #004085;">
+                        ⏳ アップロード中...
+                    </div>
+                </div>
+
+                <!-- 結果表示 -->
+                <div id="uploadResult"></div>
+
+                <!-- ボタン -->
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" id="uploadBtn"
+                            style="flex: 1; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95em;">
+                        アップロード
+                    </button>
+                    <button type="button" onclick="hideUploadModal()"
+                            style="flex: 1; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.95em;">
+                        キャンセル
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
