@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Optional
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +15,56 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.environ.get('BASE_DIR', '/app')
 DB_PATH = os.path.join(BASE_DIR, 'data', 'programs.db')
 
+# DB接続設定
+DB_TIMEOUT = 30.0  # 30秒タイムアウト（デフォルト5秒から延長）
+MAX_RETRIES = 3    # 最大リトライ回数
+
+
+def get_db_connection():
+    """
+    SQLite接続を取得（同時アクセス対応設定付き）
+
+    - WALモード: 読み書き同時実行可能
+    - 長いタイムアウト: ロック待ち30秒
+    - isolation_level=None: autocommitモード（デッドロック回避）
+    """
+    conn = sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT, isolation_level=None)
+    # WALモードを有効化（読み書き同時実行可能）
+    conn.execute('PRAGMA journal_mode=WAL')
+    # BUSY時のタイムアウトを設定
+    conn.execute(f'PRAGMA busy_timeout={int(DB_TIMEOUT * 1000)}')
+    return conn
+
+
+def execute_with_retry(func, *args, **kwargs):
+    """
+    DB操作をリトライ付きで実行
+
+    OperationalError (database is locked) が発生した場合、
+    指数バックオフでリトライする
+    """
+    for attempt in range(MAX_RETRIES):
+        try:
+            return func(*args, **kwargs)
+        except sqlite3.OperationalError as e:
+            if 'locked' in str(e).lower() and attempt < MAX_RETRIES - 1:
+                wait_time = 0.1 * (2 ** attempt)  # 0.1s, 0.2s, 0.4s
+                logger.warning(f'⚠️ DB locked, retrying in {wait_time}s... (attempt {attempt + 1}/{MAX_RETRIES})')
+                time.sleep(wait_time)
+            else:
+                raise
+    raise sqlite3.OperationalError(f'Failed after {MAX_RETRIES} retries')
+
 def init_database():
     """データベースを初期化"""
     try:
         # データディレクトリを作成
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cursor = conn.cursor()
+
+        logger.info('🔧 Initializing database with WAL mode for concurrent access...')
 
         # programsテーブル：番組データ本体（重複なし）
         cursor.execute('''
@@ -191,10 +234,9 @@ def init_database():
             ON recorded_files(station_id)
         ''')
 
-        conn.commit()
         conn.close()
 
-        logger.info(f'✅ Database initialized: {DB_PATH}')
+        logger.info(f'✅ Database initialized: {DB_PATH} (WAL mode enabled)')
 
         # デフォルトアートワークを登録
         init_default_artwork()
@@ -870,8 +912,8 @@ def register_recorded_file(file_path: str, file_name: str, program_id: int = Non
                           file_size: int = None, duration: float = None, file_modified: str = None,
                           virtual_folder_id: int = None):
     """録音ファイルをDBに登録（既存の場合は更新）"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
+    def _register():
+        conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -899,14 +941,18 @@ def register_recorded_file(file_path: str, file_name: str, program_id: int = Non
               virtual_folder_id))
 
         file_id = cursor.lastrowid
-        conn.commit()
         conn.close()
+        return file_id
 
+    try:
+        file_id = execute_with_retry(_register)
         logger.info(f'✅ Recorded file registered: {file_path} (virtual_folder_id={virtual_folder_id})')
         return file_id
 
     except Exception as e:
         logger.error(f'❌ Register recorded file error: {str(e)}')
+        import traceback
+        logger.error(f'❌ Traceback: {traceback.format_exc()}')
         return None
 
 

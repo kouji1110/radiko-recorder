@@ -221,6 +221,8 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                         embed_metadata_after_recording(file_path, title, station)
                 except Exception as e:
                     logger.error(f'❌ Failed to register file in DB: {str(e)}')
+                    import traceback
+                    logger.error(f'❌ Traceback: {traceback.format_exc()}')
         else:
             logger.error(f'❌ Recording failed with return code: {result.returncode}')
             if result.stderr:
