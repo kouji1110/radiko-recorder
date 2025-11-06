@@ -4893,7 +4893,31 @@
 
         // 録音済みファイル一覧を読み込む
         let allRecordedFiles = [];
-        let currentSort = { column: 'modified', direction: 'desc' };
+
+        // ソート条件をlocalStorageから復元（保存されていなければデフォルト値）
+        function loadSortSettings() {
+            const saved = localStorage.getItem('filesSortSettings');
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error('Failed to parse sort settings:', e);
+                }
+            }
+            return { column: 'modified', direction: 'desc' };
+        }
+
+        // ソート条件をlocalStorageに保存
+        function saveSortSettings(sortSettings) {
+            try {
+                localStorage.setItem('filesSortSettings', JSON.stringify(sortSettings));
+                console.log('💾 Sort settings saved:', sortSettings);
+            } catch (e) {
+                console.error('Failed to save sort settings:', e);
+            }
+        }
+
+        let currentSort = loadSortSettings();
         let currentPage = 1;
         const itemsPerPage = 50;
         let filterText = '';
@@ -5481,6 +5505,10 @@
                 currentSort.column = column;
                 currentSort.direction = column === 'name' ? 'asc' : 'desc';
             }
+
+            // ソート条件を保存
+            saveSortSettings(currentSort);
+
             renderFilesList();
         }
 
