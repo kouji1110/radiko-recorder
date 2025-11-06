@@ -4595,8 +4595,21 @@
                     valA = a.size;
                     valB = b.size;
                 } else if (currentSort.column === 'modified') {
-                    valA = a.modified;
-                    valB = b.modified;
+                    // 放送開始日時でソート（start_timeがあればそれを使用、なければmodifiedをフォールバック）
+                    if (a.start_time && b.start_time) {
+                        valA = new Date(a.start_time).getTime();
+                        valB = new Date(b.start_time).getTime();
+                    } else if (a.start_time) {
+                        valA = new Date(a.start_time).getTime();
+                        valB = b.modified || 0;
+                    } else if (b.start_time) {
+                        valA = a.modified || 0;
+                        valB = new Date(b.start_time).getTime();
+                    } else {
+                        // 両方ともstart_timeがない場合はmodifiedで比較
+                        valA = a.modified || 0;
+                        valB = b.modified || 0;
+                    }
                 } else if (currentSort.column === 'broadcast') {
                     // 放送日でソート
                     const dateA = extractBroadcastDate(a.name);
