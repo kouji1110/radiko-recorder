@@ -8930,6 +8930,75 @@
             document.getElementById('uploadFolderId').value = '';
             document.getElementById('uploadProgress').style.display = 'none';
             document.getElementById('uploadResult').style.display = 'none';
+
+            // ファイル選択時のイベントリスナーを設定
+            const fileInput = document.getElementById('uploadFileInput');
+            if (fileInput && !fileInput.hasAttribute('data-listener-added')) {
+                fileInput.addEventListener('change', parseFilenameAndPopulateFields);
+                fileInput.setAttribute('data-listener-added', 'true');
+            }
+        }
+
+        /**
+         * ファイル名を解析してフォームフィールドに自動入力
+         * 形式: タイトル(yyyy.mm.dd).mp3
+         */
+        function parseFilenameAndPopulateFields(event) {
+            const fileInput = event.target;
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const filename = file.name;
+
+            console.log('📄 Parsing filename:', filename);
+
+            // 拡張子を除去
+            const nameWithoutExt = filename.replace(/\.(mp3|m4a|aac|wav)$/i, '');
+
+            // パターン1: タイトル(yyyy.mm.dd) 形式
+            const pattern1 = /^(.+?)\((\d{4})\.(\d{2})\.(\d{2})\)$/;
+            const match1 = nameWithoutExt.match(pattern1);
+
+            if (match1) {
+                const title = match1[1].trim();
+                const year = match1[2];
+                const month = match1[3];
+                const day = match1[4];
+                const broadcastDate = `${year}-${month}-${day}`;
+
+                console.log('✅ Parsed:', { title, broadcastDate });
+
+                // フォームに自動入力
+                document.getElementById('uploadTitle').value = title;
+                document.getElementById('uploadBroadcastDate').value = broadcastDate;
+                return;
+            }
+
+            // パターン2: タイトル(yyyymmdd) 形式
+            const pattern2 = /^(.+?)\((\d{8})\)$/;
+            const match2 = nameWithoutExt.match(pattern2);
+
+            if (match2) {
+                const title = match2[1].trim();
+                const dateStr = match2[2];
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                const broadcastDate = `${year}-${month}-${day}`;
+
+                console.log('✅ Parsed:', { title, broadcastDate });
+
+                // フォームに自動入力
+                document.getElementById('uploadTitle').value = title;
+                document.getElementById('uploadBroadcastDate').value = broadcastDate;
+                return;
+            }
+
+            // パターンに一致しない場合は、ファイル名全体をタイトルとして使用
+            console.log('ℹ️ No date pattern found, using full filename as title');
+            document.getElementById('uploadTitle').value = nameWithoutExt;
         }
 
         /**
