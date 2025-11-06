@@ -165,14 +165,44 @@ def execute_recording(command: str, job_id=None, job_type='cron', metadata=None)
                     title = metadata.get('title', '')
                     rss = metadata.get('rss', '')
                     start_time = metadata.get('start_time', '')
+                    end_time = metadata.get('end_time', '')
                     station = metadata.get('station', '')
 
-                    # start_timeが4桁（HHMM）の場合、今日の日付を前置
+                    # start_timeが4桁（HHMM）の場合、番組開始日時を計算
                     if len(start_time) == 4:
-                        from datetime import datetime
-                        today_date = datetime.now().strftime('%Y%m%d')
-                        start_time = today_date + start_time
-                        logger.info(f'📅 Expanded start_time from HHMM to YYYYMMDDHHMM: {start_time}')
+                        from datetime import datetime, timedelta
+
+                        # 現在時刻を取得
+                        now = datetime.now()
+
+                        # start_timeとend_timeを時刻として解釈
+                        start_hour = int(start_time[:2])
+                        start_minute = int(start_time[2:4])
+                        end_hour = int(end_time[:2]) if end_time and len(end_time) >= 4 else start_hour + 1
+                        end_minute = int(end_time[2:4]) if end_time and len(end_time) >= 4 else 0
+
+                        # 深夜番組の判定:
+                        # 1. 終了時刻が開始時刻より小さい（例: 23:00→01:00）
+                        # 2. 開始時刻が18時以降で終了時刻が6時より前
+                        # 3. 開始時刻が0時～6時（深夜帯開始番組）
+                        crosses_midnight = (
+                            (end_hour < start_hour) or
+                            (end_hour < 6 and start_hour >= 18) or
+                            (start_hour < 6)
+                        )
+
+                        # 番組開始日を計算
+                        # 深夜番組の場合、実行時刻（翌日未明）から1日戻す
+                        if crosses_midnight and now.hour < 12:
+                            # 深夜0時～正午の間に実行 → 前日が放送日
+                            program_date = (now - timedelta(days=1)).strftime('%Y%m%d')
+                            logger.info(f'📅 Detected overnight program: using previous day as broadcast date')
+                        else:
+                            # 通常の番組 → 今日が放送日
+                            program_date = now.strftime('%Y%m%d')
+
+                        start_time = program_date + start_time
+                        logger.info(f'📅 Expanded start_time from HHMM to YYYYMMDDHHMM: {start_time} (crosses_midnight={crosses_midnight})')
 
                     # ファイル名を生成
                     filename = f'{title}({start_time[:4]}.{start_time[4:6]}.{start_time[6:8]}).mp3'
