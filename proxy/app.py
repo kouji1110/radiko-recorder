@@ -1022,18 +1022,18 @@ def rename_file():
         # 相対パスを返す
         relative_path = os.path.relpath(new_path, base_dir)
 
-        # DBを更新
+        # DBを更新（file_pathとfile_nameの両方を更新）
         try:
             conn = db.get_db_connection()
             cursor = conn.cursor()
             cursor.execute('''
                 UPDATE recorded_files
-                SET file_path = ?
+                SET file_path = ?, file_name = ?
                 WHERE file_path = ?
-            ''', (relative_path, file_path))
+            ''', (relative_path, new_name, file_path))
             conn.commit()
             conn.close()
-            logger.info(f'✅ DB updated: {file_path} -> {relative_path}')
+            logger.info(f'✅ DB updated: {file_path} -> {relative_path} (name: {new_name})')
         except Exception as db_error:
             logger.error(f'❌ DB update failed: {str(db_error)}')
             # DBの更新に失敗してもファイルリネームは成功しているので、エラーは返さない
